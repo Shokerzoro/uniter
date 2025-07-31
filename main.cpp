@@ -12,8 +12,8 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     embed_meta();
 
-    MainWindow mainwin;
-    mainwin.show();
+    MainWindow MainWin;
+    MainWin.show();
 
     //Создание потока для проверки обновления
     //Этот поток будет отвечать за все взаимодействие
@@ -26,6 +26,8 @@ int main(int argc, char *argv[])
     QObject::connect(NetThread, &QThread::finished, NetThread, &QThread::deleteLater);
 
     //Тут подключение основного серверного воркера к сетевому потоку
+    //Как-то нужно работать с сохранением данных
+    //Запоминать логин пароль грубо говоря
 
     //Запускаем поток
     NetThread->start();

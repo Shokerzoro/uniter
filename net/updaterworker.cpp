@@ -1,7 +1,9 @@
 #include "UpdaterWorker.h"
 #include "netfunc.h"
+#include "../exeptions/unacceptable.h"
 
 #include <QApplication>
+#include <QProcess>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QTcpSocket>
@@ -40,7 +42,15 @@ UpdaterWorker::UpdaterWorker(QObject *parent) : QObject{parent}
     version = QCoreApplication::applicationVersion();
     temp_dir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
     config_file = basePath.filePath("config/config.ini");
+
     updater_exe = basePath.filePath("bin/updater.exe");
+    if (!QFile::exists(updater_exe))
+    {
+        qDebug() << "UpdaterWorker: не обнаружен updater.exe!";
+        //qDebug() << "UpdaterWorker: завершение работы!";
+        //disconnect();
+        //this->deleteLater();
+    }
 
     qDebug() << "UpdaterWorker создан!";
 }
@@ -144,7 +154,7 @@ void UpdaterWorker::OnConnected(void)
 
     //!!Отправка заголовка "UNET-MES"
     try {
-        header = QString(TagStrings::PROTOCOL) + ":" + QSsring(TagStrings::UNETMES);
+        header = QString(TagStrings::PROTOCOL) + ":" + QString(TagStrings::UNETMES);
         send_header(header, buffer, socket);
     }
     catch (std::runtime_error & ex)
@@ -160,10 +170,9 @@ void UpdaterWorker::OnConnected(void)
 void UpdaterWorker::OnNetError(void)
 {
     qDebug() << "UpdaterWorker: ошибка TCP соединения!";
-    qDebug() << "Socket error code:" << socketError;
     qDebug() << "Error string:" << socket->errorString();
 
-    if(socket->ConnectedState)
+    if(socket->state() == QAbstractSocket::ConnectedState)
         socket->abort();
     NetState = net_state::OFFLINE;
     ProtocolState = protocol_state::UNKNOWN;
@@ -220,22 +229,22 @@ void UpdaterWorker::GotSockData(void)
             case protocol_state::SOMEUPDATE:
                 if(tag == TagStrings::NEWDIR)
                 {
-
+                    this->HandleNewDir(value);
                     break;
                 }
                 if(tag == TagStrings::NEWFILE)
                 {
-
+                    this->HandleNewFile(value);
                     break;
                 }
                 if(tag == TagStrings::DELFILE)
                 {
-
+                    this->HandleDelFile(value);
                     break;
                 }
                 if(tag == TagStrings::DELDIR)
                 {
-
+                    this->HandleDelDir(value);
                     break;
                 }
                 if(tag == TagStrings::PROTOCOL && value == TagStrings::COMPLETE)
@@ -253,9 +262,18 @@ void UpdaterWorker::GotSockData(void)
         } //Switch
 
     } //Try
+    catch (Unacceptable & un)
+    {
+        qDebug() << "UpdaterWorker: недопустимое исключние!";
+        qDebug() << un.what();
+        //Остановка воркера
+        emit Offline();
+        disconnect();
+        this->deleteLater();
+    }
     catch (std::runtime_error & ex)
     {
-        qDebug() << "UpdaterWorker: ошибка сетевого взаимодействия!";
+        qDebug() << "UpdaterWorker: ошибка времени выполненя!";
         qDebug() << ex.what();
         emit signalNetError();
         return;
@@ -320,8 +338,16 @@ void UpdaterWorker::HandleVersion(const QString & value)
     qDebug() << "UpdaterWorker: получаю новую версию обновлений: " << value;
     NewVersion = value;
     ProtocolState = protocol_state::SOMEUPDATE;
+
     //Создаем папку в tempdir c названием версии
+    QDir versionDir(QDir(temp_dir).filePath(value));
+    if (!versionDir.exists() && !QDir().mkpath(versionDir.path())) {
+        qDebug() << "UpdaterWorker: ошибка при создании папки для новой версии:" << versionDir.path();
+        throw Unacceptable("UpdaterWorker: не удалось создать директорию обновления");
+    }
     //Устанавливаем ее как tempdir
+    temp_dir = versionDir.path(); // Устанавливаем новую temp_dir
+    qDebug() << "UpdaterWorker: директория обновлений установлена:" << temp_dir;
 }
 
 //Создаем во временной папке новый каталог
@@ -359,8 +385,8 @@ void UpdaterWorker::HandleNewFile(const QString & value)
     header = QString(TagStrings::NEWFILE) + ":" + QString(TagStrings::AGREE);
     send_header(header, buffer, socket);
 
-    // Здесь нужно вызвать метод, который получит содержимое файла по протоколу
-    // download_file(filePath, socket);
+    //Скармливаем 4 байта размера и body функции загрузки
+    download_file(filePath, socket);
 }
 
 void UpdaterWorker::HandleDelFile(const QString & value)
@@ -419,8 +445,21 @@ void UpdaterWorker::Refuse(void)
 void UpdaterWorker::MakeUpdates(void)
 {
     qDebug() << "UpdaterWorker: выполняем замену новых файлов!";
+    qDebug() << "UpdaterWorker: запускаем процесс Updater!";
+
     //который запустит бинарник замены файлов
-    //завершит процесс
+    //Сначала определяем PID и запускаем бинарник с этой переменной окружения
+    //Также передаем версию для внесения в реестр
+    QProcess *child = new QProcess(this);
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("PARENT_PID", QString::number(QCoreApplication::applicationPid()));
+    env.insert("VERSION", version);
+    child->setProcessEnvironment(env);
+    child->start(updater_exe.toUtf8().constData());
+
+    //Далее завершаем процесс!!!!
+    QCoreApplication::exit(0);
+    //Предусмотреть получение UI сигнала о завершении
 }
 
 

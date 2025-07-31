@@ -66,6 +66,7 @@ signals:
     void Online(void);
     void Offline(void);
     void SomeUpdate(void); //Запрос на обновление пользователя
+
 public slots:
     //Слоты для взаимодействия с сокетом
     void OnConnected(void); //Переключает в онлайн

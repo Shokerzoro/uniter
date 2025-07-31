@@ -1,10 +1,14 @@
+#include "../exeptions/unacceptable.h"
+
 #include <QTcpSocket>
 #include <QString>
 #include <QByteArray>
+#include <QFile>
+#include <QtEndian>
+#include <QDebug>
 #include <vector>
 #include <stdexcept>
 #include <string>
-#include <QDebug>
 
 #define MAX_HEADER_SIZE 255
 
@@ -101,7 +105,32 @@ void parse_header(const QString & header, QString & tag, QString & value)
 }
 
 // Заглушка: Скачивание и сохранение файла
-void download_file(QString FilePath, QTcpSocket* socket)
+void download_file(const QString & filepath, QTcpSocket *socket)
 {
-    // Реализация по вашему сценарию
+    qDebug() << "Начинаем загрузку файла: " << filepath;
+    //Читаем 4 байта и переворачиваем их
+    QByteArray sizeBytes = socket->read(4);
+    if (sizeBytes.size() < 4)
+        throw std::runtime_error("NetFunc download_file: недостаточно данных для размера файла");
+    quint32 fileSize = qFromBigEndian<quint32>(reinterpret_cast<const uchar*>(sizeBytes.constData()));
+
+    QFile file(filepath);
+    if (!file.open(QIODevice::WriteOnly))
+        throw std::runtime_error("NetFunc download_file: не удалось открыть файл для записи");
+
+    quint32 bytesReceived = 0;
+    while (bytesReceived < fileSize) {
+        if (!socket->waitForReadyRead(5000))
+            throw std::runtime_error("NetFunc download_file: таймаут ожидания данных файла");
+
+        QByteArray chunk = socket->read(fileSize - bytesReceived);
+        if (chunk.isEmpty())
+            throw std::runtime_error("NetFunc download_file: ошибка чтения из сокета");
+
+        file.write(chunk);
+        bytesReceived += chunk.size();
+    }
+
+    file.close();
+    qDebug() << "Файл загружен: " << filepath;
 }
