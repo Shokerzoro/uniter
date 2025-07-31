@@ -3,6 +3,6 @@
 
 #include <QApplication>
 
-extern void embed_meta(QApplication & app);
+extern void embed_meta(void);
 
 #endif // VERSION_H

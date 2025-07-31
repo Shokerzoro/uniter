@@ -1,10 +1,10 @@
 
 #include <QApplication>
 
-void embed_meta(QApplication & app)
+void embed_meta(void)
 {
-    app.setApplicationName(PROJECT_NAME);
-    app.setApplicationVersion(PROJECT_VERSION);
-    app.setOrganizationName(AUTHOR);
+    QCoreApplication::setApplicationName(PROJECT_NAME);
+    QCoreApplication::setApplicationVersion(PROJECT_VERSION);
+    QCoreApplication::setOrganizationName(AUTHOR);
 }
 
