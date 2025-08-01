@@ -13,9 +13,9 @@ class UpdaterWorker : public QObject
 public:
     //Вызывает конструкторы сокета и устанавливает состояния
     explicit UpdaterWorker(QObject *parent = nullptr);
+    ~UpdaterWorker(void);
     //Загрузка данных из конфига и первая попытка подключения
     void StartRun(void);
-    //Тут нужно написать деструктор
 private:
     //Приватные классы состояний
     enum class server_data { NONE, FILEEXISTS, FOUND };
@@ -39,7 +39,7 @@ private:
     //Сетевые переменные
     QString header, tag, value;
     std::vector<char> buffer;
-    QTcpSocket *socket;
+    QTcpSocket* socket;
 
     //Приватные методы отработки протокола
     void HandleUnknown(void);

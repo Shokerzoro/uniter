@@ -40,7 +40,9 @@ UpdaterWorker::UpdaterWorker(QObject *parent) : QObject{parent}
 
     basePath = QCoreApplication::applicationDirPath();
     version = QCoreApplication::applicationVersion();
+    qDebug() << "UpdaterWorker: обнаружена версия:" << version;
     temp_dir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    qDebug() << "UpdaterWorker: временная директория установлена:" << temp_dir.path();
     config_file = basePath.filePath("config/config.ini");
 
     updater_exe = basePath.filePath("bin/updater.exe");
@@ -52,7 +54,16 @@ UpdaterWorker::UpdaterWorker(QObject *parent) : QObject{parent}
         //this->deleteLater();
     }
 
-    qDebug() << "UpdaterWorker создан!";
+    qDebug() << "UpdaterWorker: создан!";
+}
+
+//Деструктор
+UpdaterWorker::~UpdaterWorker(void)
+{
+    qDebug() << "UpdaterWorker: вызов деструктора!";
+
+    if(socket->state() == QAbstractSocket::ConnectedState)
+        socket->abort();
 }
 
 //Основная функция, заканчивающаяся в случае успеха подключением

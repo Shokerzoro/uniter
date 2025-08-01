@@ -1,11 +1,17 @@
+#include <QCoreApplication>
+#include <QSettings>
+#include <QString>
 
-#include <QApplication>
-
-//!!!Не работает, нужно брать из реестра версию, и менять ее при запуске
-void embed_meta(void)
+void embed_meta()
 {
     QCoreApplication::setApplicationName(PROJECT_NAME);
-    QCoreApplication::setApplicationVersion(PROJECT_VERSION);
     QCoreApplication::setOrganizationName(AUTHOR);
-}
 
+#ifdef NORELEASE
+    QCoreApplication::setApplicationVersion(PROJECT_VERSION);
+#else
+    QSettings settings("HKEY_CURRENT_USER\\Software\\" + QCoreApplication::applicationName(), QSettings::NativeFormat);
+    QString version = settings.value("Version").toString();
+    QCoreApplication::setApplicationVersion(version);
+#endif
+}
