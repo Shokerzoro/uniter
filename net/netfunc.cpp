@@ -134,3 +134,14 @@ void download_file(const QString & filepath, QTcpSocket *socket)
     file.close();
     qDebug() << "Файл загружен: " << filepath;
 }
+
+QString build_header(const char* tag, const char* value)
+{
+    return QString(tag) + ":" + QString(value);
+}
+
+QString build_header(const char* tag, const QString & value)
+{
+    return QString(tag) + ":" + value;
+}
+

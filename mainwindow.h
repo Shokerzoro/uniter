@@ -9,6 +9,19 @@ class MainWindow : public QMainWindow
 
 public:
     MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
+signals:
+    //Для UpdateWorker
+    void signalMakeUpdates();
+    void signalRefuseUpdates();
+
+public slots:
+    //От UpdateWorker
+    void UpWorkerNoUpdaterExe(void);
+    void UpWorkerNoRecoverExe(void);
+    void UpWorkerNoServerData(void);
+    void UpWorkerOnline(void);
+    void UpWorkerOffline(void);
+    void UpdateReady(void);
+
 };
 #endif // MAINWINDOW_H

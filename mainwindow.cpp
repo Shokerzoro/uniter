@@ -4,4 +4,34 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {}
 
-MainWindow::~MainWindow() {}
+
+//Слоты для UpdateWorker
+void MainWindow::UpWorkerNoUpdaterExe(void)
+{
+
+}
+
+void MainWindow::UpWorkerNoRecoverExe(void)
+{
+
+}
+
+void MainWindow::UpWorkerNoServerData(void)
+{
+
+}
+
+void MainWindow::UpWorkerOnline(void)
+{
+
+}
+
+void MainWindow::UpWorkerOffline(void)
+{
+
+}
+
+void MainWindow::UpdateReady(void)
+{
+
+}

@@ -14,6 +14,7 @@ struct TagStrings {
     static constexpr const char* SOMEUPDATE = "SOMEUPDATE";
     static constexpr const char* GETUPDATE = "GETUPDATE";
     static constexpr const char* VERSION = "VERSION";
+    static constexpr const char* HASH = "HASH";
 
     static constexpr const char* NEWDIR = "NEWDIR";
     static constexpr const char* NEWFILE = "NEWFILE";
@@ -41,5 +42,7 @@ extern void parse_header(const QString & header, QString & tag, QString & value)
 extern void download_file(const QString & FilePath, QTcpSocket* socket);
 //Поиск тэга TagStrings::DELFILE или TagStrings::DELDIR внутри
 extern void parse_deltag(const QFile * file);
+extern QString build_header(const char* tag, const char* value);
+extern QString build_header(const char* tag, const QString & value);
 
 #endif // NETFUNC_H
