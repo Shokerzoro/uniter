@@ -5,11 +5,15 @@
 #include <stdexcept>
 #include <string>
 
-//Исключение, которое должно приводить к завершению программы / потока, как правиль
-class Unacceptable : public std::runtime_error
-{
-public:
-    Unacceptable(const std::string & msg) : std::runtime_error(msg) {};
-};
+namespace exc {
+
+    //Исключение, которое должно приводить к завершению программы / потока, как правиль
+    class unacceptable : public std::runtime_error
+    {
+    public:
+        unacceptable(const std::string & msg) : std::runtime_error(msg) {};
+    };
+
+}
 
 #endif // UNACCAPTABLE_H

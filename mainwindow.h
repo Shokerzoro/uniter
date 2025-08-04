@@ -9,6 +9,7 @@ class MainWindow : public QMainWindow
 
 public:
     MainWindow(QWidget *parent = nullptr);
+
 signals:
     //Для UpdateWorker
     void signalMakeUpdates();

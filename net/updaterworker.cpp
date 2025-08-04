@@ -294,7 +294,7 @@ void UpdaterWorker::GotSockData(void)
         } //Switch
 
     } //Try
-    catch (Unacceptable & un)
+    catch (exc::unacceptable & un)
     {
         qDebug() << "UpdaterWorker: недопустимое исключние!";
         qDebug() << un.what();
@@ -378,7 +378,7 @@ void UpdaterWorker::HandleVersion(const QString & value)
     QDir versionDir(QDir(temp_dir).filePath(value));
     if (!versionDir.exists() && !QDir().mkpath(versionDir.path())) {
         qDebug() << "UpdaterWorker: ошибка при создании папки для новой версии:" << versionDir.path();
-        throw Unacceptable("UpdaterWorker: не удалось создать директорию обновления");
+        throw exc::unacceptable("UpdaterWorker: не удалось создать директорию обновления");
     }
     //Устанавливаем ее как tempdir
     temp_dir = versionDir.path(); // Устанавливаем новую temp_dir
@@ -524,13 +524,7 @@ void UpdaterWorker::MakeUpdates(void)
 
         //Тут указание временного каталога
         env.insert("TEMP_DIR", temp_dir.absolutePath());
-        //Тут подмена в дебажной сборке на реальную рабочую директорию
-        #ifdef DEBUG_BUILD
-        QString right_working_dir = "C:\\Program Files (x86)\\Uniter";
-        env.insert("WORKING_DIR", right_working_dir);
-        #else
         env.insert("WORKING_DIR", QCoreApplication::applicationDirPath());
-        #endif
         env.insert("APP_NAME", QCoreApplication::applicationName());
         env.insert("MAIN_EXE", QCoreApplication::applicationFilePath());
         env.insert("RECOVER_EXE", recover_exe);
