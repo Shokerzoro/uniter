@@ -1,4 +1,4 @@
-#include "../exeptions/unacceptable.h"
+#include "excepts.h"
 
 #include <QTcpSocket>
 #include <QString>

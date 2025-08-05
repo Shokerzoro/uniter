@@ -1,6 +1,7 @@
 #include "UpdaterWorker.h"
-#include "netfunc.h"
-#include "../exeptions/unacceptable.h"
+#include "../common/netfunc.h"
+#include "../common/excepts.h"
+#include "../common/appfuncs.h"
 
 #include <QApplication>
 #include <QProcess>
@@ -294,7 +295,7 @@ void UpdaterWorker::GotSockData(void)
         } //Switch
 
     } //Try
-    catch (exc::unacceptable & un)
+    catch (excepts::unacceptable & un)
     {
         qDebug() << "UpdaterWorker: недопустимое исключние!";
         qDebug() << un.what();
@@ -378,7 +379,7 @@ void UpdaterWorker::HandleVersion(const QString & value)
     QDir versionDir(QDir(temp_dir).filePath(value));
     if (!versionDir.exists() && !QDir().mkpath(versionDir.path())) {
         qDebug() << "UpdaterWorker: ошибка при создании папки для новой версии:" << versionDir.path();
-        throw exc::unacceptable("UpdaterWorker: не удалось создать директорию обновления");
+        throw excepts::unacceptable("UpdaterWorker: не удалось создать директорию обновления");
     }
     //Устанавливаем ее как tempdir
     temp_dir = versionDir.path(); // Устанавливаем новую temp_dir
@@ -520,16 +521,7 @@ void UpdaterWorker::MakeUpdates(void)
         //Передаем каталог с новой версией
         //Передаем каталог установленной программы
         QProcess *child = new QProcess(this);
-        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-
-        //Тут указание временного каталога
-        env.insert("TEMP_DIR", temp_dir.absolutePath());
-        env.insert("WORKING_DIR", QCoreApplication::applicationDirPath());
-        env.insert("APP_NAME", QCoreApplication::applicationName());
-        env.insert("MAIN_EXE", QCoreApplication::applicationFilePath());
-        env.insert("RECOVER_EXE", recover_exe);
-        env.insert("VERSION", version);
-        env.insert("PARENT_PID", QString::number(QCoreApplication::applicationPid()));
+        QProcessEnvironment env = appfuncs::set_env(version);
 
         child->setProcessEnvironment(env);
         child->start(updater_exe.toUtf8().constData());

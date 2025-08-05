@@ -1,6 +1,6 @@
-#include "mainwindow.h"
-#include "versions/version.h"
-#include "net/updaterworker.h"
+#include "window/mainwindow.h"
+#include "common/appfuncs.h"
+#include "workers/updaterworker.h"
 
 #include <QApplication>
 #include <QLocale>
@@ -10,7 +10,6 @@
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
-    embed_meta();
 
     MainWindow MainWin;
     MainWin.show();

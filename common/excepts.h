@@ -1,11 +1,11 @@
-#ifndef UNACCAPTABLE_H
-#define UNACCAPTABLE_H
+#ifndef EXCEPTS_H
+#define EXCEPTS_H
 
 #include <exception>
 #include <stdexcept>
 #include <string>
 
-namespace exc {
+namespace excepts {
 
     //Исключение, которое должно приводить к завершению программы / потока, как правиль
     class unacceptable : public std::runtime_error
@@ -16,4 +16,4 @@ namespace exc {
 
 }
 
-#endif // UNACCAPTABLE_H
+#endif // EXCEPTS_H

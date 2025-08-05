@@ -15,6 +15,7 @@
 #include <stdexcept>
 #include <fstream>
 #include <windows.h>
+#include "../common/appfuncs.h"
 
 using Path = std::filesystem::path;
 using PathMapper = std::map<std::filesystem::path, std::filesystem::path>;
@@ -22,10 +23,6 @@ using PathVector = std::vector<std::filesystem::path>;
 
 //Найти/определить тэг внутри .txt файла, возрат true - если это notice file
 static bool is_notice(const std::filesystem::path &file, QString & tag, QString & value);
-
-//Получить переменные среды
-static void get_env_var(Path & temp_dir, Path & working_dir, QString & app_name, QString & parent_pid,
-                        QString & main_exe, QString & recover_exe, QString & new_vers) noexcept;
 
 //Ожидание завершения родительского процесса
 static void wait_for_process_exit(QString & parent_pid) noexcept;
@@ -53,7 +50,7 @@ int main(int argc, char **argv)
     //Получаем переменные среды
     Path temp_dir, work_dir;
     QString app_name, parent_pid, main_exe, recover_exe, new_vers;
-    get_env_var(temp_dir, work_dir, app_name, parent_pid, main_exe, recover_exe, new_vers);
+    appfuncs::get_env(temp_dir, work_dir, app_name, parent_pid, main_exe, recover_exe, new_vers);
 
     // Проверка существования путей
     if (!QDir(temp_dir).exists() || !QDir(work_dir).exists())
@@ -341,22 +338,4 @@ static void wait_for_process_exit(QString & parent_pid_str) noexcept
     }
 }
 
-//Получаем переменные среды
-static void get_env_var(Path & temp_dir, Path & working_dir, QString & app_name, QString & parent_pid,
-                        QString & main_exe, QString & recover_exe, QString & new_vers) noexcept
-{
-    //которые отмечают то, какие файлы/каталоги подлежат удалению
-    temp_dir = std::filesystem::path(QString::fromUtf8(qgetenv("TEMP_DIR")).toStdWString());
-    //Каталог, который содержит в корне main.exe и все необходимые ресурсы
-    working_dir = std::filesystem::path(QString::fromUtf8(qgetenv("WORKING_DIR")).toStdWString());
-    //Имя из оригинального exe чтобы не было лишних ошибок
-    app_name = qgetenv("APP_NAME");
-    //Бинарник основного приложения
-    main_exe  = qgetenv("MAIN_EXE");
-    //Бинарник, который выполняет отмену изменений в случае неудачи (какие-то серьезные ошибки)
-    recover_exe  = qgetenv("RECOVER_EXE");
-    //Новая версия, которая должна быть помещена в реестр после завершения обновлений
-    new_vers = qgetenv("VERSION");
-    //PID основного процесса, из которого был запущен текущий
-    parent_pid = qgetenv("PARENT_PID");
-}
+
