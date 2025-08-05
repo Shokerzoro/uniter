@@ -1,4 +1,5 @@
 #include "window/mainwindow.h"
+#include "window/status/updatecontainer.h"
 #include "common/appfuncs.h"
 #include "workers/updaterworker.h"
 
@@ -25,14 +26,14 @@ int main(int argc, char *argv[])
     QObject::connect(NetThread, &QThread::started, UpWorker, &UpdaterWorker::StartRun);
     QObject::connect(NetThread, &QThread::finished, NetThread, &QThread::deleteLater);
     //Подключаем воркер к главному окну
-    QObject::connect(UpWorker, SIGNAL(signalNoUpdaterExe), &MainWin,  SLOT(UpWorkerNoUpdaterExe));
-    QObject::connect(UpWorker, SIGNAL(signalNoRecoverExe), &MainWin,  SLOT(UpWorkerNoRecoverExe));
-    QObject::connect(UpWorker, SIGNAL(signalNoServerData), &MainWin,  SLOT(UpWorkerNoServerData));
-    QObject::connect(UpWorker, SIGNAL(signalOnline), &MainWin,  SLOT(UpWorkerOnline));
-    QObject::connect(UpWorker, SIGNAL(signalOffline), &MainWin,  SLOT(UpWorkerOffline));
-    QObject::connect(UpWorker, SIGNAL(signalUpdateReady), &MainWin,  SLOT(UpdateReady));
-    QObject::connect(&MainWin, SIGNAL(signalMakeUpdates), UpWorker,  SLOT(MakeUpdates));
-    QObject::connect(&MainWin, SIGNAL(signalRefuseUpdates), UpWorker,  SLOT(RefuseUpdates));
+    QObject::connect(UpWorker, &UpdaterWorker::signalNoUpdaterExe, MainWin.update_container, &UpdateContainer::UpWorkerNoUpdaterExe);
+    QObject::connect(UpWorker, &UpdaterWorker::signalNoRecoverExe, MainWin.update_container,  &UpdateContainer::UpWorkerNoRecoverExe);
+    QObject::connect(UpWorker, &UpdaterWorker::signalNoServerData, MainWin.update_container,  &UpdateContainer::UpWorkerNoServerData);
+    QObject::connect(UpWorker, &UpdaterWorker::signalOnline, MainWin.update_container,  &UpdateContainer::UpWorkerOnline);
+    QObject::connect(UpWorker, &UpdaterWorker::signalOffline, MainWin.update_container,  &UpdateContainer::UpWorkerOffline);
+    QObject::connect(UpWorker, &UpdaterWorker::signalUpdateReady, MainWin.update_container,  &UpdateContainer::UpdateReady);
+    QObject::connect(MainWin.update_container, &UpdateContainer::signalMakeUpdates, UpWorker,  &UpdaterWorker::MakeUpdates);
+    QObject::connect(MainWin.update_container, &UpdateContainer::signalRefuseUpdates, UpWorker,  &UpdaterWorker::RefuseUpdates);
 
     //Тут подключение основного серверного воркера к сетевому потоку
     //Как-то нужно работать с сохранением данных

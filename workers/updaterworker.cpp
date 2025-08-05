@@ -49,7 +49,6 @@ UpdaterWorker::UpdaterWorker(QObject *parent) : QObject{parent}
     updater_exe = basePath.filePath("bin/updater.exe");
     recover_exe = basePath.filePath("bin/recover.exe");
 
-    qDebug() << "UpdaterWorker: создан!";
 }
 
 //Деструктор

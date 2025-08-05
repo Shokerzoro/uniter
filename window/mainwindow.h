@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include "status/updatecontainer.h"
 
 class MainWindow : public QMainWindow
 {
@@ -9,6 +10,9 @@ class MainWindow : public QMainWindow
 
 public:
     MainWindow(QWidget *parent = nullptr);
+
+    //Основные виджеты (которые получают сигналы от воркеров)
+    UpdateContainer* update_container;
 
 signals:
     //Для UpdateWorker
