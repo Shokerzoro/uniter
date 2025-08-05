@@ -4,11 +4,25 @@
 #include <QSettings>
 #include <QString>
 #include <QDir>
-#include <filesystem>
 
 namespace appfuncs {
 
 using Path = std::filesystem::path;
+
+//Зашиваем в первую очередь текущую версию
+void embed_meta()
+{
+    QCoreApplication::setApplicationName(PROJECT_NAME);
+    QCoreApplication::setOrganizationName(AUTHOR);
+
+#ifndef RELEASE
+    QCoreApplication::setApplicationVersion(PROJECT_VERSION);
+#else
+    QSettings settings("HKEY_CURRENT_USER\\Software\\" + QCoreApplication::applicationName(), QSettings::NativeFormat);
+    QString version = settings.value("Version").toString();
+    QCoreApplication::setApplicationVersion(version);
+#endif
+}
 
 //Устанавливаем переменные среды
 QProcessEnvironment set_env(QString & new_version) noexcept
@@ -28,7 +42,7 @@ QProcessEnvironment set_env(QString & new_version) noexcept
 
 //Получаем переменные среды
 void get_env(Path & temp_dir, Path & working_dir, QString & app_name, QString & parent_pid,
-                        QString & main_exe, QString & recover_exe, QString & new_vers) noexcept
+             QString & main_exe, QString & recover_exe, QString & new_vers) noexcept
 {
     //которые отмечают то, какие файлы/каталоги подлежат удалению
     temp_dir = std::filesystem::path(QString::fromUtf8(qgetenv("TEMP_DIR")).toStdWString());

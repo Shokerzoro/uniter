@@ -10,6 +10,7 @@
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
+    appfuncs::embed_meta();
 
     MainWindow MainWin;
     MainWin.show();

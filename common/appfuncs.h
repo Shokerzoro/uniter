@@ -18,4 +18,4 @@ extern void get_env(Path & temp_dir, Path & working_dir, QString & app_name, QSt
 
 
 
-#endif // APPFUNCS_H
+#endif // VERSION_H
