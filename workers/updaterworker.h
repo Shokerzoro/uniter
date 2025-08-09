@@ -34,7 +34,7 @@ private:
     QDir basePath;
     QString config_file;
     QString updater_exe, recover_exe;
-    QDir temp_dir;
+    QDir user_temp_dir, temp_dir;
 
     //Сетевые переменные
     QString header, tag, value;
@@ -69,6 +69,7 @@ signals:
     void signalOnline(void);
     void signalOffline(void);
     void signalUpdateReady(void); //Запрос на обновление пользователя
+    void signalSetVersion(const QString & version);
 
 public slots:
     //Слоты для взаимодействия с сокетом

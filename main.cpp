@@ -34,6 +34,8 @@ int main(int argc, char *argv[])
     QObject::connect(UpWorker, &UpdaterWorker::signalUpdateReady, MainWin.update_container,  &UpdateContainer::UpdateReady);
     QObject::connect(MainWin.update_container, &UpdateContainer::signalMakeUpdates, UpWorker,  &UpdaterWorker::MakeUpdates);
     QObject::connect(MainWin.update_container, &UpdateContainer::signalRefuseUpdates, UpWorker,  &UpdaterWorker::RefuseUpdates);
+    QObject::connect(UpWorker, &UpdaterWorker::signalSetVersion, MainWin.central_label, &QLabel::setText);
+
 
     //Тут подключение основного серверного воркера к сетевому потоку
     //Как-то нужно работать с сохранением данных

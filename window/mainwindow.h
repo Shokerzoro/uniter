@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QLabel>
 #include "status/updatecontainer.h"
 
 class MainWindow : public QMainWindow
@@ -13,20 +14,13 @@ public:
 
     //Основные виджеты (которые получают сигналы от воркеров)
     UpdateContainer* update_container;
+    QLabel* central_label;
 
 signals:
-    //Для UpdateWorker
-    void signalMakeUpdates();
-    void signalRefuseUpdates();
+
 
 public slots:
-    //От UpdateWorker
-    void UpWorkerNoUpdaterExe(void);
-    void UpWorkerNoRecoverExe(void);
-    void UpWorkerNoServerData(void);
-    void UpWorkerOnline(void);
-    void UpWorkerOffline(void);
-    void UpdateReady(void);
+
 
 };
 #endif // MAINWINDOW_H

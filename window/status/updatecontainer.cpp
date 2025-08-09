@@ -67,7 +67,7 @@ void UpdateContainer::UpWorkerNoServerData()
 {
     qDebug() << "UpdateContainer: данные от сервера не получены";
     update_indicator->set_state(UpdateIndicator::State::WARNING);
-    update_label->setText("Нет данных обновления с сервера");
+    update_label->setText("Нет данных о сервере");
     agree_button->hide();
     refuse_button->hide();
 }
@@ -85,7 +85,7 @@ void UpdateContainer::UpWorkerOffline()
 {
     qDebug() << "UpdateContainer: сервер недоступен";
     update_indicator->set_state(UpdateIndicator::State::OFFLINE);
-    update_label->setText("Нет соединения с сервером");
+    update_label->setText("Нет соединения");
     agree_button->hide();
     refuse_button->hide();
 }

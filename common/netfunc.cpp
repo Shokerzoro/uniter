@@ -12,6 +12,8 @@
 
 #define MAX_HEADER_SIZE 255
 
+namespace netfuncs {
+
 // Внутренний класс для валидации ASCII-строки
 class ascii_string : public std::string
 {
@@ -77,6 +79,8 @@ void read_header(QString & header, std::vector<char> & buffer, QTcpSocket* socke
     uint16_t len = (static_cast<unsigned char>(buffer[0]) << 8) |
                    static_cast<unsigned char>(buffer[1]);
 
+    qDebug() << "NetFunc read_header: ожидаемый размер строки: " << len << " байт";
+
     if (len == 0)
         throw std::invalid_argument("Empty header");
     if (len > MAX_HEADER_SIZE)
@@ -107,32 +111,74 @@ void parse_header(const QString & header, QString & tag, QString & value)
 // Заглушка: Скачивание и сохранение файла
 void download_file(const QString & filepath, QTcpSocket *socket)
 {
-    qDebug() << "Начинаем загрузку файла: " << filepath;
-    //Читаем 4 байта и переворачиваем их
-    QByteArray sizeBytes = socket->read(4);
-    if (sizeBytes.size() < 4)
-        throw std::runtime_error("NetFunc download_file: недостаточно данных для размера файла");
-    quint32 fileSize = qFromBigEndian<quint32>(reinterpret_cast<const uchar*>(sizeBytes.constData()));
+    qDebug() << "Начинаем загрузку файла:" << filepath;
+
+    // Читаем 4 байта — размер файла
+    QByteArray sizeBytes;
+    while (sizeBytes.size() < 4) {
+        if (!socket->waitForReadyRead(5000))  // ждем до 5 секунд появления данных
+            throw std::runtime_error("NetFunc download_file: таймаут ожидания размера файла");
+
+        QByteArray chunk = socket->read(4 - sizeBytes.size());
+        if (chunk.isEmpty())
+            throw std::runtime_error("NetFunc download_file: ошибка чтения размера файла");
+
+        sizeBytes.append(chunk);
+    }
+
+
+    quint32 fileSize = (static_cast<quint8>(sizeBytes[0]) << 24) |
+                       (static_cast<quint8>(sizeBytes[1]) << 16) |
+                       (static_cast<quint8>(sizeBytes[2]) << 8)  |
+                       static_cast<quint8>(sizeBytes[3]);
+
+    qDebug() << "NetFunc download_file: ожидаемый размер файла: " << fileSize << " байт";
 
     QFile file(filepath);
     if (!file.open(QIODevice::WriteOnly))
         throw std::runtime_error("NetFunc download_file: не удалось открыть файл для записи");
 
     quint32 bytesReceived = 0;
+    quint32 bytesLeft = fileSize;
+
     while (bytesReceived < fileSize) {
-        if (!socket->waitForReadyRead(5000))
+        qDebug() << "NetFunc download_file: bytesReceived = " << bytesReceived;
+        qDebug() << "NetFunc download_file: bytesLeft = " << bytesLeft;
+
+        /*
+        // Ждем данные, блокирующе, таймаут 50 секунд
+        if (!socket->waitForReadyRead(50000)) {
             throw std::runtime_error("NetFunc download_file: таймаут ожидания данных файла");
+        }
+        */
 
-        QByteArray chunk = socket->read(fileSize - bytesReceived);
-        if (chunk.isEmpty())
+        qint64 bytesAvailable = socket->bytesAvailable();
+        qDebug() << "NetFunc bytesAvailable: bytesAvailable = " << bytesReceived;
+        /*
+        if (bytesAvailable <= 0) {
             throw std::runtime_error("NetFunc download_file: ошибка чтения из сокета");
+        }
+        */
+        // Сколько читать за раз — максимум 4096 или оставшееся количество
+        qint64 chunkSize = qMin(bytesAvailable, qint64(bytesLeft));
 
-        file.write(chunk);
+        QByteArray chunk = socket->read(chunkSize);
+        /*
+        if (chunk.isEmpty()) {
+            throw std::runtime_error("NetFunc download_file: ошибка чтения из сокета");
+        }
+        */
+        qint64 written = file.write(chunk);
+        if (written != chunk.size()) {
+            throw std::runtime_error("NetFunc download_file: ошибка записи в файл");
+        }
+
         bytesReceived += chunk.size();
+        bytesLeft -= chunk.size();
     }
 
     file.close();
-    qDebug() << "Файл загружен: " << filepath;
+    qDebug() << "Файл загружен:" << filepath << " (" << bytesReceived << " байт)";
 }
 
 QString build_header(const char* tag, const char* value)
@@ -143,5 +189,7 @@ QString build_header(const char* tag, const char* value)
 QString build_header(const char* tag, const QString & value)
 {
     return QString(tag) + ":" + value;
+}
+
 }
 
