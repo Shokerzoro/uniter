@@ -4,6 +4,7 @@
 #include <QSettings>
 #include <QString>
 #include <QDir>
+#include <QCryptographicHash>
 
 namespace appfuncs {
 
@@ -58,6 +59,19 @@ void get_env(Path & temp_dir, Path & working_dir, QString & app_name, QString & 
     new_vers = qgetenv("NEW_VERSION");
     //PID основного процесса, из которого был запущен текущий
     parent_pid = qgetenv("PARENT_PID");
+}
+
+//Приватные методы вспомогательные для отработки протокола
+QString getFileSHA256(QFile & file)
+{
+    if (!file.open(QIODevice::ReadOnly))
+        throw std::runtime_error("appfuncs: getFileSHA256: не удалось открыть файл для чтения при хэшировании");
+
+    QCryptographicHash hash(QCryptographicHash::Sha256);
+    while (!file.atEnd())
+        hash.addData(file.read(4096));
+
+    return hash.result().toHex();
 }
 
 

@@ -6,6 +6,7 @@
 #include <QString>
 #include <QDir>
 #include <vector>
+#include <fstream>
 
 class UpdaterWorker : public QObject
 {
@@ -16,18 +17,30 @@ public:
     ~UpdaterWorker(void);
     //Загрузка данных из конфига и первая попытка подключения
     void StartRun(void);
+    //Настройки
+    void set_rem_temp_dir_data(bool option);
 private:
+    //Настройки
+    bool rem_temp_dir_data;
+
     //Приватные классы состояний
     enum class server_data { NONE, FILEEXISTS, FOUND };
     enum class net_state { OFFLINE, ONLINE };
-    enum class protocol_state { UNKNOWN, PROPER, NEWVERSION, SOMEUPDATE, COMPLETE };
+    enum class protocol_state { UNKNOWN, PROPER, NEWVERSION, UPDATING, COMPLETE };
+    enum class communication_type { NONE, HEADERS, BINARY };
 
-    //Переменные состояний и сетевые данные
+    //Переменные состояний
     server_data ServerData;
     net_state NetState;
     protocol_state ProtocolState;
+    communication_type ComType;
+    //Сетевые данные
     QString IPv4_address;
     int port;
+    //Для загрузки файлов
+    std::ofstream filestream;
+    quint64 total_read, total_left;
+    QFile new_file;
 
     //Системные переменные
     QString version, NewVersion;
@@ -41,14 +54,21 @@ private:
     std::vector<char> buffer;
     QTcpSocket* socket;
 
-    //Приватные методы отработки протокола
+    //Приватные методы отработки протоколов
     void HandleUnknown(void);
-    void HandleProper(const QString & value);
-    void HandleVersion(const QString & value);
-    void HandleNewDir(const QString & value);
-    void HandleNewFile(const QString & value);
-    void HandleDelFile(const QString & value);
-    void HandleDelDir(const QString & value);
+    void HandleProper(void);
+    void HandleVersion(void);
+    void HandleUpdating(void);
+    //Методы обработки UPDATING STATE
+    void HandleHeadersExchange(void);
+    void HandleDownFile(void);
+    //Методы обработки HEADERS EXCHANGE
+    void HandleNewDir(void);
+    void HandleNewFile(void);
+    void HandleDelFile(void);
+    void HandleDelDir(void);
+    void HandleFileHash(void);
+
 
     //Приватные методы вспомогательные для отработки протокола
     QString getFileSHA256(const QString &filePath);
@@ -69,6 +89,7 @@ signals:
     void signalOnline(void);
     void signalOffline(void);
     void signalUpdateReady(void); //Запрос на обновление пользователя
+    //Сигнал для Labal, потом удалить
     void signalSetVersion(const QString & version);
 
 public slots:
@@ -94,6 +115,7 @@ struct UpdateTimeouts { // 1000 мс = 1 секунда
     static constexpr int findConfigRetryMs = 30 * 1000;
     static constexpr int getServerDataRetryMs = 30 * 1000;
     static constexpr int netReconnectMs = 10 * 1000;
+    static constexpr int fileHeadMS = 10 * 1000;
 };
 
 #endif // UPDATERWORKER_H

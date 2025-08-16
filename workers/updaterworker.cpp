@@ -12,13 +12,14 @@
 #include <QString>
 #include <QDebug>
 #include <QTimer>
-#include <QCryptographicHash>
+
 #include <vector>
 #include <exception>
 
 //Базовая инициализация, выполнение соединений
 UpdaterWorker::UpdaterWorker(QObject *parent) : QObject{parent}
 {
+    rem_temp_dir_data = false;
     ServerData = server_data::NONE;
     NetState = net_state::OFFLINE;
     ProtocolState = protocol_state::UNKNOWN;
@@ -60,6 +61,12 @@ UpdaterWorker::~UpdaterWorker(void)
         socket->abort();
 }
 
+void UpdaterWorker::set_rem_temp_dir_data(bool option)
+{
+    rem_temp_dir_data = option;
+    qDebug() << "UpdaterWorker: rem_temp_dir_data = " << option;
+}
+
 //Основная функция, заканчивающаяся в случае успеха подключением
 void UpdaterWorker::StartRun(void)
 {
@@ -76,35 +83,11 @@ void UpdaterWorker::StartRun(void)
         emit signalNoRecoverExe();
     }
 
-    //Вызыаем сразу слот на попытку подключения
+    //Отправляем сигналы виджетам
     emit signalSetVersion(version);
     emit signalOffline();
-    emit signalMakeConnect();
-}
-
-//Метод установки соединения с сервером
-void UpdaterWorker::MakeConnect()
-{
-    if(ServerData == server_data::NONE)
-    {
-        qDebug() << "UpdaterWorker не владеет доступом к файлу конфигурации!";
-        emit signalFindConfig();
-    }
-    if(ServerData == server_data::FILEEXISTS)
-    {
-        qDebug() << "UpdaterWorker не владеет данными с сервера!";
-        emit signalGetServerData();
-    }
-    if(ServerData == server_data::FOUND)
-    {
-        if (socket->state() == QAbstractSocket::UnconnectedState)
-        {
-            qDebug() << "UpdaterWorker: попытка подключения к серверу...";
-            socket->connectToHost(IPv4_address, port);
-        } else {
-            qDebug() << "Сокет уже подключён или подключается";
-        }
-    }
+    //Запускаем процесс поиска данных
+    emit signalFindConfig();
 }
 
 //Метод для поиска конфигурационного файла
@@ -164,26 +147,109 @@ void UpdaterWorker::RefreshServerData(void)
     emit signalMakeConnect();
 }
 
+//Метод установки соединения с сервером
+void UpdaterWorker::MakeConnect()
+{
+    if(ServerData == server_data::NONE)
+    {
+        qDebug() << "UpdaterWorker не владеет доступом к файлу конфигурации!";
+        emit signalFindConfig();
+        return;
+    }
+    if(ServerData == server_data::FILEEXISTS)
+    {
+        qDebug() << "UpdaterWorker не владеет данными с сервера!";
+        emit signalGetServerData();
+        return;
+    }
+    if(ServerData == server_data::FOUND)
+    {
+        if (socket->state() == QAbstractSocket::UnconnectedState)
+        {
+            qDebug() << "UpdaterWorker: попытка подключения к серверу...";
+            socket->connectToHost(IPv4_address, port);
+            return;
+        }
+        else
+        {
+            qDebug() << "Сокет уже подключён или подключается";
+        }
+    }
+}
+
 //При соединении выполняет отправку идентификационного хэдера
 void UpdaterWorker::OnConnected(void)
 {
     qDebug() << "UpdaterWorker: соединен с сервером обновлений!";
     NetState = net_state::ONLINE;
+    ProtocolState = protocol_state::UNKNOWN;
+    ComType = communication_type::HEADERS;
     emit signalOnline();
 
-    //!!Отправка заголовка "UNET-MES"
-    try {
-        header = netfuncs::build_header(UMTags::PROTOCOL, UMTags::UNETMES);
-        netfuncs::send_header(header, buffer, socket);
-    }
-    catch (std::runtime_error & ex)
-    {
-        qDebug() << "UpdaterWorker: ошибка при отправке заголовка!";
-        emit signalNetError();
-    }
+    //!!Отправка заголовка "UNET-MES" для инициализации обмена заголовками
+    netfuncs::build_header(header, UMTags::PROTOCOL, UMTags::UNETMES);
+    netfuncs::send_header(header, buffer, socket);
 }
 
-//Слот, вызывающийся при ошибках, на 99% означающих отключение сервера
+//Основной слот, который проходит по состояниям
+void UpdaterWorker::GotSockData(void)
+{
+    qDebug() << "UpdaterWorker: got data on socket!";
+        try { //Try
+        switch (ComType)
+        {
+        case communication_type::HEADERS:
+        {
+            this->HandleHeadersExchange();
+            break;
+        }
+        case communication_type::BINARY:
+        {
+            this->HandleDownFile();
+            break;
+        }
+        default:
+        {
+            throw std::logic_error("UpdaterWorker: GotSockData: unpropriate updating state");
+            break;
+        }
+        }
+        } //Try
+        catch (excepts::unacceptable & un)
+        {
+            qDebug() << "UpdaterWorker: недопустимое исключние!";
+            qDebug() << un.what();
+            //Остановка воркера
+            emit signalOffline();
+            this->deleteLater();
+        }
+        catch (std::runtime_error & ex)
+        {
+            qDebug() << "UpdaterWorker: ошибка времени выполненя!";
+            qDebug() << ex.what();
+            //Перезапуск с обновлением данных
+            emit signalRefreshServerData();
+
+            return;
+        }
+        catch(std::invalid_argument & ex)
+        {
+            qDebug() << "UpdaterWorker: ошибка протокола или неверные данные!";
+            qDebug() << ex.what();
+            //Перезапуск сервиса
+            emit signalNetError();
+            return;
+        }
+        catch(std::exception & ex)
+        {
+            qDebug() << "UpdaterWorker: неизвестная ошибка!";
+            qDebug() << ex.what();
+            emit signalRefreshServerData();
+            return;
+        }
+
+}
+
 //Будет срабатывать только при работе сокета, т.к. в промежутках сокет закрыт
 //Поэтому не перекроет таймер в RefuseUpdates
 void UpdaterWorker::OnNetError(void)
@@ -195,8 +261,11 @@ void UpdaterWorker::OnNetError(void)
 
         if(socket->state() == QAbstractSocket::ConnectedState)
             socket->abort();
+        if(filestream.is_open())
+            filestream.close();
         NetState = net_state::OFFLINE;
         ProtocolState = protocol_state::UNKNOWN;
+        ComType = communication_type::NONE;
         emit signalOffline();
         //Постановка небольшого таймера на реконнект
         QTimer::singleShot(UpdateTimeouts::netReconnectMs, this, &UpdaterWorker::MakeConnect);
@@ -208,167 +277,116 @@ void UpdaterWorker::Disconnected(void)
     if(ProtocolState != protocol_state::COMPLETE)
     {
         qDebug() << "UpdaterWorker: обрыв соединения с сервером!";
+        if(socket->state() == QAbstractSocket::ConnectedState)
+            socket->abort();
+        if(filestream.is_open())
+            filestream.close();
         NetState = net_state::OFFLINE;
         ProtocolState = protocol_state::UNKNOWN;
+        ComType = communication_type::NONE;
         emit signalOffline();
         //Постановка небольшого таймера на реконнект
         QTimer::singleShot(UpdateTimeouts::netReconnectMs, this, &UpdaterWorker::MakeConnect);
     }
 }
 
-//Основной слот по сути, выполняющий загрузку обновлений и их сохранение
-void UpdaterWorker::GotSockData(void)
-{
-if(ProtocolState != protocol_state::COMPLETE && socket->bytesAvailable() != 0)
-{
-    try { //Try
+// - - - - - - - - Методы для сетевого взаимодейтсвия - - - -
 
-        //Читаем хэдер, даже если прислали файл - хэдер это покажет
+void UpdaterWorker::HandleHeadersExchange(void)
+{
+    qDebug() << "UpdaterWorker: HandleHeadersExchange: proccesing!";
+
+    if(ProtocolState != protocol_state::COMPLETE && socket->bytesAvailable() != 0)
+    {
+        //Всегда читаем заголовок
         netfuncs::read_header(header, buffer, socket);
         netfuncs::parse_header(header, tag, value);
 
         switch (ProtocolState)
         {
-            //Обмен типом протокола (уже отправили "PROTOCOL:UNET-MES" со своей стороны)
-            //Устанавливаем PROPER состояние протокола и отправляем "VERSION:%version%"
-            case protocol_state::UNKNOWN:
-                if(tag == UMTags::PROTOCOL && value == UMTags::UNETMES)
-                    this->HandleUnknown();
-                else
-                    throw std::invalid_argument("UpdaterWorker: ошибка идентификации протокола...");
+        //Обмен типом протокола (уже отправили "PROTOCOL:UNET-MES" со своей стороны)
+        //Устанавливаем PROPER состояние протокола и отправляем "VERSION:%version%"
+        case protocol_state::UNKNOWN:
+        {
+            if(tag == UMTags::PROTOCOL && value == UMTags::UNETMES)
+            {
+                qDebug() << "UpdaterWorker: HandleHeadersExchange: proccesing!";
+                this->HandleUnknown();
+            }
+            else
+                throw std::invalid_argument("UpdaterWorker: ошибка идентификации протокола...");
             break;
-
-            //Получаем информацию о наличии обновлений или отсутствие "PROTOCOL:SOMEUPDATE" / "PROTOCOL:NOUPDATE"
-            //Отправляем в ответ согласие или не согласие на получение если они есть и устанавливаем состояние NEWVERSION
-            //Что означает, что мы ждем получание новой версии
-            case protocol_state::PROPER:
-                if(tag == UMTags::PROTOCOL)
-                        this->HandleProper(value);
-                else
-                    throw std::invalid_argument("UpdateWorker: неправильный ответ на запрос о наличии обновления!");
+        }
+        //Что означает, что мы ждем получание новой версии
+        //Устанавлиеваем состояние UPDATING - мы получаем название новой версии
+        case protocol_state::PROPER:
+        {
+            if(tag == UMTags::PROTOCOL)
+            {
+                qDebug() << "UpdaterWorker: HandleHeadersExchange: proccesing!";
+                this->HandleProper();
+            }
+            else
+                throw std::invalid_argument("UpdateWorker: неправильный ответ на запрос о наличии обновления!");
             break;
-
-            //Получаем информацию о версии (мы уже ответили согласием на получение обновлений)
-            //Устанавлиеваем состояние SOMEUPDATE - мы получаем данные обновлений
-            case protocol_state::NEWVERSION:
-                if(tag == UMTags::VERSION)
-                    this->HandleVersion(value);
-                else
-                    throw std::invalid_argument("UpdateWorker: неправильный ответ вместо новой версии!");
+        }
+        //Получаем информацию о версии (мы уже ответили согласием на получение обновлений)
+        //Устанавлиеваем состояние UPDATING - мы получаем данные обновлений
+        case protocol_state::NEWVERSION:
+        {
+            if(tag == UMTags::VERSION)
+            {
+                qDebug() << "UpdaterWorker: HandleHeadersExchange: proccesing!";
+                this->HandleVersion();
+            }
+            else
+                throw std::invalid_argument("UpdateWorker: неправильный ответ вместо новой версии!");
             break;
-
-            //
-            case protocol_state::SOMEUPDATE:
-                if(tag == UMTags::NEWDIR)
-                {
-                    this->HandleNewDir(value);
-                    break;
-                }
-                if(tag == UMTags::NEWFILE)
-                {
-                    this->HandleNewFile(value);
-                    break;
-                }
-                if(tag == UMTags::DELFILE)
-                {
-                    this->HandleDelFile(value);
-                    break;
-                }
-                if(tag == UMTags::DELDIR)
-                {
-                    this->HandleDelDir(value);
-                    break;
-                }
-                if(tag == UMTags::PROTOCOL && value == UMTags::COMPLETE)
-                {
-                    qDebug() << "UpdaterWorker: обновление завершено!";
-                    ProtocolState = protocol_state::COMPLETE;
-                    header = netfuncs::build_header(UMTags::PROTOCOL, UMTags::COMPLETE);
-                    netfuncs::send_header(header, buffer, socket);
-                    emit signalUpdateReady();
-                    break;
-                }
-                throw std::invalid_argument("UpdateWorker: неизвестный тэг при загрузке обновлений!");
+        }
+        //Если уже производится обновления
+        case protocol_state::UPDATING:
+        {
+            this->HandleUpdating();
             break;
-
-            default:
-                qDebug() << "UpdaterWorker: неизвестное состояние протокола!";
-                emit signalRefreshServerData();
-                return;
-
+        }
+        default:
+        {
+            throw std::logic_error("UpdaterWorker: HandleHeadersExchange: неизвестное состояние протокола!");
+            emit signalRefreshServerData();
+            return;
+        }
         } //Switch
-
-    } //Try
-    catch (excepts::unacceptable & un)
-    {
-        qDebug() << "UpdaterWorker: недопустимое исключние!";
-        qDebug() << un.what();
-        //Остановка воркера
-        emit signalOffline();
-        this->deleteLater();
     }
-    catch (std::runtime_error & ex)
-    {
-        qDebug() << "UpdaterWorker: ошибка времени выполненя!";
-        qDebug() << ex.what();
-        //Перезапуск с обновлением данных
-        emit signalRefreshServerData();
-
-        return;
-    }
-    catch(std::invalid_argument & ex)
-    {
-        qDebug() << "UpdaterWorker: ошибка протокола или неверные данные!";
-        qDebug() << ex.what();
-        //Перезапуск сервиса
-        emit signalNetError();
-        return;
-    }
-    catch(std::exception & ex)
-    {
-        qDebug() << "UpdaterWorker: неизвестная ошибка!";
-        qDebug() << ex.what();
-        emit signalRefreshServerData();
-        return;
-    }
-
-    //Проверка наличия необработанных данных
-    if(socket->bytesAvailable())
-        emit signalMoreSocketData();
-    return;
-}
 }
 
-// - - - - - - - - Методы для обработки различных состояний протокола - - - -
 void UpdaterWorker::HandleUnknown(void)
 {
-    qDebug() << "UpdaterWorker: получено UNET-MES - подключение верно!";
+    qDebug() << "UpdaterWorker: HandleUnknown: получено UNET-MES - подключение верно!";
     //И отправляем текущую версию
     ProtocolState = protocol_state::PROPER;
-    header = netfuncs::build_header(UMTags::VERSION, version);
+    netfuncs::build_header(header, UMTags::VERSION, version);
     netfuncs::send_header(header, buffer, socket);
 }
 
-void UpdaterWorker::HandleProper(const QString & value)
+void UpdaterWorker::HandleProper(void)
 {
-    //Либо есть обновления "SOMEUPDATE"
+    //Либо есть обновления "UPDATING"
     if(value == UMTags::SOMEUPDATE)
     {
-        qDebug() << "UpdaterWorker: получено SOMEUPDATE!";
-        qDebug() << "UpdaterWorker: начинаем фоновую загрузку обновлений!";
+        qDebug() << "UpdaterWorker: HandleProper: начинаем фоновую загрузку обновлений!";
         ProtocolState = protocol_state::NEWVERSION;
 
-        header = netfuncs::build_header(UMTags::PROTOCOL, UMTags::AGREE);
+        netfuncs::build_header(header, UMTags::PROTOCOL, UMTags::AGREE);
         netfuncs::send_header(header, buffer, socket);
         return;
     }
     //Либо их нет "NOUPDATE"
     if(value == UMTags::NOUPDATE)
     {
-        qDebug() << "UpdaterWorker: получено NOUPDATE!";
+        qDebug() << "UpdaterWorker: HandleProper: обновления не требуются!";
         ProtocolState = protocol_state::COMPLETE;
         //Отправляем также в ответ тэг завершения
-        header = netfuncs::build_header(UMTags::PROTOCOL, UMTags::COMPLETE);
+        netfuncs::build_header(header, UMTags::PROTOCOL, UMTags::COMPLETE);
         netfuncs::send_header(header, buffer, socket);
         emit signalRefuseUpdates();
         return;
@@ -376,52 +394,98 @@ void UpdaterWorker::HandleProper(const QString & value)
     throw std::invalid_argument("UpdaterWorker: неверный ответ на запрос протокола!");
 }
 
-//Создаем во временной папке новый каталог и сохраняем версию
-void UpdaterWorker::HandleVersion(const QString & value)
+void UpdaterWorker::HandleVersion(void)
 {
-    qDebug() << "UpdaterWorker: получаю новую версию обновлений: " << value;
+    qDebug() << "UpdaterWorker: HandleVersion: получена новая версия обновлений: " << value;
     NewVersion = value;
-    ProtocolState = protocol_state::SOMEUPDATE;
+    ProtocolState = protocol_state::UPDATING;
 
     // Создаем папку в tempdir с названием версии
-    // Вот здесь при переподключениях постоянно пересоздается вложенная папка !!LOGICERROR
     QDir versionDir(user_temp_dir.filePath(value));
     if (!versionDir.exists() && !QDir().mkpath(versionDir.path())) {
-        qDebug() << "UpdaterWorker: ошибка при создании папки для новой версии:" << versionDir.path();
-        throw excepts::unacceptable("UpdaterWorker: не удалось создать директорию обновления");
+        qDebug() << "UpdaterWorker: HandleVersion: ошибка при создании папки для новой версии:" << versionDir.path();
+        throw excepts::unacceptable("UpdaterWorker: HandleVersion: не удалось создать директорию обновления");
     }
 
     // Устанавливаем ее как temp_dir
     temp_dir = versionDir;
-    qDebug() << "UpdaterWorker: директория текущих обновлений установлена:" << temp_dir.path();
+    qDebug() << "UpdaterWorker: HandleVersion: директория текущих обновлений установлена:" << temp_dir.path();
 
     // Удаляем всё, что внутри новой директории обновлений
-#ifdef REM_TEMP_UPDATA
-    for (const QFileInfo &entry : temp_dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries)) {
-        if (entry.isDir()) {
-            QDir dir(entry.absoluteFilePath());
-            if (!dir.removeRecursively()) {
-                qDebug() << "UpdaterWorker: не удалось рекурсивно удалить папку:" << dir.path();
-                throw excepts::unacceptable("UpdaterWorker: не удалось очистить старую папку внутри директории обновлений");
-            }
-        } else {
-            QFile file(entry.absoluteFilePath());
-            if (!file.remove()) {
-                qDebug() << "UpdaterWorker: не удалось удалить файл:" << file.fileName();
-                throw excepts::unacceptable("UpdaterWorker: не удалось удалить старый файл внутри директории обновлений");
+    if(rem_temp_dir_data)
+    {
+        for (const QFileInfo &entry : temp_dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries)) {
+            if (entry.isDir()) {
+                QDir dir(entry.absoluteFilePath());
+                if (!dir.removeRecursively()) {
+                    qDebug() << "UpdaterWorker: HandleVersion: не удалось рекурсивно удалить папку:" << dir.path();
+                    throw excepts::unacceptable("UpdaterWorker: HandleVersion: не удалось очистить старую папку внутри директории обновлений");
+                }
+            } else {
+                QFile file(entry.absoluteFilePath());
+                if (!file.remove()) {
+                    qDebug() << "UpdaterWorker: HandleVersion: не удалось удалить файл:" << file.fileName();
+                    throw excepts::unacceptable("UpdaterWorker: HandleVersion: не удалось удалить старый файл внутри директории обновлений");
+                }
             }
         }
     }
-#endif
 }
 
-//Создаем во временной папке новый каталог
-void UpdaterWorker::HandleNewDir(const QString & value)
+// - - - - - - - - Методы для HEADERS EXCHANGE
+
+void UpdaterWorker::HandleUpdating(void)
+{
+        qDebug() << "UpdaterWorker: HandleUpdating: processing...";
+        if(tag == UMTags::NEWDIR)
+        {
+            qDebug() << "UpdaterWorker: HandleUpdating: got NEWDIR tag...";
+            this->HandleNewDir();
+            return;
+        }
+        if(tag == UMTags::NEWFILE)
+        {
+            qDebug() << "UpdaterWorker: HandleUpdating: got NEWFILE tag...";
+            this->HandleNewFile();
+            return;
+        }
+        if(tag == UMTags::DELFILE)
+        {
+            qDebug() << "UpdaterWorker: HandleUpdating: got DELFILE tag...";
+            this->HandleDelFile();
+            return;
+        }
+        if(tag == UMTags::DELDIR)
+        {
+            qDebug() << "UpdaterWorker: HandleUpdating: got DELDIR tag...";
+            this->HandleDelDir();
+            return;
+        }
+        if(tag == UMTags::HASH)
+        {
+            qDebug() << "UpdaterWorker: HandleUpdating: got HASH tag...";
+            this->HandleFileHash();
+            return;
+        }
+        if(tag == UMTags::PROTOCOL && value == UMTags::COMPLETE)
+        {
+            qDebug() << "UpdaterWorker: HandleUpdating: обновление завершено!";
+            ProtocolState = protocol_state::COMPLETE;
+            ComType = communication_type::NONE;
+            netfuncs::build_header(header, UMTags::PROTOCOL, UMTags::COMPLETE);
+            netfuncs::send_header(header, buffer, socket);
+            emit signalUpdateReady();
+            return;
+        }
+}
+
+void UpdaterWorker::HandleNewDir(void)
 {
     qDebug() << "UpdaterWorker: создаем новый каталог: " << value;
     QString fullPath = QDir(temp_dir).filePath(value);
     QDir dir;
-    if (!dir.mkpath(fullPath)) {
+    if (!dir.mkpath(fullPath))
+    {
         qDebug() << "UpdaterWorker: ошибка при создании каталога" << fullPath;
         throw std::runtime_error("Ошибка при создании каталога");
     }
@@ -429,55 +493,12 @@ void UpdaterWorker::HandleNewDir(const QString & value)
     qDebug() << "UpdaterWorker: каталог создан:" << fullPath;
 }
 
-//Сохраняем файл, если его нет
-void UpdaterWorker::HandleNewFile(const QString & value)
-{
-    qDebug() << "UpdaterWorker: обработка нового файла: " << value;
-    QString filePath = QDir(temp_dir).filePath(value);
-    QFileInfo fi(filePath);
-    QString server_hash;
-
-    //Получаем хэш
-    netfuncs::read_header(header, buffer, socket);
-    netfuncs::parse_header(header, tag, server_hash);
-    if(tag != UMTags::HASH)
-        throw std::invalid_argument("UpdaterWorker: не получен хэш файла");
-
-    if (fi.exists())
-    {
-
-        // Тут получение хэша
-        QString hash = this->getFileSHA256(filePath);
-
-        qDebug() << "UpdaterWorker: файл уже существует, сравниваем хэш:" << hash;
-
-        if(hash == server_hash) //Если хэш совпадает, то высылаем отказ
-        {
-            qDebug() << "UpdaterWorker: файл уже существует и соответсвует обновлению: " << filePath;
-            header = netfuncs::build_header(UMTags::NEWFILE, UMTags::REJECT);
-            netfuncs::send_header(header, buffer, socket);
-            return;
-        }
-    }
-
-    qDebug() << "UpdaterWorker: необходима загрузка, подтверждаю получение:" << filePath;
-    header = netfuncs::build_header(UMTags::NEWFILE, UMTags::AGREE);
-    netfuncs::send_header(header, buffer, socket);
-
-    //Скармливаем 4 байта размера и остальное body функции загрузки
-    netfuncs::download_file(filePath, socket);
-    //Подтверждаем успешное выполнение
-    header = netfuncs::build_header(UMTags::NEWFILE, UMTags::COMPLETE);
-    netfuncs::send_header(header, buffer, socket);
-}
-
-void UpdaterWorker::HandleDelFile(const QString & value)
+void UpdaterWorker::HandleDelFile(void)
 {
     qDebug() << "UpdaterWorker: получено указание по удалению файла: " << value;
-
     //Создаем по указанному пути файл.txt с описанием того, что удаляется
     QString fullPath = QDir(temp_dir).filePath(value);
-    QString noticeFile = fullPath + UMTags::DELFILE + ".txt";
+    QString noticeFile = fullPath + "_" + UMTags::DELFILE + ".txt";
 
     QFile notice(noticeFile);
     if (notice.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -486,18 +507,18 @@ void UpdaterWorker::HandleDelFile(const QString & value)
         notice.close();
         qDebug() << "UpdaterWorker: создан файл с пометкой на удаление:" << noticeFile;
     } else {
-        qDebug() << "UpdaterWorker: ошибка создания файла для удаления:" << noticeFile;
-        throw std::runtime_error("UpdaterWorker: не удалось создать notice-файл удаления");
+        qDebug() << "UpdaterWorker: HandleDelFile: ошибка создания файла для удаления:" << noticeFile;
+        throw std::runtime_error("UpdaterWorker: HandleDelFile: не удалось создать notice-файл удаления");
     }
 }
 
-void UpdaterWorker::HandleDelDir(const QString & value)
+void UpdaterWorker::HandleDelDir(void)
 {
     qDebug() << "UpdaterWorker: получено указание по удалению каталога: " << value;
 
     //Создаем по указанному пути файл.txt с описанием того, что удаляется
     QString fullPath = QDir(temp_dir).filePath(value);
-    QString noticeFile = fullPath + UMTags::DELDIR + ".txt";
+    QString noticeFile = fullPath + "_" + UMTags::DELDIR + ".txt";
 
     QFile notice(noticeFile);
     if (notice.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -511,21 +532,96 @@ void UpdaterWorker::HandleDelDir(const QString & value)
     }
 }
 
-//Приватные методы вспомогательные для отработки протокола
-QString UpdaterWorker::getFileSHA256(const QString &filePath)
+void UpdaterWorker::HandleNewFile(void)
 {
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly))
-        throw std::runtime_error("Не удалось открыть файл для чтения при хэшировании");
+    qDebug() << "UpdaterWorker: получено указание по загрузке файла: " << value;
+    //Сохраняем путь файла value и читаем хэш файла
+    new_file.setFileName(temp_dir.filePath(value));
 
-    QCryptographicHash hash(QCryptographicHash::Sha256);
-    while (!file.atEnd())
-        hash.addData(file.read(4096));
+    //Если файла нет отправляем согласие, если есть запрашиваем хэш
+    QFileInfo new_file_info(new_file);
+    if(new_file_info.exists())
+    {
+        netfuncs::build_header(header, UMTags::NEWFILE, UMTags::HASH);
+        netfuncs::send_header(header, buffer, socket);
+        return;
+    }
 
-    return hash.result().toHex();
+    //Если есть, то запросим файл
+    netfuncs::build_header(header, UMTags::NEWFILE, UMTags::AGREE);
+    netfuncs::send_header(header, buffer, socket);
 }
 
-// - - - - - - - - Слоты вызываемые от выбора пользователя - - - - - - - - - -
+void UpdaterWorker::HandleFileHash(void)
+{
+    //Определяем условие отказа
+    QString file_hash = appfuncs::getFileSHA256(new_file);
+    if(file_hash == value)
+    {
+        qDebug() << "UpdaterWorker: HandleNewFile: file with same path&&hash exists";
+        netfuncs::build_header(header, UMTags::NEWFILE, UMTags::REJECT);
+        netfuncs::send_header(header, buffer, socket);
+        return;
+    }
+
+    //В случае согласия
+    netfuncs::build_header(header, UMTags::NEWFILE, UMTags::AGREE);
+    netfuncs::send_header(header, buffer, socket);
+    //Открываем fstream
+    filestream.open(new_file.fileName().toStdString(), std::ios::out | std::ios::binary | std::ios::trunc);
+    if(!filestream.is_open())
+        throw std::runtime_error("UpWorker: HandleNewFile: filestream opening error");
+
+    //Получаем размер файла, устанавливаем total_read, total_left;
+    if(socket->bytesAvailable() < 4 && !(socket->waitForReadyRead(50000)))
+    {
+        filestream.close();
+        throw std::runtime_error("UpdateWorker: HandleNewFile: no file weight data");
+    }
+
+    quint32 file_weight = netfuncs::get_file_weigth(buffer, socket);
+    total_read = 0;
+    total_left = file_weight;
+
+    //Переключаем состояние communication_type
+    ComType = communication_type::BINARY;
+    qDebug() << "UpdaterWorker: HandleNewFile: starts file downloading with " << file_weight << " file weight!";
+}
+
+// - - - - - - - - Методы для загрузки файлов
+
+void UpdaterWorker::HandleDownFile(void)
+{
+    if(ComType == communication_type::BINARY)
+    {
+        //Смотрим сколько доступно
+        //Определяем кол-во чтения из доступного/оставшегося
+        if(socket->bytesAvailable() < 0)
+            throw std::runtime_error("UpdaterWorker: HandleDownFile: no socket data");
+        quint64 bytes_to_read = qMin(total_left, quint64(socket->bytesAvailable()));
+        //Вызываем запись из буфера в fstream
+        quint64 this_time = netfuncs::ofstream_write(filestream, buffer, bytes_to_read, socket);
+        //Изменяем total_read, total_left;
+        total_read += this_time;
+        total_left -= this_time;
+
+        qDebug() << "UpdaterWorker: HandleDownFile: downloaded " << this_time << " bytes, " << total_read << " total read, " << total_left << " total left";
+
+        //Проверка полностью ли загружен файл
+        if(total_left == 0)
+        {
+            //Если полностью загружен
+            //Меняем ComType
+            //Закрываем fstream (освобождаем)
+            ComType = communication_type::HEADERS;
+            filestream.close();
+
+            qDebug() << "UpWorker: HandleDownFile: file downloaded!";
+        }
+    }
+}
+
+// - - - - - - - - Слоты вызываемые при выборе пользователя - - - - - - - - - -
 //Слот, который вызывается при отказе от обновления либо его отсутсвии (ответ от сервера)
 void UpdaterWorker::RefuseUpdates(void)
 {
@@ -536,7 +632,7 @@ void UpdaterWorker::RefuseUpdates(void)
     //Устанавливает таймер (долгий) на повторное соединение
     QTimer::singleShot(UpdateTimeouts::CheckAfterRefuse, this, &UpdaterWorker::RefreshServerData);
     qDebug() << "UpdaterWorker: пользователь отказался от обновления!";
-    emit signalOnline();
+    emit signalOffline();
 }
 //Слот замены обновлений
 //который запустит бинарник замены файлов

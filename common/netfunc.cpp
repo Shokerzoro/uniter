@@ -1,4 +1,5 @@
 #include "excepts.h"
+#include "netfunc.h"
 
 #include <QTcpSocket>
 #include <QString>
@@ -7,6 +8,7 @@
 #include <QtEndian>
 #include <QDebug>
 #include <vector>
+#include <fstream>
 #include <stdexcept>
 #include <string>
 
@@ -15,22 +17,14 @@
 namespace netfuncs {
 
 // Внутренний класс для валидации ASCII-строки
-class ascii_string : public std::string
+ascii_string::ascii_string(const std::string & input) : std::string(input) { validate(); }
+ascii_string::ascii_string(const char* input) : std::string(input) { validate(); }
+void ascii_string::validate() const
 {
-public:
-    ascii_string(const std::string & input) : std::string(input)
-    { validate(); }
-    ascii_string(const char* input) : std::string(input)
-    { validate(); }
-
-private:
-    void validate() const
-    {
-        for (unsigned char c : *this)
-            if (c > 127)
-                throw std::invalid_argument("Wrong ascii_string: " + *this);
-    }
-};
+    for (unsigned char c : *this)
+        if (c > 127)
+            throw std::invalid_argument("Wrong ascii_string: " + *this);
+}
 
 // Преобразование QString в ascii_string с валидацией
 inline ascii_string to_ascii_string(const QString & input)
@@ -45,9 +39,6 @@ uint16_t fill_buff(const QString & input, std::vector<char> & buffer)
 {
     ascii_string ascii = to_ascii_string(input);
     size_t headlength = ascii.length();
-
-    if (headlength > MAX_HEADER_SIZE - 6)
-        throw std::invalid_argument("Too big msg to header");
 
     buffer.clear();
     buffer.push_back(static_cast<char>((headlength >> 8) & 0xFF));
@@ -108,87 +99,45 @@ void parse_header(const QString & header, QString & tag, QString & value)
     value = header.mid(pos + 1);
 }
 
-// Заглушка: Скачивание и сохранение файла
-void download_file(const QString & filepath, QTcpSocket *socket)
+quint32 get_file_weigth(std::vector<char> & buffer, QTcpSocket* socket)
 {
-    qDebug() << "Начинаем загрузку файла:" << filepath;
+    buffer.resize(4);
+    quint32 readed = socket->read(buffer.data(), 4);
+    if(readed != 4)
+        throw std::runtime_error("nutduncs: fet_file_len: reading 4 bytes error");
 
-    // Читаем 4 байта — размер файла
-    QByteArray sizeBytes;
-    while (sizeBytes.size() < 4) {
-        if (!socket->waitForReadyRead(5000))  // ждем до 5 секунд появления данных
-            throw std::runtime_error("NetFunc download_file: таймаут ожидания размера файла");
+    quint64 file_len = (static_cast<unsigned char>(buffer[0]) << 24 |
+                        static_cast<unsigned char>(buffer[1]) << 16 |
+                        static_cast<unsigned char>(buffer[2]) << 8 |
+                        static_cast<unsigned char>(buffer[3]));
 
-        QByteArray chunk = socket->read(4 - sizeBytes.size());
-        if (chunk.isEmpty())
-            throw std::runtime_error("NetFunc download_file: ошибка чтения размера файла");
-
-        sizeBytes.append(chunk);
-    }
-
-
-    quint32 fileSize = (static_cast<quint8>(sizeBytes[0]) << 24) |
-                       (static_cast<quint8>(sizeBytes[1]) << 16) |
-                       (static_cast<quint8>(sizeBytes[2]) << 8)  |
-                       static_cast<quint8>(sizeBytes[3]);
-
-    qDebug() << "NetFunc download_file: ожидаемый размер файла: " << fileSize << " байт";
-
-    QFile file(filepath);
-    if (!file.open(QIODevice::WriteOnly))
-        throw std::runtime_error("NetFunc download_file: не удалось открыть файл для записи");
-
-    quint32 bytesReceived = 0;
-    quint32 bytesLeft = fileSize;
-
-    while (bytesReceived < fileSize) {
-        qDebug() << "NetFunc download_file: bytesReceived = " << bytesReceived;
-        qDebug() << "NetFunc download_file: bytesLeft = " << bytesLeft;
-
-        /*
-        // Ждем данные, блокирующе, таймаут 50 секунд
-        if (!socket->waitForReadyRead(50000)) {
-            throw std::runtime_error("NetFunc download_file: таймаут ожидания данных файла");
-        }
-        */
-
-        qint64 bytesAvailable = socket->bytesAvailable();
-        qDebug() << "NetFunc bytesAvailable: bytesAvailable = " << bytesReceived;
-        /*
-        if (bytesAvailable <= 0) {
-            throw std::runtime_error("NetFunc download_file: ошибка чтения из сокета");
-        }
-        */
-        // Сколько читать за раз — максимум 4096 или оставшееся количество
-        qint64 chunkSize = qMin(bytesAvailable, qint64(bytesLeft));
-
-        QByteArray chunk = socket->read(chunkSize);
-        /*
-        if (chunk.isEmpty()) {
-            throw std::runtime_error("NetFunc download_file: ошибка чтения из сокета");
-        }
-        */
-        qint64 written = file.write(chunk);
-        if (written != chunk.size()) {
-            throw std::runtime_error("NetFunc download_file: ошибка записи в файл");
-        }
-
-        bytesReceived += chunk.size();
-        bytesLeft -= chunk.size();
-    }
-
-    file.close();
-    qDebug() << "Файл загружен:" << filepath << " (" << bytesReceived << " байт)";
+    return file_len;
 }
 
-QString build_header(const char* tag, const char* value)
+// Загрузка данных из сокета в файл, ограниченная только с верхней границы
+quint64 ofstream_write(std::ofstream & filestream, std::vector<char> & buffer, quint64 bytes_to_read, QTcpSocket * socket)
 {
-    return QString(tag) + ":" + QString(value);
+    if(!filestream.is_open())
+        throw std::runtime_error("netfuncs: dowload file: filestream is closed");
+
+    buffer.resize(bytes_to_read);
+    quint64 bytes_readed = socket->read(buffer.data(), bytes_to_read);
+    filestream.write(buffer.data(), bytes_readed);
+
+    qDebug() << "netfuncs: dowload file: bytes_readed" << bytes_readed;
+
+    //Возвращаем сколько было действительно прочитано
+    return bytes_readed;
 }
 
-QString build_header(const char* tag, const QString & value)
+void build_header(QString & header, const char* tag, const char* value)
 {
-    return QString(tag) + ":" + value;
+    header = QString(tag) + ":" + QString(value);
+}
+
+void build_header(QString & header, const char* tag, const QString & value)
+{
+    header = QString(tag) + ":" + value;
 }
 
 }
