@@ -10,6 +10,7 @@ using Path = std::filesystem::path;
 using PathMapper = std::map<std::filesystem::path, std::filesystem::path>;
 using PathVector = std::vector<std::filesystem::path>;
 
+namespace updater {
 namespace upfuncs {
 
 //Найти/определить тэг внутри .txt файла, возрат true - если это notice file
@@ -34,6 +35,7 @@ extern void replace_files(PathMapper & replace_mapper);
 extern void delete_files(PathVector & delfile_vector);
 extern void delete_dirs(PathVector & deldir_vector);
 
-}
+} //upfuncs
+} //updater
 
 #endif // UPFUNCS_H

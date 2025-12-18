@@ -4,6 +4,7 @@
 #include <QDataStream>
 #include <QDebug>
 
+namespace uniter {
 namespace netfuncs {
 
 TcpConnector::TcpConnector(QObject* parent) : QObject(parent)
@@ -368,4 +369,5 @@ void TcpConnector::MoveChildenToThread(QThread * NetThread)
 
 
 } // netfuncs
+} // uniter
 

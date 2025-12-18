@@ -28,23 +28,23 @@ int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
     //Получаем переменные среды и открываем лог файл
-    appfuncs::AppEnviroment app_env = appfuncs::read_env();
-    appfuncs::open_log(app_env.logfile);
-    appfuncs::write_log("Updater: starts routine");
-    appfuncs::write_log(QString("Updater: performing update from %1 to %2")
+    common::appfuncs::AppEnviroment app_env = common::appfuncs::read_env();
+    common::appfuncs::open_log(app_env.logfile);
+    common::appfuncs::write_log("Updater: starts routine");
+    common::appfuncs::write_log(QString("Updater: performing update from %1 to %2")
                             .arg(app_env.version, app_env.new_version));
 
     // Проверка существования путей
     if (!QDir(app_env.temp_dir).exists() || !QDir(app_env.working_dir).exists())
     {
-        appfuncs::write_log("Updater: wrong/unexisting working/temp dir paths");
+        common::appfuncs::write_log("Updater: wrong/unexisting working/temp dir paths");
         return 1;
     }
     //Добавить проверку наличия main.exe recover.exe
     // (!QFile::exists(main_exe) || !QFile::exists(recover_exe))
     if (!QFile::exists(app_env.main_exe))
     {
-        appfuncs::write_log("Updater: main.exe or recover.exe missing");
+        common::appfuncs::write_log("Updater: main.exe or recover.exe missing");
         return 2;
     }
 
@@ -88,19 +88,19 @@ int main(int argc, char **argv)
         std::filesystem::remove_all(app_env.temp_dir.toStdString());
 
         // Успешное выполнение
-        appfuncs::write_log("Updater: update succeses!");
-        appfuncs::log_time();
+        common::appfuncs::write_log("Updater: update succeses!");
+        common::appfuncs::log_time();
     }
     catch (std::runtime_error & ex)
     {
-        appfuncs::write_log(QString("Updater: update error! ") + QString::fromUtf8(ex.what()));
+        common::appfuncs::write_log(QString("Updater: update error! ") + QString::fromUtf8(ex.what()));
         //Тут по идее запуск recover.exe
         //QProcess::startDetached(app_env.recover_exe);
         return 3;
     }
     catch (std::exception & ex)
     {
-        appfuncs::write_log(QString("Updater: update error! ") + QString::fromUtf8(ex.what()));
+        common::appfuncs::write_log(QString("Updater: update error! ") + QString::fromUtf8(ex.what()));
         //Тут по идее запуск recover.exe
         //QProcess::startDetached(app_env.recover_exe);
         return 4;
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
     //Перезапуск основного бинарника main.exe
     if (!QProcess::startDetached(app_env.main_exe))
     {
-        appfuncs::write_log("Updater: main_exe restart error");
+        common::appfuncs::write_log("Updater: main_exe restart error");
         return 5;
     }
 

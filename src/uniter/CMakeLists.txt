@@ -1,5 +1,10 @@
 project(uniter_app LANGUAGES CXX)
 
+set(BUILDER_SOURCES
+    builder/appbuilder.cpp
+    builder/appbuilder.h
+)
+
 set(NETWORK_SOURCES
     network/tcpconnector.cpp
     network/tcpconnector.h
@@ -11,8 +16,9 @@ set(NETWORK_SOURCES
 )
 
 set(MESSAGES_SOURCES
-    messages/internalrequest.h
-    messages/externalmessage.h
+    messages/unitermessage.h
+    messages/internalmessage.cpp
+    messages/internalmessage.h
 )
 
 set(MANAGERS_SOURCES

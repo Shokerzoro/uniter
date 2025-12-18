@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 
+namespace common {
 namespace excepts {
 
     //Исключение, которое должно приводить к завершению программы / потока, как правиль
@@ -14,6 +15,7 @@ namespace excepts {
         unacceptable(const std::string & msg) : std::runtime_error(msg) {};
     };
 
-}
+} // namespace exepts
+} // namespace common
 
 #endif // EXCEPTS_H

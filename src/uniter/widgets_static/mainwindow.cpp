@@ -6,6 +6,8 @@
 #include <QWidget>
 #include <QLabel>
 
+namespace uniter {
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
@@ -32,3 +34,4 @@ MainWindow::MainWindow(QWidget *parent)
 
 }
 
+} //namespace uniter

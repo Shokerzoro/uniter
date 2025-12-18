@@ -6,6 +6,7 @@
 #include <QFile>
 #include <filesystem>
 
+namespace common {
 namespace appfuncs {
 
 using Path = std::filesystem::path;
@@ -59,7 +60,8 @@ extern AppEnviroment read_env(void);
 //Логирование переменных среды
 extern void write_env(void);
 
-}
+} //namespace appfuncs
+} //namespace commn
 
 
 #endif // APPFUNCS_H

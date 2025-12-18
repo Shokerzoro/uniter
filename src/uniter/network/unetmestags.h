@@ -1,6 +1,9 @@
 #ifndef UNETMESTAGS_H
 #define UNETMESTAGS_H
 
+namespace uniter {
+namespace network {
+
 struct UMTags {
     static constexpr const char* PROTOCOL = "PROTOCOL";
     static constexpr const char* UNETMES = "UNET-MES";
@@ -19,5 +22,8 @@ struct UMTags {
     static constexpr const char* REJECT = "REJECT";
     static constexpr const char* COMPLETE = "COMPLETE";
 };
+
+} // network
+} // uniter
 
 #endif // UNETMESTAGS_H

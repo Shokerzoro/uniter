@@ -11,6 +11,7 @@ using Path = std::filesystem::path;
 using PathMapper = std::map<std::filesystem::path, std::filesystem::path>;
 using PathVector = std::vector<std::filesystem::path>;
 
+namespace updater {
 namespace upfuncs {
 
 // Добавляем новые каталоги
@@ -221,4 +222,5 @@ void get_update_data(QString & qtemp_dir,
     }
 }
 
-}
+} //upfuncs
+} //updater

@@ -16,6 +16,9 @@
 #include <vector>
 #include <exception>
 
+namespace uniter {
+namespace network {
+
 //Базовая инициализация, выполнение соединений
 UpdaterWorker::UpdaterWorker(QObject *parent) : QObject{parent}
 {
@@ -39,7 +42,7 @@ UpdaterWorker::UpdaterWorker(QObject *parent) : QObject{parent}
     connect(this, &UpdaterWorker::signalRefreshServerData, this, &UpdaterWorker::RefreshServerData, Qt::QueuedConnection);
     connect(this, &UpdaterWorker::signalRefuseUpdates, this, &UpdaterWorker::RefuseUpdates, Qt::QueuedConnection);
 
-    appfuncs::AppEnviroment app_env = appfuncs::read_env();
+    common::appfuncs::AppEnviroment app_env = common::appfuncs::read_env();
     version = app_env.version;
     qDebug() << "UpdaterWorker: текущая версия:" << version;
     user_temp_dir = app_env.temp_dir;
@@ -203,7 +206,7 @@ void UpdaterWorker::onSockData(void)
         }
         }
         } //Try
-        catch (excepts::unacceptable & un)
+        catch (common::excepts::unacceptable & un)
         {
             qDebug() << "UpdaterWorker: недопустимое исключние!";
             qDebug() << un.what();
@@ -353,9 +356,9 @@ void UpdaterWorker::HandleProper(void)
 
 void UpdaterWorker::HandleVersion(void)
 {
-    appfuncs::AppEnviroment app_env = appfuncs::read_env();
+    common::appfuncs::AppEnviroment app_env = common::appfuncs::read_env();
     app_env.new_version = UMConnector->get_value();
-    appfuncs::set_env(app_env);
+    common::appfuncs::set_env(app_env);
     ProtocolState = protocol_state::UPDATING;
 
     qDebug() << "UpdaterWorker: HandleVersion: получена новая версия обновлений: " << app_env.new_version;
@@ -364,7 +367,7 @@ void UpdaterWorker::HandleVersion(void)
     temp_dir.setPath(user_temp_dir.filePath(UMConnector->get_value()));
     if (!temp_dir.exists() && !QDir().mkpath(temp_dir.path())) {
         qDebug() << "UpdaterWorker: HandleVersion: ошибка при создании папки для новой версии:" << temp_dir.path();
-        throw excepts::unacceptable("UpdaterWorker: HandleVersion: не удалось создать директорию обновления");
+        throw common::excepts::unacceptable("UpdaterWorker: HandleVersion: не удалось создать директорию обновления");
     }
 
     qDebug() << "UpdaterWorker: HandleVersion: директория текущих обновлений установлена:" << temp_dir.path();
@@ -377,13 +380,13 @@ void UpdaterWorker::HandleVersion(void)
                 QDir dir(entry.absoluteFilePath());
                 if (!dir.removeRecursively()) {
                     qDebug() << "UpdaterWorker: HandleVersion: не удалось рекурсивно удалить папку:" << dir.path();
-                    throw excepts::unacceptable("UpdaterWorker: HandleVersion: не удалось очистить старую папку внутри директории обновлений");
+                    throw common::excepts::unacceptable("UpdaterWorker: HandleVersion: не удалось очистить старую папку внутри директории обновлений");
                 }
             } else {
                 QFile file(entry.absoluteFilePath());
                 if (!file.remove()) {
                     qDebug() << "UpdaterWorker: HandleVersion: не удалось удалить файл:" << file.fileName();
-                    throw excepts::unacceptable("UpdaterWorker: HandleVersion: не удалось удалить старый файл внутри директории обновлений");
+                    throw common::excepts::unacceptable("UpdaterWorker: HandleVersion: не удалось удалить старый файл внутри директории обновлений");
                 }
             }
         }
@@ -518,7 +521,7 @@ void UpdaterWorker::HandleNewFile(void)
 void UpdaterWorker::HandleFileHash(void)
 {
     //Определяем условие отказа
-    QString file_hash = appfuncs::getFileSHA256(new_file);
+    QString file_hash = common::appfuncs::getFileSHA256(new_file);
     if(file_hash == UMConnector->get_value())
     {
         qDebug() << "UpdaterWorker: HandleNewFile: file with same path&&hash exists";
@@ -568,7 +571,7 @@ void UpdaterWorker::RefuseUpdates(void)
     QTimer::singleShot(UpdateTimeouts::CheckAfterRefuse, this, &UpdaterWorker::RefreshServerData);
     qDebug() << "UpdaterWorker: пользователь отказался от обновления!";
     emit signalOffline();
-    appfuncs::write_log("UpdaterWorker: update rejected");
+    common::appfuncs::write_log("UpdaterWorker: update rejected");
 }
 //Слот замены обновлений
 //который запустит бинарник замены файлов
@@ -585,9 +588,9 @@ void UpdaterWorker::MakeUpdates(void)
     else
     {
         qDebug() << "UpdaterWorker: вызываем updater.exe!";
-        appfuncs::write_log("UpdaterWorker: starting updater.exe");
-        appfuncs::write_log(QString("current version: " + version + " new version: " + NewVersion));
-        appfuncs::log_time();
+        common::appfuncs::write_log("UpdaterWorker: starting updater.exe");
+        common::appfuncs::write_log(QString("current version: " + version + " new version: " + NewVersion));
+        common::appfuncs::log_time();
 
         QProcess *updater = new QProcess(this);
         updater->start(updater_exe.toUtf8().constData());
@@ -598,4 +601,6 @@ void UpdaterWorker::MakeUpdates(void)
 
 }
 
+} // network
+} // uniter
 

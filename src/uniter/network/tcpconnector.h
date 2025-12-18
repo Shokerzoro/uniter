@@ -9,6 +9,7 @@
 #include <QBuffer>
 #include <QFile>
 
+namespace uniter {
 namespace netfuncs {
 
 /* Логика работы класса TcpConnector
@@ -144,7 +145,8 @@ signals:
     void signalDisconnected(void);
 };
 
-}
+} //netfunc
+} // uniter
 
 
 

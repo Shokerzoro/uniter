@@ -17,6 +17,7 @@
 
 using Path = std::filesystem::path;
 
+namespace common {
 namespace appfuncs {
 
 // --- Логирование ---
@@ -305,3 +306,4 @@ void write_env()
 }
 
 } // namespace appfuncs
+} // namespace common

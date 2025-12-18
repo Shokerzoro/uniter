@@ -6,6 +6,8 @@
 #include <QObject>
 #include <QThread>
 
+namespace uniter {
+
 class MainNetWorker : public QObject
 {
     Q_OBJECT
@@ -17,5 +19,7 @@ public:
     // Настройки
     void MoveChildenToThread(QThread * NetThread);
 };
+
+} //namespace uniter
 
 #endif // MAINNETWORKER_H

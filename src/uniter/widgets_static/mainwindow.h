@@ -5,6 +5,8 @@
 #include <QLabel>
 #include "status/updatecontainer.h"
 
+namespace uniter {
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -23,4 +25,6 @@ public slots:
 
 
 };
+} //namespace uniter
+
 #endif // MAINWINDOW_H

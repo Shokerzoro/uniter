@@ -11,6 +11,9 @@
 #include <vector>
 #include <fstream>
 
+namespace uniter {
+namespace network {
+
 class UpdaterWorker : public QObject
 {
     Q_OBJECT
@@ -103,5 +106,8 @@ struct UpdateTimeouts { // 1000 мс = 1 секунда
     static constexpr int netReconnectMs = 10 * 1000;
     static constexpr int fileHeadMS = 10 * 1000;
 };
+
+} // network
+} // uniter
 
 #endif // UPDATERWORKER_H
