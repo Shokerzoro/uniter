@@ -2,7 +2,6 @@
 #include "widgets_static/status/updatecontainer.h"
 #include "network/updaterworker.h"
 #include "network/mainnetworker.h"
-
 #include "../common/appfuncs.h"
 
 #include <QApplication>

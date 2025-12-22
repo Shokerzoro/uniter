@@ -4,17 +4,12 @@
 #include <QObject>
 
 namespace uniter {
+namespace messages {
 
 
-class InternalMessage : public QObject
-{
-    Q_OBJECT
-public:
-    explicit InternalMessage(QObject *parent = nullptr);
 
-signals:
-};
 
+} // messages
 } // namespace uniter
 
 #endif // INTERNALMESSAGE_H

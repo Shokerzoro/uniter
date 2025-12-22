@@ -7,20 +7,31 @@ project(Uniter LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+
 #===============================================================================
-# 2. ПОИСК И НАСТРОЙКА Qt6 + GOOGLE TESTS (FetchContent)
+# 2. ПОИСК И НАСТРОЙКА Qt6 + GOOGLE TESTS + TinyXML2 (FetchContent)
 #===============================================================================
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network LinguistTools)
 qt_standard_project_setup()
 
-# Google Tests — автоматически скачает и подключит
+# Fetch dependencies
 include(FetchContent)
+
+# Google Tests
 FetchContent_Declare(
     googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
     GIT_TAG        v1.14.0
 )
-FetchContent_MakeAvailable(googletest)
+
+# TinyXML2
+FetchContent_Declare(
+    tinyxml2
+    GIT_REPOSITORY https://github.com/leethomason/tinyxml2.git
+    GIT_TAG        10.0.0
+)
+
+FetchContent_MakeAvailable(googletest tinyxml2)
 enable_testing()
 
 #===============================================================================

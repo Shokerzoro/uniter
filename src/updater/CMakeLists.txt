@@ -5,6 +5,7 @@ if(RELEASE)
         main.cpp
         upfuncs.cpp
         upfuncs.h
+        typesheader.h
     )
 
     target_include_directories(Updater
@@ -16,6 +17,7 @@ if(RELEASE)
         PRIVATE
             uniter_common
             Qt6::Core
+            tinyxml2
     )
 
     set_target_properties(Updater PROPERTIES

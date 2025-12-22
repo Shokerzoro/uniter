@@ -16,13 +16,11 @@
 #include <fstream>
 #include <windows.h>
 
+#include "typesheader.h"
 #include "upfuncs.h"
 #include "../common/appfuncs.h"
 
-using Path = std::filesystem::path;
-using PathMapper = std::map<std::filesystem::path, std::filesystem::path>;
-using PathVector = std::vector<std::filesystem::path>;
-
+using namespace updater;
 
 int main(int argc, char **argv)
 {

@@ -6,9 +6,7 @@
 #include <map>
 #include <QString>
 
-using Path = std::filesystem::path;
-using PathMapper = std::map<std::filesystem::path, std::filesystem::path>;
-using PathVector = std::vector<std::filesystem::path>;
+#include "typesheader.h"
 
 namespace updater {
 namespace upfuncs {

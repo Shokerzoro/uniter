@@ -7,15 +7,13 @@
 #include <QDebug>
 #include <windows.h>
 
-using Path = std::filesystem::path;
-using PathMapper = std::map<std::filesystem::path, std::filesystem::path>;
-using PathVector = std::vector<std::filesystem::path>;
+#include "typesheader.h"
 
 namespace updater {
 namespace upfuncs {
 
 // Добавляем новые каталоги
-void addnew_dirs(PathMapper & newdir_mapper)
+void addnew_dirs(std::map<std::filesystem::path, std::filesystem::path> & newdir_mapper)
 {
     for (const auto& [temp_fullpath, work_fullpath] : newdir_mapper)
     {
@@ -30,7 +28,7 @@ void addnew_dirs(PathMapper & newdir_mapper)
 }
 
 // Добавляем новые файлы
-void addnew_files(PathMapper & newfile_mapper)
+void addnew_files(std::map<std::filesystem::path, std::filesystem::path> & newfile_mapper)
 {
     for (const auto& [temp_fullpath, work_fullpath] : newfile_mapper)
     {
@@ -41,7 +39,7 @@ void addnew_files(PathMapper & newfile_mapper)
 }
 
 // Заменяет старые версии файлов на новые
-void replace_files(PathMapper & replace_mapper)
+void replace_files(std::map<std::filesystem::path, std::filesystem::path> & replace_mapper)
 {
     for (const auto& [temp_fullpath, work_fullpath] : replace_mapper)
     {
@@ -71,7 +69,7 @@ void replace_files(PathMapper & replace_mapper)
 }
 
 // Удаляет файлы из списка
-void delete_files(PathVector & files)
+void delete_files(std::vector<std::filesystem::path> & files)
 {
     for (const auto& file_path : files)
     {
@@ -82,7 +80,7 @@ void delete_files(PathVector & files)
 }
 
 // Удаляет каталоги из списка
-void delete_dirs(PathVector & dirs) {
+void delete_dirs(std::vector<std::filesystem::path> & dirs) {
     for (const auto& dir_path : dirs)
     {
         qDebug() << "delete_dir: " << dir_path.string();
@@ -138,11 +136,11 @@ void wait_for_process_exit(QString & parent_pid_str) noexcept
 // Все остальные файлы сразу же добавляются в map для замены файлов
 void get_update_data(QString & qtemp_dir,
                      QString & qwork_dir,
-                     PathMapper & newdir_mapper,
-                     PathMapper & newfile_mapper,
-                     PathMapper & replace_mapper,
-                     PathVector & delfile_vector,
-                     PathVector & deldir_vector)
+                     std::map<std::filesystem::path, std::filesystem::path> & newdir_mapper,
+                     std::map<std::filesystem::path, std::filesystem::path> & newfile_mapper,
+                     std::map<std::filesystem::path, std::filesystem::path> & replace_mapper,
+                     std::vector<std::filesystem::path> & delfile_vector,
+                     std::vector<std::filesystem::path> & deldir_vector)
 {
     std::filesystem::path temp_dir = std::filesystem::path(qtemp_dir.toStdWString());
     std::filesystem::path work_dir = std::filesystem::path(qwork_dir.toStdWString());

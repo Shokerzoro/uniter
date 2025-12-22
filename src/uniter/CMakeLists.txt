@@ -61,7 +61,9 @@ set(UNITER_SOURCES
     ${DYNAMIC_WIDGETS_SOURCES}
 )
 
-qt_add_executable(Uniter WIN32 ${UNITER_SOURCES})
+qt_add_executable(Uniter WIN32 ${UNITER_SOURCES}
+    messages/unitermessage.cpp
+    resources/resourceabstract.h )
 
 target_include_directories(Uniter
     PRIVATE
@@ -74,6 +76,7 @@ target_link_libraries(Uniter
         Qt6::Core
         Qt6::Widgets
         Qt6::Network
+        tinyxml2
 )
 
 # Логика вывода/макросов
