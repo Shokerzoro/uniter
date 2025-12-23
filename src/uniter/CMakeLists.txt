@@ -63,7 +63,14 @@ set(UNITER_SOURCES
 
 qt_add_executable(Uniter WIN32 ${UNITER_SOURCES}
     messages/unitermessage.cpp
-    resources/resourceabstract.h )
+    resources/resourceabstract.h
+    resources/materials/segment.h
+    resources/materials/materialtemplatebase.h
+
+    resources/materials/materialtemplatecomposite.h
+    resources/materials/materialtemplatesimple.h
+    resources/materials/materialtemplatesimple.cpp
+    resources/materials/materialtemplatecomposite.cpp     )
 
 target_include_directories(Uniter
     PRIVATE
