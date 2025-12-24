@@ -2,6 +2,9 @@
 #define MATERIALTEMPLATEBASE_H
 
 #include "../resourceabstract.h"
+#include <tinyxml2.h>
+#include <QString>
+#include <QDateTime>
 #include <cstdint>
 
 namespace uniter {
@@ -48,9 +51,7 @@ public:
         , description(std::move(description_))
         , dimension_type(dimension_type_)
         , is_standalone(is_standalone_)
-        , source(source_)
-        , version(version_)
-    {}
+        , source(source_) {}
 
     virtual ~MaterialTemplateBase() = default;
 
@@ -61,7 +62,6 @@ public:
 
     // Метаданные шаблона
     GostSource source; // Источник: встроенный или компании-специфичный
-    uint32_t version = 1; // Версия шаблона
 
     // Виртуальные методы для различения типов
     virtual bool isComposite() const = 0;

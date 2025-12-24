@@ -30,7 +30,7 @@ public:
         , top_template_id(top_template_id_)  // Ссылки на два простых шаблона, которые составляют этот составной материал
         , bottom_template_id(bottom_template_id_)  // Например: тип проката (top_template_id) + материал (bottom_template_id)
     {}
-
+    QString PrefName; // Запись перед стандартом (лист, круг...)
     // Ссылки на два простых шаблона, которые составляют этот составной материал
     // Например: тип проката (top_template_id) + материал (bottom_template_id)
     uint64_t top_template_id; // Id простого шаблона для верхней части

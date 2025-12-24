@@ -70,7 +70,18 @@ qt_add_executable(Uniter WIN32 ${UNITER_SOURCES}
     resources/materials/materialtemplatecomposite.h
     resources/materials/materialtemplatesimple.h
     resources/materials/materialtemplatesimple.cpp
-    resources/materials/materialtemplatecomposite.cpp     )
+    resources/materials/materialtemplatecomposite.cpp
+    resources/purchases/purchase.h resources/purchases/purchase.cpp
+
+    resources/materialinstance/materialinstancebase.h
+    resources/materialinstance/materialinstancesimple.h resources/materialinstance/materialinstancesimple.cpp
+    resources/materialinstance/materialinstancecomposite.h resources/materialinstance/materialinstancecomposite.cpp
+    resources/materialinstance/materialinstancebase.cpp
+    resources/resourceabstract.cpp
+    resources/design/assembly.h resources/design/assembly.cpp
+    resources/design/part.h resources/design/part.cpp
+    resources/design/fileversion.h
+)
 
 target_include_directories(Uniter
     PRIVATE

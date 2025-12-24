@@ -7,7 +7,6 @@
 
 namespace uniter {
 namespace resources {
-namespace materials {
 
 
 class ResourceAbstract
@@ -38,12 +37,12 @@ public:
     uint64_t updated_by = 0;
 
     // Сериализация десериализация
-    virtual void from_xml(tinyxml2::XMLElement* source) = 0;
-    virtual void to_xml(tinyxml2::XMLElement* dest) = 0;
+    virtual void from_xml(tinyxml2::XMLElement* source);
+    virtual void to_xml(tinyxml2::XMLElement* dest);
 };
 
 
-} // materials
+
 } // resources
 } // uniter
 

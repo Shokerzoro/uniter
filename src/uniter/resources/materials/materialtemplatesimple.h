@@ -44,17 +44,15 @@ public:
         , suffix_order(std::move(suffix_order_))  // Порядок следования суффиксов
     {}
 
-    // Тип стандарта и номер (имеют смысл только для простого шаблона)
-    GostStandardType standard_type; // Тип стандарта (ГОСТ, ОСТ, ГОСТ Р, ТУ и т.п.)
-    QString standard_number; // Номер стандарта (например, "1050-88", "23-45")
+    GostStandardType standard_type; // Тип стандарта
+    QString standard_number; // Номер стандарта
+    QString year; // Версия стандарта
 
-    // Префиксы (части обозначения, идущие перед номером стандарта)
-    // Ключ: id сегмента (имеет смысл только внутри этого шаблона)
-    // Значение: определение сегмента
+    // Префиксы стандартра
     std::map<uint8_t, SegmentDefinition> prefix_segments;
     std::vector<uint8_t> prefix_order; // Порядок следования префиксов
 
-    // Суффиксы (части обозначения, идущие после номера стандарта)
+    // Суффиксы стандарта
     std::map<uint8_t, SegmentDefinition> suffix_segments;
     std::vector<uint8_t> suffix_order; // Порядок следования суффиксов
 
