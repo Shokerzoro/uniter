@@ -37,8 +37,8 @@ public:
         QString description_,
         AssemblyType type_,
         std::optional<uint64_t> parent_assembly_id_,
-        std::map<uint64_t, AssemblyReference> local_child_assemblies_,
-        std::map<uint64_t, PartReference> local_parts_,
+        std::map<uint64_t, AssemblyReference> child_assemblies_,
+        std::map<uint64_t, PartReference> parts_,
         std::vector<MaterialInstanceBase> auxiliary_materials_,
         std::shared_ptr<FileVersion> assembly_drawings_,
         std::shared_ptr<FileVersion> mounting_drawings_,
@@ -52,8 +52,8 @@ public:
         description(std::move(description_)),
         type(std::move(type_)),
         parent_assembly_id(std::move(parent_assembly_id_)),
-        local_child_assemblies(std::move(local_child_assemblies_)),
-        local_parts(std::move(local_parts_)),
+        child_assemblies(std::move(child_assemblies_)),
+        parts(std::move(parts_)),
         auxiliary_materials(std::move(auxiliary_materials_)),
         assembly_drawings(std::move(assembly_drawings_)),
         mounting_drawings(std::move(mounting_drawings_)),
@@ -71,8 +71,8 @@ public:
     std::optional<uint64_t> parent_assembly_id;
 
     // Локальные дочерние сборки (map: local_id -> reference)
-    std::map<uint64_t, AssemblyReference> local_child_assemblies;
-    std::map<uint64_t, PartReference> local_parts;
+    std::map<uint64_t, AssemblyReference> child_assemblies;
+    std::map<uint64_t, PartReference> parts;
     // Вспомогательные материалы
     std::vector<MaterialInstanceBase> auxiliary_materials;
 
@@ -82,6 +82,7 @@ public:
     std::shared_ptr<FileVersion> models_3d;
     std::shared_ptr<FileVersion> specifications;
 
+    // Сериализация десериализация
     void from_xml(tinyxml2::XMLElement* source) override;
     void to_xml(tinyxml2::XMLElement* dest) override;
 };

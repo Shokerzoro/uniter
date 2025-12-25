@@ -28,6 +28,45 @@ set(MANAGERS_SOURCES
     managers/configmanager.h
 )
 
+set(RESOUCES_SOURCES
+    messages/unitermessage.cpp
+    resources/resourceabstract.h
+    resources/material/segment.h
+    resources/material/materialtemplatebase.h
+
+    resources/material/materialtemplatecomposite.h
+    resources/material/materialtemplatesimple.h
+    resources/material/materialtemplatesimple.cpp
+    resources/material/materialtemplatecomposite.cpp
+
+    resources/supply/purchase.h resources/supply/purchase.cpp
+    resources/supply/purchasecomplex.h resources/supply/purchasecomplex.cpp
+
+    resources/materialinstance/materialinstancebase.h
+    resources/materialinstance/materialinstancesimple.h resources/materialinstance/materialinstancesimple.cpp
+    resources/materialinstance/materialinstancecomposite.h resources/materialinstance/materialinstancecomposite.cpp
+    resources/materialinstance/materialinstancebase.cpp
+    resources/resourceabstract.cpp
+
+    resources/design/assembly.h resources/design/assembly.cpp
+    resources/design/part.h resources/design/part.cpp
+    resources/design/fileversion.h
+    resources/design/project.h resources/design/project.cpp
+
+    resources/employee/permissions.h
+    resources/employee/employee.h resources/employee/employee.cpp
+)
+
+set(DYNAMIC_WIDGETS_SOURCES
+    widgets_dynamic/dynamicwidget.cpp
+    widgets_dynamic/dynamicwidget.h
+)
+
+set(GENERATIVE_WIDGETS_SOURCES
+    widgets_generative/generativetab.cpp
+    widgets_generative/generativetab.h
+)
+
 set(STATIC_WIDGETS_SOURCES
     widgets_static/mainwindow.cpp
     widgets_static/mainwindow.h
@@ -41,46 +80,21 @@ set(STATIC_WIDGETS_SOURCES
     widgets_static/workwin/workspace.h
 )
 
-set(GENERATIVE_WIDGETS_SOURCES
-    widgets_generative/generativetab.cpp
-    widgets_generative/generativetab.h
-)
-
-set(DYNAMIC_WIDGETS_SOURCES
-    widgets_dynamic/dynamicwidget.cpp
-    widgets_dynamic/dynamicwidget.h
-)
-
 set(UNITER_SOURCES
     main.cpp
     ${NETWORK_SOURCES}
     ${MESSAGES_SOURCES}
     ${MANAGERS_SOURCES}
+    ${RESOUCES_SOURCES}
     ${STATIC_WIDGETS_SOURCES}
     ${GENERATIVE_WIDGETS_SOURCES}
     ${DYNAMIC_WIDGETS_SOURCES}
 )
 
 qt_add_executable(Uniter WIN32 ${UNITER_SOURCES}
-    messages/unitermessage.cpp
-    resources/resourceabstract.h
-    resources/materials/segment.h
-    resources/materials/materialtemplatebase.h
+    resources/plant/plant.h resources/plant/plant.cpp
+    resources/plant/task.h resources/plant/task.cpp
 
-    resources/materials/materialtemplatecomposite.h
-    resources/materials/materialtemplatesimple.h
-    resources/materials/materialtemplatesimple.cpp
-    resources/materials/materialtemplatecomposite.cpp
-    resources/purchases/purchase.h resources/purchases/purchase.cpp
-
-    resources/materialinstance/materialinstancebase.h
-    resources/materialinstance/materialinstancesimple.h resources/materialinstance/materialinstancesimple.cpp
-    resources/materialinstance/materialinstancecomposite.h resources/materialinstance/materialinstancecomposite.cpp
-    resources/materialinstance/materialinstancebase.cpp
-    resources/resourceabstract.cpp
-    resources/design/assembly.h resources/design/assembly.cpp
-    resources/design/part.h resources/design/part.cpp
-    resources/design/fileversion.h
 )
 
 target_include_directories(Uniter

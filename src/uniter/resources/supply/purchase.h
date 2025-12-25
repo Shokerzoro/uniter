@@ -7,9 +7,7 @@
 #include <QString>
 #include <cstdint>
 
-namespace uniter {
-namespace resources {
-namespace purchases {
+namespace uniter::resources::purchase {
 
 enum class PurchStatus : uint8_t {
     DRAFT = 0,                  // Черновик (редактируется)
@@ -24,29 +22,23 @@ public:
 
     // Полный конструктор - точно соответствует базовому классу
     Purchase(
-        uint64_t s_id,              // ResourceAbstract::id
-        bool actual,                // ResourceAbstract::is_actual
-        const QDateTime& c_created_at,  // ResourceAbstract::created_at
-        const QDateTime& s_updated_at,  // ResourceAbstract::updated_at
-        uint64_t s_created_by,      // ResourceAbstract::created_by
-        uint64_t s_updated_by,      // ResourceAbstract::updated_by
+        uint64_t s_id,
+        bool actual,
+        const QDateTime& c_created_at,
+        const QDateTime& s_updated_at,
+        uint64_t s_created_by,
+        uint64_t s_updated_by,
         const QString& name,
         const QString& description,
         PurchStatus status,
-        uint64_t group,
-        uint64_t production_id,
         const MaterialInstanceBase* material
         ) : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),  // ✅ 6 параметров!
         name(name),
         description(description),
         status(status),
-        group(group),
-        production_id(production_id),
         material(material)
     {}
 
-    uint64_t group;
-    uint64_t production_id;
     QString name;
     QString description;
     PurchStatus status;
@@ -58,9 +50,7 @@ public:
 };
 
 
-} // purchases
-} // resources
-} // uniter
+} // purchase
 
 
 #endif // PURCHASE_H
