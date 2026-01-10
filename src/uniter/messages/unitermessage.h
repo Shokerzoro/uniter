@@ -5,6 +5,7 @@
 #include "../resources/resourceabstract.h"
 #include "tinyxml2.h"
 #include <optional>
+#include <memory>
 
 namespace uniter::messages {
 
@@ -20,8 +21,9 @@ enum class Subsystem : uint8_t {
 
 // Для генеративных подсистем
 enum class GenSubsystemType : uint8_t {
-    PRODUCTION             = 0,
-    INTERGATION            = 1,
+    NOTGEN                 = 0,
+    PRODUCTION             = 1,
+    INTERGATION            = 2,
 };
 
 enum class CrudAction : uint8_t {
@@ -56,7 +58,7 @@ enum class ResourceType : uint8_t {
     // Производство
     PRUDUCTION_TASK        = 9,
     // Интеграция
-    INTEGRATION            = 10
+    INTEGRATION_TASK       = 10
 };
 
 enum class MessageStatus : uint8_t {
@@ -75,28 +77,27 @@ enum class ErrorCode : uint16_t {
 
 
 class UniterMessage {
+public:
     explicit UniterMessage();
     // Метаданные
     uint32_t version;
+    QDateTime timestamp;
     std::optional<uint64_t> message_sequence_id;
     std::optional<uint64_t> request_sequence_id;
-    QDateTime timestamp;
 
     // Определение подсистемы
     Subsystem subsystem;
-    std::optional<GenSubsystemType> GenSubsystem;
-    std::optional<uint64_t> GenSubsystemId;
+    GenSubsystemType GenSubsystem = GenSubsystemType::NOTGEN;
+    uint64_t GenSubsystemId = 0;
 
     // Определение назначения и жизненного цикла
-    CrudAction crudact;
-    ProtocolAction protact;
-    MessageStatus status;
-    ErrorCode error;
+    CrudAction crudact = CrudAction::NOTCRUD;
+    ProtocolAction protact = ProtocolAction::NOTPROTOCOL;
+    MessageStatus status = MessageStatus::REQUEST;
+    ErrorCode error = ErrorCode::SUCCESS;
 
-    // Ресурсы (только один тип активен)
-    std::optional<ResourceType> resource_type; // Также для передачи Emploee для конфигурации
-    std::optional<std::vector<resources::ResourceAbstract>> resource_instance;
-    // Данные (для передачи sequnce_id, resource_id, авторизации)
+    // Ресурсы и данные
+    std::shared_ptr<resources::ResourceAbstract> resource;
     std::map<QString, QString> add_data;
 
     // Сериализация десериализция

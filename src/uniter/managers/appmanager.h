@@ -1,15 +1,15 @@
 
 #include "../messages/unitermessage.h"
 #include "../resources/employee/employee.h"
-#include <QScopedPointer>
 #include <optional>
+#include <memory>
 
 namespace uniter::managers {
 
 // управляет приложением, хранит данные сессии
 // выполняет типовые действия при старте/закрытии
 class AppManager : public QObject {
-    QOBJECT
+    Q_OBJECT
 private:
     enum class AppState {IDLE, STARTED, CONNECTED, AUTHENTIFICATED, CONFIGURATED, READY, SHUTDOWN};
     enum class NetState {ONLINE, OFFLINE};
@@ -20,12 +20,11 @@ private:
 
     // Для временного хранения данных аутентификации
     // Если они пришли до signalFindAuthData()
-    QScopedPointer<messages::UniterMessage> AuthMessage;
-    // Данные пользователя и сессии
-    std::optional<resources::employees::Employee> User = std::nullopt;
+    std::shared_ptr<messages::UniterMessage> AuthMessage;
+    std::shared_ptr<resources::employees::Employee> User;
 public:
-    AppManager();
-    ~AppManager();
+    AppManager() = default;
+    ~AppManager() = default;
     void start_run();
 public slots:
     // От сетевого класса
@@ -38,8 +37,8 @@ public slots:
     void onShutDown();
 
     // Маршрутизация сообщений
-    void onRecvUniterMessage(QScopedPointer<messages::UniterMessage> AuthMessage);
-    void onSendUniterMeassage(QScopedPointer<messages::UniterMessage> AuthMessage);
+    void onRecvUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
+    void onSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
 signals:
     // Внешние
     void signalMakeConnection();
@@ -52,14 +51,14 @@ signals:
 
     // Внутренние
     void signalFindAuthData(); // Для виджета аутентификации
-    void signalConfigProc(resources::employees::Employee User);
+    void signalConfigProc(std::shared_ptr<resources::employees::Employee> User);
     // Для применения локальных настроек (нахождение существующих проектов и т.д.)
     // После этого UniterMessage сможет передавать им данные (относится к проектам в первую очередь)
     void signalCustomizeProc();
 
     // Для маршрутизации
-    void signalRecvUniterMessage(QScopedPointer<messages::UniterMessage> AuthMessage);
-    void signalSendUniterMessage(QScopedPointer<messages::UniterMessage> AuthMessage);
+    void signalRecvUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
+    void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
 };
 
 

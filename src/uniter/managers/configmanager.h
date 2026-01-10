@@ -1,5 +1,6 @@
 
-
+#include "../resources/employee/employee.h"
+#include <memory>
 
 namespace uniter::managers {
 
@@ -13,8 +14,7 @@ public:
 
     // Генерация конфигурации
 public slots:
-    void GenerateConfiguration();
-
+    void GenerateConfiguration(std::shared_ptr<resources::employees::Employee> User);
 };
 
 

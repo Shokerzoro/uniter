@@ -11,17 +11,17 @@ namespace uniter::managers {
 
 // Запуск приложения
 void AppManager::start_run() {
-    QDebug("AppManager::start_run()");
     SetAppState(AppState::STARTED);
 }
 
 
 // Все действия при переходе в новое состояние
-// Не проверяет валидность переходов, только отрабатывает
 void AppManager::SetAppState(AppState NewState) {
     // Всегда устанавливаем состояние
     // А действия производим только в online (кроме STARTED)
+    if(NewState == AState) return;
     AState = NewState;
+
     if (NState == NetState::OFFLINE && NewState != AppState::STARTED)
         return;
 
@@ -37,14 +37,13 @@ void AppManager::SetAppState(AppState NewState) {
         emit signalConnected();
         if(AuthMessage) { // Если AuthMessage нет, запрашиваем
             emit signalSendUniterMessage(AuthMessage);
-            AuthMessage.reset(); // Сразу очищаем данные
             break;
         }
         emit signalFindAuthData();
         break;
     case AppState::AUTHENTIFICATED:
         emit signalAuthed(true); // Переключение на рабочий виджет
-        emit signalConfigProc(std::move(User)); // Вызов ConfigManager
+        emit signalConfigProc(User); // Вызов ConfigManager
         break;
     case AppState::CONFIGURATED:
         emit signalCustomizeProc(); // Запрос на применение локальных настроек
@@ -63,6 +62,8 @@ void AppManager::SetAppState(AppState NewState) {
 
 // Не проверяет валидность переходов, только отрабатывает
 void AppManager::SetNetState(NetState NewState) {
+
+    if(NState == NewState) return;
     NState = NewState;
 
     switch (NewState) {
@@ -89,93 +90,74 @@ void AppManager::SetNetState(NetState NewState) {
 }
 
 
-// Маршрутизация сообщений
-// Точка входа для данных (могут приходить в offline? Фактически нет)
-void AppManager::onRecvUniterMessage(QScopedPointer<messages::UniterMessage> Message) {
+// Маршрутизация вниз
+void AppManager::onRecvUniterMessage(std::shared_ptr<messages::UniterMessage> Message) {
 
-    // Обработка инициализационных сообщений (только UniterMessage с User)
-    if (AState != AppState::READY && Message->subsystem == messages::Subsystem::PROTOCOL) {
-        switch(AState) {
-        case AppState::CONNECTED:
-            // Получение аутентификации
-            if(Message->protact == messages::ProtocolAction::GETCONFIG && Message->status == messages::MessageStatus::RESPONSE) {
-
-                if(Message->error == messages::ErrorCode::SUCCESS) { // Успешная аутентификация
-                    SetAppState(AppState::AUTHENTIFICATED);
-                }
-                else { // Неуспешная аутентификация
-                    emit signalAuthed(false);
-                }
-            )
-            break;
-        default:
-            // Не понятно что делать, ошибка какая-то
-            break;
-        }
-        return;
+    // Пересылка обычных crud
+    if(AState == AppState::READY && Message->subsystem != messages::Subsystem::PROTOCOL) {
+        emit signalRecvUniterMessage(Message);
     }
 
-    // Обработка основных CRUD сообщений (передача выше)
-    if (AState == AppState::READY && Message->subsystem != messages::Subsystem::PROTOCOL) {
+    // Протокольные сообщения в ready состоянии
+    if(AState == AppState::READY && Message->subsystem == messages::Subsystem::PROTOCOL) {
+        // TODO: обновление конфигурации user
 
-        return;
+        // TODO: то что связано с sync - синхронизацией
+
+        // TODO: удаление пользователя
     }
 
-    // Обработка остальных сообщений (исключительный случай)
-    // Например runtime изменение конфигурации/данный пользователя
-    if (AState == AppState::READY && Message->subsystem == messages::Subsystem::PROTOCOL) {
-        if (Message->protact == messages::ProtocolAction::GETCONFIG && Message->status == messages::MessageStatus::RESPONSE) {
-            //TODO: Изменился User, создаем заново/изменяем
-        }
+    // Протокольные сообщения во время инициализации
+    if(AState != AppState::READY && Message->subsystem == messages::Subsystem::PROTOCOL) {
+
+        // Если ждем аутентификацию
+
+        // Если необходимо выполнять sync перед переходом в ready
+        // Ответ на POLL - bad_request
+
+    }
+}
+
+// Маршрутизация вверх
+void AppManager::onSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message) {
+
+    // Пересылка обычных crud
+    if (AState == AppState::READY) {
+        emit signalSendUniterMessage(Message);
     }
 
+    // Протокольные сообщения во время appstate::ready
 
-} // onRecvUniterMessage
+    // Протокольные сообщения во время инициализации
 
+}
 
-// Минимальная проверка (состояние, права)? Или отдавать сетевому классу чтобы он буферезировал
-void AppManager::onSendUniterMeassage(QScopedPointer<messages::UniterMessage> Message) {
-
-    // Обработка инициализационных сообщений
-    if (AState != AppState::READY && Message->subsystem == messages::Subsystem::PROTOCOL) {
-        // Если запрос авторизация, то сохранение (если не AUTHENTIFICATED) или передача
-        // Что еще может быть????
-    }
-
-    // Обработка основных сообщений
-    if (AState == AppState::READY && Message->subsystem != messages::Subsystem::PROTOCOL) {
-        // Если проверять права, то это нужно целиком парсить сообщение.
-        // Может быть проще просто настроить UI правильно?
-        // Но тогда дыра в безопасности при ошибках в UI
-    }
-
-} // onSendUniterMeassage
-
-
-
-// public slots (выделены для инкапсуляции AState NState)
-// От сетевого класса
+// Сигналы от сетевого класса
 void AppManager::onConnected() {
-    if(NState == NetState::OFFLINE)
-        SetNetState(NetState::ONLINE);
-}
-void AppManager::onDisconnected() {
-    if(NState == NetState::ONLINE)
-        SetNetState(NetState::OFFLINE);
+    SetNetState(NetState::ONLINE);
 }
 
-// От менеджеров / выключение
+void AppManager::onDisconnected() {
+    SetNetState(NetState::OFFLINE);
+}
+
+// Сигналы от менеджеров
 void AppManager::onConfigured() {
-    if(AState == AppState::AUTHENTIFICATED)
+    if(AState == AppState::AUTHENTIFICATED) {
         SetAppState(AppState::CONFIGURATED);
+    }
 }
+
 void AppManager::onCustomized() {
-    if(AState == AppState::CONFIGURATED)
+    if(AState == AppState::CONFIGURATED) {
         SetAppState(AppState::READY);
+    }
 }
+
 void AppManager::onShutDown() {
-    // Потом можно добавить виджет с вопосом
-    SetAppState(AppState::SHUTDOWN);
+    //TODO: выполнить сохранение
 }
+
+
 
 } // managers
