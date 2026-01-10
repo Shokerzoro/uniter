@@ -25,7 +25,10 @@ int main(int argc, char *argv[])
     //Создание основных ресурсов
     uniter::MainWindow MainWin;
     // Менеджер приложения
+
     // Сетевой класс
+
+    // Запуск FSM менеджера приложения
 
     MainWin.show();
     return app.exec();

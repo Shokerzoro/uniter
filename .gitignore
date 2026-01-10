@@ -19,6 +19,9 @@ CMakeCache.txt
 *.log
 *.ico
 *.png
+*.pdf
+*.dwg
+*.bak
 
 # Временные
 *.tmp

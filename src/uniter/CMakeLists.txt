@@ -95,6 +95,7 @@ qt_add_executable(Uniter WIN32 ${UNITER_SOURCES}
     resources/plant/plant.h resources/plant/plant.cpp
     resources/plant/task.h resources/plant/task.cpp
 
+
 )
 
 target_include_directories(Uniter
