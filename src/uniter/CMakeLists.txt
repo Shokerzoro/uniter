@@ -72,14 +72,21 @@ set(GENERATIVE_WIDGETS_SOURCES
 set(STATIC_WIDGETS_SOURCES
     widgets_static/mainwindow.cpp
     widgets_static/mainwindow.h
+
     widgets_static/authwin/authwidget.cpp
     widgets_static/authwin/authwidget.h
-    widgets_static/status/updatecontainer.cpp
-    widgets_static/status/updatecontainer.h
-    widgets_static/status/update_indicator.cpp
-    widgets_static/status/update_indicator.h
-    widgets_static/workwin/workspace.cpp
-    widgets_static/workwin/workspace.h
+
+    widgets_static/offlinewin/offlinewdg.h
+    widgets_static/offlinewin/offlinewdg.cpp
+
+    widgets_static/workwin/workwidget.cpp
+    widgets_static/workwin/workwidget.h
+
+    widgets_static/workwin/statusbar/statusbar.h
+    widgets_static/workwin/statusbar/statusbar.cpp
+
+    widgets_static/workwin/workarea/workarea.h
+    widgets_static/workwin/workarea/workarea.cpp
 )
 
 set(UNITER_SOURCES
@@ -92,6 +99,10 @@ set(UNITER_SOURCES
     ${GENERATIVE_WIDGETS_SOURCES}
     ${DYNAMIC_WIDGETS_SOURCES}
 )
+
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 qt_add_executable(Uniter WIN32 ${UNITER_SOURCES}
 
@@ -110,6 +121,9 @@ target_link_libraries(Uniter
         Qt6::Network
         tinyxml2
 )
+target_link_libraries(Uniter PRIVATE Qt6::Widgets)
+target_link_libraries(Uniter PRIVATE Qt6::Widgets)
+target_link_libraries(Uniter PRIVATE Qt6::Widgets)
 
 # Логика вывода/макросов
 if(RELEASE AND NOT DEBUG_INFO)

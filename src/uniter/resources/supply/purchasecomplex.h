@@ -7,7 +7,7 @@
 #include <vector>
 #include <cstdint>
 
-namespace uniter::resources::purchase {
+namespace uniter::resources::supply {
 
 
 class PurchaseComplex : public ResourceAbstract
@@ -42,7 +42,7 @@ public:
 };
 
 
-} // purchase
+} // supply
 
 
 #endif // PURCHASECOMPLEX_H

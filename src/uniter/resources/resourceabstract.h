@@ -12,6 +12,7 @@ namespace resources {
 class ResourceAbstract
 {
 public:
+    ResourceAbstract();
     ResourceAbstract(
         uint64_t s_id,
         bool actual,
@@ -26,8 +27,8 @@ public:
         , created_by(s_created_by)
         , updated_by(s_updated_by)
     {}
+    ~ResourceAbstract() = default;
 
-    virtual ~ResourceAbstract() = default;
     uint64_t id = 0;
     bool is_actual = true;
 

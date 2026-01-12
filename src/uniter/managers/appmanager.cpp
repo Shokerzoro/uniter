@@ -19,7 +19,6 @@ void AppManager::start_run() {
 void AppManager::SetAppState(AppState NewState) {
     // Всегда устанавливаем состояние
     // А действия производим только в online (кроме STARTED)
-    if(NewState == AState) return;
     AState = NewState;
 
     if (NState == NetState::OFFLINE && NewState != AppState::STARTED)
@@ -63,7 +62,6 @@ void AppManager::SetAppState(AppState NewState) {
 // Не проверяет валидность переходов, только отрабатывает
 void AppManager::SetNetState(NetState NewState) {
 
-    if(NState == NewState) return;
     NState = NewState;
 
     switch (NewState) {
@@ -111,6 +109,20 @@ void AppManager::onRecvUniterMessage(std::shared_ptr<messages::UniterMessage> Me
     if(AState != AppState::READY && Message->subsystem == messages::Subsystem::PROTOCOL) {
 
         // Если ждем аутентификацию
+        if (AState == AppState::CONNECTED && Message->protact == messages::ProtocolAction::GETCONFIG) {
+            if(Message->status == messages::MessageStatus::RESPONSE) {
+
+                if(Message->error == messages::ErrorCode::SUCCESS && Message->resource) {
+                    User = std::dynamic_pointer_cast<resources::employees::Employee>(Message->resource);
+                    SetAppState(AppState::AUTHENTIFICATED);
+                    return;
+                }
+                else if(Message->error == messages::ErrorCode::BAD_REQUEST) {
+                    emit signalAuthed(false);
+                }
+
+            }
+        }
 
         // Если необходимо выполнять sync перед переходом в ready
         // Ответ на POLL - bad_request
@@ -127,8 +139,28 @@ void AppManager::onSendUniterMessage(std::shared_ptr<messages::UniterMessage> Me
     }
 
     // Протокольные сообщения во время appstate::ready
+    if (AState == AppState::READY && Message->subsystem == messages::Subsystem::PROTOCOL) {
+        // Обработка изменения конфига
+
+        // Обработка выхода (например пользователь удален)
+
+    }
 
     // Протокольные сообщения во время инициализации
+    if (AState != AppState::READY && Message->subsystem == messages::Subsystem::PROTOCOL) {
+
+        // Обработка запроса на аутентификацию
+        if(Message->protact == messages::ProtocolAction::GETCONFIG &&
+            Message->status == messages::MessageStatus::REQUEST) {
+            AuthMessage = std::move(Message);
+
+            // Если CONNECTED и ONLINE записываем и отправляем
+            if(AState == AppState::CONNECTED && NState == NetState::ONLINE) {
+                emit signalSendUniterMessage(AuthMessage);
+            }
+        }
+
+    }
 
 }
 
@@ -155,7 +187,8 @@ void AppManager::onCustomized() {
 }
 
 void AppManager::onShutDown() {
-    //TODO: выполнить сохранение
+    // TODO: выполнить сохранение
+    // TODO: на выход регестрируем слот shutdown
 }
 
 

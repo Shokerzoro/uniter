@@ -7,7 +7,7 @@
 #include <QString>
 #include <cstdint>
 
-namespace uniter::resources::purchase {
+namespace uniter::resources::supply {
 
 enum class PurchStatus : uint8_t {
     DRAFT = 0,                  // Черновик (редактируется)
@@ -50,7 +50,7 @@ public:
 };
 
 
-} // purchase
+} // supply
 
 
 #endif // PURCHASE_H

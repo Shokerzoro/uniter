@@ -18,7 +18,7 @@ struct EmployeeAssignment {
     std::vector<uint8_t> permissions;
 };
 
-class Employee : ResourceAbstract {
+class Employee : public ResourceAbstract {
 public:
     Employee(
         uint64_t s_id,
@@ -43,7 +43,6 @@ public:
     QString surname;
     QString patronymic;
     QString email;
-
     // Может быть назначен на несколько подсистем
     std::vector<EmployeeAssignment> assignments;
 

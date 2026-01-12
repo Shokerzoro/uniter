@@ -78,7 +78,7 @@ enum class ErrorCode : uint16_t {
 
 class UniterMessage {
 public:
-    explicit UniterMessage();
+    UniterMessage() = default;
     // Метаданные
     uint32_t version;
     QDateTime timestamp;

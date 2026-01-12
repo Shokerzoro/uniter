@@ -11,9 +11,20 @@ set(MANAGERS
     ../src/uniter/managers/appmanager.h
 )
 
+set(RESOURCES
+    ../src/uniter/resources/resourceabstract.cpp
+    ../src/uniter/resources/resourceabstract.h
+    ../src/uniter/resources/employee/employee.cpp
+    ../src/uniter/resources/employee/employee.h
+
+    ../src/uniter/resources/supply/purchase.cpp
+    ../src/uniter/resources/supply/purchase.cpp
+)
+
 add_executable(UniterTests
     ${TEST_SOURCES}
     ${MANAGERS}
+    ${RESOURCES}
 )
 
 target_link_libraries(UniterTests
