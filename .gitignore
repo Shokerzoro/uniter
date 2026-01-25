@@ -1,7 +1,8 @@
 # CMake build dirs
+cmake-build-*/
 build/
 deploy/
-cmake-build-*/
+docs/
 CMakeFiles/
 CMakeCache.txt
 
@@ -21,7 +22,6 @@ CMakeCache.txt
 *.png
 *.pdf
 *.dwg
-*.bak
 
 # Временные
 *.tmp

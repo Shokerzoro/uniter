@@ -44,7 +44,7 @@ signals:
     void signalMakeConnection();
     void signalPollMessages();
 
-    // Внутренние для UI
+    // Внутренние для UI //TODO: объединить signalConnected signalDisconnected
     void signalConnected(); // Разблокировка UI (кроме Connected, т.к. не заблокировано)
     void signalDisconnected(); // Блокировка UI
     void signalAuthed(bool result); // Для переключения UI в основной рабочий виджет

@@ -7,11 +7,11 @@ namespace uniter::staticwdg {
 
 
 
-class WorkWidget : public QWidget
+class WorkWdg : public QWidget
 {
     Q_OBJECT
 public:
-    explicit WorkWidget(QWidget *parent = nullptr);
+    explicit WorkWdg(QWidget *parent = nullptr);
 
 signals:
 };

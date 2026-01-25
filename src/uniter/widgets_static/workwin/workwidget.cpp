@@ -4,7 +4,7 @@ namespace uniter::staticwdg {
 
 
 
-WorkWidget::WorkWidget(QWidget *parent) : QWidget{parent}
+WorkWdg::WorkWdg(QWidget *parent) : QWidget{parent}
 {
 
 }

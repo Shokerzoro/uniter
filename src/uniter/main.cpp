@@ -23,16 +23,18 @@ int main(int argc, char *argv[])
     common::appfuncs::set_env(AEnviroment);
     common::appfuncs::open_log(AEnviroment.logfile);
 
-    // Основной виджет
-    uniter::staticwdg::MainWindow MWindow;
+    // Слой виджетов
+    uniter::staticwdg::MainWidget MWindow;
 
-    // Менеджер приложения (двигаем в другой поток)
+    // Слой данных
+
+    // Управляющий слой
     uniter::managers::AppManager AManager;
 
+    // Сетевой слой
 
-    // Сетевой класс (двигаем в другой поток)
 
-    // Запуск FSM менеджера приложения
+    // Запуск FSM приложения
 
     MWindow.show();
     return app.exec();
