@@ -8,9 +8,7 @@
 namespace uniter::net {
 
 
-namespace uniter::network {
-
-MockNetworkProcessor::MockNetworkProcessor(QObject* parent)
+MockNetManager::MockNetManager(QObject* parent)
     : QObject(parent)
     , connected_(false)
     , latency_ms_(0)
@@ -21,35 +19,35 @@ MockNetworkProcessor::MockNetworkProcessor(QObject* parent)
 
 }
 
-MockNetworkProcessor::~MockNetworkProcessor()
+MockNetManager::~MockNetManager()
 {
 
 }
 
-void MockNetworkProcessor::makeConnection()
+void MockNetManager::makeConnection()
 {
     if (!connected_) {
         connected_ = true;
         qDebug() << "Mock: Connection ESTABLISHED";
-        emit signalConnectionUpdated(true);
+        emit signalConnected();
     }
 }
 
-void MockNetworkProcessor::loseConnection()
+void MockNetManager::loseConnection()
 {
     if (connected_) {
         connected_ = false;
         qDebug() << "Mock: Connection LOST";
-        emit signalConnectionUpdated(false);
+        emit signalDisconnected();
     }
 }
 
-bool MockNetworkProcessor::isConnected() const
+bool MockNetManager::isConnected() const
 {
     return connected_;
 }
 
-void MockNetworkProcessor::sendMessage(std::shared_ptr<messages::UniterMessage> message)
+void MockNetManager::sendMessage(std::shared_ptr<messages::UniterMessage> message)
 {
     if (!message) return;
 
@@ -77,7 +75,7 @@ void MockNetworkProcessor::sendMessage(std::shared_ptr<messages::UniterMessage> 
     }
 }
 
-void MockNetworkProcessor::receiveMessage(std::shared_ptr<messages::UniterMessage> message)
+void MockNetManager::receiveMessage(std::shared_ptr<messages::UniterMessage> message)
 {
     if (!message || !connected_) return;
 
@@ -86,34 +84,34 @@ void MockNetworkProcessor::receiveMessage(std::shared_ptr<messages::UniterMessag
     emit signalRecvMessage(message);
 }
 
-int MockNetworkProcessor::queueSize() const
+int MockNetManager::queueSize() const
 {
     return send_queue_.size();
 }
 
-void MockNetworkProcessor::setLatency(int milliseconds)
+void MockNetManager::setLatency(int milliseconds)
 {
     latency_ms_ = milliseconds;
     qDebug() << "Mock: Latency set to" << latency_ms_ << "ms";
 }
 
-void MockNetworkProcessor::setPacketLossRate(double rate)
+void MockNetManager::setPacketLossRate(double rate)
 {
     packet_loss_rate_ = rate;
     qDebug() << "Mock: Packet loss rate set to" << (rate * 100) << "%";
 }
 
-void MockNetworkProcessor::onMakeConnection()
+void MockNetManager::onMakeConnection()
 {
     makeConnection();
 }
 
-void MockNetworkProcessor::onSendMessage(std::shared_ptr<messages::UniterMessage> message)
+void MockNetManager::onSendMessage(std::shared_ptr<messages::UniterMessage> message)
 {
     sendMessage(message);
 }
 
-void MockNetworkProcessor::onShutdown()
+void MockNetManager::onShutdown()
 {
     loseConnection();
     while (!send_queue_.empty()) {
@@ -121,8 +119,6 @@ void MockNetworkProcessor::onShutdown()
     }
     qDebug() << "Mock: Shutdown complete";
 }
-
-} // namespace uniter::network
 
 
 } // net

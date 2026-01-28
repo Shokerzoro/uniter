@@ -186,6 +186,10 @@ void AppManager::onCustomized() {
     }
 }
 
+void AppManager::onResourcesLoaded() {
+
+}
+
 void AppManager::onShutDown() {
     // TODO: выполнить сохранение
     // TODO: на выход регестрируем слот shutdown

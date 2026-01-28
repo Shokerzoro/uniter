@@ -38,31 +38,34 @@ void DataManager::onCustomized()
 }
 
 void DataManager::onSubscribeToResourceList(messages::Subsystem subsystem,
-                                           messages::ResourceType type)
+                                            messages::ResourceType type,
+                                            std::shared_ptr<genwdg::ISubsWdg> observer)
 {
     // TODO: реализация
 }
 
 void DataManager::onSubscribeToResourceTree(messages::Subsystem subsystem,
-                                           messages::ResourceType type)
+                                            messages::ResourceType type,
+                                            std::shared_ptr<genwdg::ISubsWdg> observer)
 {
     // TODO: реализация
 }
 
 void DataManager::onSubscribeToResource(messages::Subsystem subsystem,
-                                       messages::ResourceType type,
-                                       uint64_t resId)
+                                        messages::ResourceType type,
+                                        uint64_t resId,
+                                        std::shared_ptr<genwdg::ISubsWdg> observer)
 {
     // TODO: реализация
 }
 
-std::shared_ptr<resources::ResourceAbstract> DataManager::getResource(
+void DataManager::onGetResource(
     messages::Subsystem subsystem,
     messages::ResourceType type,
-    uint64_t resourceId)
+    uint64_t resourceId,
+    std::shared_ptr<genwdg::ISubsWdg> observer)
 {
     // TODO: реализация
-    return nullptr;
 }
 
 

@@ -3,11 +3,11 @@
 #include "../resources/employee/employee.h"
 #include <optional>
 #include <memory>
+#include <QCryptographicHash>
 
 namespace uniter::managers {
 
-// управляет приложением, хранит данные сессии
-// выполняет типовые действия при старте/закрытии
+
 class AppManager : public QObject {
     Q_OBJECT
 protected:
@@ -34,6 +34,7 @@ public slots:
     // От менеджеров / выключение
     void onConfigured();
     void onCustomized();
+    void onResourcesLoaded();
     void onShutDown();
 
     // Маршрутизация сообщений
@@ -53,12 +54,12 @@ signals:
     void signalFindAuthData(); // Для виджета аутентификации
     void signalConfigProc(std::shared_ptr<resources::employees::Employee> User);
     void signalCustomizeProc(); // Применение локальных настроек
+    void signalStartLoadResources(QCryptographicHash& userhash); // Запуск БД
 
     // Для маршрутизации
     void signalRecvUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
     void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
 };
-
 
 
 } // managers

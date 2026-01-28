@@ -9,16 +9,13 @@
 namespace uniter::net {
 
 
-namespace uniter::network {
-
-
-class MockNetworkProcessor : public QObject
+class MockNetManager : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit MockNetworkProcessor(QObject* parent = nullptr);
-    ~MockNetworkProcessor() override;
+    explicit MockNetManager(QObject* parent = nullptr);
+    ~MockNetManager() override;
 
     // === Управление соединением ===
 
@@ -60,7 +57,8 @@ signals:
     /// Сигналы для AppManager и остального приложения
 
     /// Соединение установлено
-    void signalConnectionUpdated(bool connected);
+    void signalConnected();
+    void signalDisconnected();
 
     /// Сообщение получено с "сервера"
     void signalRecvMessage(std::shared_ptr<messages::UniterMessage> message);
@@ -85,9 +83,5 @@ private:
 };
 
 } // namespace uniter::network
-
-
-
-} // net
 
 #endif // MOCKNETWORK_H

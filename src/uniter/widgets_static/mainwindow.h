@@ -1,7 +1,8 @@
-#ifndef MAINWINDOW_H
+    #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
 #include "../messages/unitermessage.h"
+#include "../resources/resourceabstract.h"
 #include "./authwin/authwidget.h"
 #include "./offlinewin/offlinewdg.h"
 #include "./workwin/workwidget.h"
@@ -32,35 +33,48 @@ private:
 
 public:
     explicit MainWidget(QWidget* parent = nullptr);
-    // Удаление конструкторов копирования и перемещения
     MainWidget(const MainWidget&) = delete;
     MainWidget(MainWidget&&) = delete;
     MainWidget& operator=(const MainWidget&) = delete;
     MainWidget& operator=(MainWidget&&) = delete;
+
 public slots:
-    // От менеджера приложения (триггерят управление машиной состояний)
+    // От менеджера приложения
     void onConnected();
     void onDisconnected();
-    void onAuthed(bool result); // Передаем также виджету аутентификации
+    void onAuthed(bool result);
     void onFindAuthData();
-    void onSubsystemAdded(messages::Subsystem subsystem, messages::GenSubsystemType genType, uint64_t genId, bool created);
+    void onSubsystemAdded(messages::Subsystem subsystem,
+                          messages::GenSubsystemType genType,
+                          uint64_t genId,
+                          bool created);
     // От нижнего уровня
     void onMakeConnect();
     void onSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
+
 signals:
-    // Для виджета аутентификации (вниз)
+    // Для виджета аутентификации
     void signalAuthed(bool result);
     void signalFindAuthData();
     // От виджета оффлайна
-    void signalMakeConnect(void);
+    void signalMakeConnect();
     // Для рабочего виджета
-    void signalSubsystemAdded(messages::Subsystem subsystem, messages::GenSubsystemType genType, uint64_t genId, bool created);
-    // Для маршрутизации сообщений (вверх)
+    void signalSubsystemAdded(messages::Subsystem subsystem,
+                              messages::GenSubsystemType genType,
+                              uint64_t genId,
+                              bool created);
+    // Для маршрутизации сообщений
     void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
-} ;
 
+    // Подписка на ресурсы
+    void signalSubscribeToResourceList(messages::Subsystem subsystem, messages::ResourceType type, std::shared_ptr<genwdg::ISubsWdg> observer);
+    void signalSubscribeToResourceTree(messages::Subsystem subsystem, messages::ResourceType type, std::shared_ptr<genwdg::ISubsWdg> observer);
+    void signalSubscribeToResource(messages::Subsystem subsystem, messages::ResourceType type, uint64_t resId, std::shared_ptr<genwdg::ISubsWdg> observer);
+    // Получить ресурс
+    void signalGetResource(messages::Subsystem subsystem, messages::ResourceType type, uint64_t resId, std::shared_ptr<genwdg::ISubsWdg> observer);
+};
 
-} // uniter::staticwdg
+} // namespace uniter::staticwdg
 
 
 #endif // MAINWINDOW_H

@@ -11,7 +11,6 @@
 
 namespace uniter::data {
 
-
 class DataManager : public QObject
 {
     Q_OBJECT
@@ -32,22 +31,36 @@ private:
 public slots:
     void onRecvUniterMessage(std::shared_ptr<messages::UniterMessage> message);
     void onStartLoadResources(QCryptographicHash& userhash); // От менеджера приложения
-    void onSubsystemGenerate(messages::Subsystem subsystem, messages::GenSubsystemType genType, uint64_t genId, bool created);
+    void onSubsystemGenerate(messages::Subsystem subsystem,
+                             messages::GenSubsystemType genType,
+                             uint64_t genId,
+                             bool created);
     void onCustomized(); // От менеджера конфигураций
 
-    // Подписки на ресурсы
-    void onSubscribeToResourceList(messages::Subsystem subsystem, messages::ResourceType);
-    void onSubscribeToResourceTree(messages::Subsystem subsystem, messages::ResourceType);
-    void onSubscribeToResource(messages::Subsystem subsystem, messages::ResourceType, uint64_t resId);
+    // Подписки на ресурсы (доп. аргумент – ISubsWdg)
+    void onSubscribeToResourceList(messages::Subsystem subsystem,
+                                   messages::ResourceType type,
+                                   std::shared_ptr<genwdg::ISubsWdg> observer);
+    void onSubscribeToResourceTree(messages::Subsystem subsystem,
+                                   messages::ResourceType type,
+                                   std::shared_ptr<genwdg::ISubsWdg> observer);
+    void onSubscribeToResource(messages::Subsystem subsystem,
+                               messages::ResourceType type,
+                               uint64_t resId,
+                               std::shared_ptr<genwdg::ISubsWdg> observer);
+
     // Получить ресурс
-    std::shared_ptr<resources::ResourceAbstract> getResource(messages::Subsystem subsystem,
-                                                  messages::ResourceType type,
-                                                  uint64_t resourceId);
+    void onGetResource(messages::Subsystem subsystem,
+                       messages::ResourceType type,
+                       uint64_t resourceId,
+                       std::shared_ptr<genwdg::ISubsWdg> observer);
+
 signals:
     void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> message);
     void signalCutomize(QCryptographicHash& userhash); // Для менеджера конфигураций
+    void signalResourcesLoaded(); // Менеджеру приложения
 };
 
-} // data
+} // namespace uniter::data
 
 #endif // DATAMANAGER_H
