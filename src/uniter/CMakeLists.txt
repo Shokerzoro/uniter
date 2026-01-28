@@ -105,10 +105,14 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Core)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
 
 qt_add_executable(Uniter WIN32 ${UNITER_SOURCES}
     widgets_static/uisettings.h widgets_static/uisettings.cpp
     widgets_generative/subsystemicon.h widgets_generative/subsystemicon.cpp
+    database/datamanager.h database/datamanager.cpp
+    network/mocknetwork.h network/mocknetwork.cpp
 
 )
 
@@ -130,6 +134,8 @@ target_link_libraries(Uniter PRIVATE Qt6::Widgets)
 target_link_libraries(Uniter PRIVATE Qt6::Widgets)
 target_link_libraries(Uniter PRIVATE Qt6::Core)
 target_link_libraries(Uniter PRIVATE Qt6::Widgets)
+target_link_libraries(Uniter PRIVATE Qt6::Core)
+target_link_libraries(Uniter PRIVATE Qt6::Core)
 
 # Логика вывода/макросов
 if(RELEASE AND NOT DEBUG_INFO)

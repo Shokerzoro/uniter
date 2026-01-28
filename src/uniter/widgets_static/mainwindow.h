@@ -43,7 +43,7 @@ public slots:
     void onDisconnected();
     void onAuthed(bool result); // Передаем также виджету аутентификации
     void onFindAuthData();
-
+    void onSubsystemAdded(messages::Subsystem subsystem, messages::GenSubsystemType genType, uint64_t genId, bool created);
     // От нижнего уровня
     void onMakeConnect();
     void onSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
@@ -53,6 +53,8 @@ signals:
     void signalFindAuthData();
     // От виджета оффлайна
     void signalMakeConnect(void);
+    // Для рабочего виджета
+    void signalSubsystemAdded(messages::Subsystem subsystem, messages::GenSubsystemType genType, uint64_t genId, bool created);
     // Для маршрутизации сообщений (вверх)
     void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
 } ;

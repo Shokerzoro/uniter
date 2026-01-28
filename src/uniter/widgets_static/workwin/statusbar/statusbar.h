@@ -3,6 +3,7 @@
 
 #include "../../../messages/unitermessage.h"
 #include "../../../widgets_generative/subsystemicon.h"
+#include <QBoxLayout>
 #include <QWidget>
 #include <map>
 #include <memory>
@@ -32,8 +33,11 @@ private slots:
     void onIconClicked(int index);
 
 private:
+    QWidget* iconContainer;
+    QVBoxLayout* iconLayout;
     std::map<int, genwdg::SubsystemIcon*> subsystemIcons;
 };
+
 
 
 } // uniter::staticwdg

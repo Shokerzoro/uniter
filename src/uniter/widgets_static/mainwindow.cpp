@@ -44,28 +44,55 @@ MainWidget::MainWidget(QWidget* parent) : QWidget(parent) {
     WWdg = new WorkWdg();
     MLayout->addWidget(WWdg);
 
+    connect(this, &MainWidget::signalSubsystemAdded,
+            WWdg, &WorkWdg::onSubsystemAdded);
+
+    connect(WWdg, &WorkWdg::signalSendUniterMessage,
+            this, &MainWidget::onSendUniterMessage);
+
     // Начальное состояние
     MLayout->setCurrentWidget(AWdg);
 }
 
 void MainWidget::SetAuthState(AuthState newAState) {
+    AState = newAState;
 
+    if (newAState == AuthState::AUTHED) {
+        MLayout->setCurrentWidget(WWdg);
+    } else if (newAState == AuthState::NONE) {
+        MLayout->setCurrentWidget(AWdg);
+    }
 }
-
 void MainWidget::SetNetState(NetState newNState) {
-
+    NState = newNState;
+    if (newNState == NetState::OFFLINE) {
+        MLayout->setCurrentWidget(OffWdg);
+    } else if (newNState == NetState::ONLINE) {
+        // Возвращаемся в виджет согласно AuthState
+        if (AState == AuthState::AUTHED) {
+            MLayout->setCurrentWidget(WWdg);
+        } else if (AState == AuthState::NONE) {
+            MLayout->setCurrentWidget(AWdg);
+        }
+    }
 }
+
 
 void MainWidget::onConnected() {
-
+    SetNetState(NetState::ONLINE);
 }
 
 void MainWidget::onDisconnected() {
-
+    SetNetState(NetState::OFFLINE);
 }
 
 void MainWidget::onAuthed(bool result) {
-
+    if (!result) {
+        emit signalAuthed(false);
+    }
+    else { SetAuthState(AuthState::AUTHED);
+        emit signalAuthed(true);
+    }
 }
 
 void MainWidget::onFindAuthData() {
@@ -77,7 +104,14 @@ void MainWidget::onMakeConnect() {
 }
 
 void MainWidget::onSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message) {
+    emit signalSendUniterMessage(Message);
+}
 
+void MainWidget::onSubsystemAdded(messages::Subsystem subsystem,
+                                  messages::GenSubsystemType genType,
+                                  uint64_t genId,
+                                  bool created) {
+    emit signalSubsystemAdded(subsystem, genType, genId, created);
 }
 
 } // uniter::staticwdg

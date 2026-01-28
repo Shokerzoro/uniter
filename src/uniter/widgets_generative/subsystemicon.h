@@ -3,6 +3,8 @@
 
 #include <QMouseEvent>
 #include <QWidget>
+#include <QString>
+#include <QLabel>
 
 namespace uniter::genwdg {
 
@@ -11,6 +13,7 @@ class SubsystemIcon : public QWidget {
 
 public:
     explicit SubsystemIcon(int index, QWidget* parent = nullptr);
+    void setName(const QString& name_);
 
 signals:
     void clicked(int index);
@@ -20,9 +23,11 @@ protected:
 
 private:
     int index;
+    QLabel* nameLabel;
 };
 
 } // genwdg
+
 
 
 
