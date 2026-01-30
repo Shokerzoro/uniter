@@ -46,7 +46,7 @@ public slots:
     void onFindAuthData();
     void onSubsystemAdded(messages::Subsystem subsystem,
                           messages::GenSubsystemType genType,
-                          uint64_t genId,
+                          std::optional<uint64_t> genId,
                           bool created);
     // От нижнего уровня
     void onMakeConnect();
@@ -61,7 +61,7 @@ signals:
     // Для рабочего виджета
     void signalSubsystemAdded(messages::Subsystem subsystem,
                               messages::GenSubsystemType genType,
-                              uint64_t genId,
+                              std::optional<uint64_t> genId,
                               bool created);
     // Для маршрутизации сообщений
     void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message);

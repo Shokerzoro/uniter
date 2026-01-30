@@ -1,5 +1,6 @@
 #include "datamanager.h"
 #include "../messages/unitermessage.h"
+#include <QByteArray>
 
 namespace uniter::data {
 
@@ -19,7 +20,7 @@ void DataManager::onRecvUniterMessage(std::shared_ptr<messages::UniterMessage> m
     // TODO: реализация
 }
 
-void DataManager::onStartLoadResources(QCryptographicHash& userhash)
+void DataManager::onStartLoadResources(QByteArray userhash)
 {
     // TODO: реализация
 }

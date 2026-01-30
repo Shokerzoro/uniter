@@ -1,124 +1,199 @@
+
+#include "../resources/employee/employee.h"
 #include "mocknetwork.h"
 
 #include <QDebug>
-#include <cstdlib>
-#include <ctime>
+#include <QRandomGenerator>
+#include <QDateTime>
+#include <QTimer>
+#include <future>
+#include <chrono>
+#include <thread>
 
+using namespace std::chrono_literals;
+
+namespace {
+
+
+// Создание мок-пользователя с рандомными подсистемами
+std::shared_ptr<uniter::resources::employees::Employee> makeMockUserWithRandomSubsystems()
+{
+
+    auto user = std::make_shared<uniter::resources::employees::Employee>(
+        /*sid*/ 1,
+        /*actual*/ true,
+        QDateTime::currentDateTime(),
+        QDateTime::currentDateTime(),
+        /*created_by*/ 0,
+        /*updated_by*/ 0,
+        QStringLiteral("Test"),
+        QStringLiteral("User"),
+        QStringLiteral("Mock"),
+        QStringLiteral("test.user@example.com"),
+        std::vector<uniter::resources::employees::EmployeeAssignment>{}
+        );
+
+    std::vector<uniter::resources::employees::EmployeeAssignment> assignments;
+
+    if (QRandomGenerator::global()->bounded(2) == 1) {
+        assignments.push_back(uniter::resources::employees::EmployeeAssignment{
+            uniter::messages::Subsystem::MANAGER,           // subsystem
+            uniter::messages::GenSubsystemType::NOTGEN,     // genSubsystem
+            std::nullopt,                 // genId
+            {}                            // permissions
+        });
+    }
+    if (QRandomGenerator::global()->bounded(2) == 1) {
+        assignments.push_back(uniter::resources::employees::EmployeeAssignment{
+            uniter::messages::Subsystem::MATERIALS,
+            uniter::messages::GenSubsystemType::NOTGEN,
+            std::nullopt,
+            {}
+        });
+    }
+    if (QRandomGenerator::global()->bounded(2) == 1) {
+        assignments.push_back(uniter::resources::employees::EmployeeAssignment{
+            uniter::messages::Subsystem::PURCHASES,
+            uniter::messages::GenSubsystemType::NOTGEN,
+            std::nullopt,
+            {}
+        });
+    }
+
+    // Гарантируем хотя бы одну подсистему
+    // Гарантируем хотя бы одну подсистему
+    if (assignments.empty()) {
+        assignments.push_back(uniter::resources::employees::EmployeeAssignment{
+            uniter::messages::Subsystem::MANAGER,           // subsystem
+            uniter::messages::GenSubsystemType::NOTGEN,     // genSubsystem
+            std::nullopt,                                   // genId
+            {}                                              // permissions
+        });
+    }
+
+
+    user->assignments = std::move(assignments);
+    return user;
+}
+
+// Формирование ответа на протокольный GETCONFIG/AUTH
+std::shared_ptr<uniter::messages::UniterMessage> makeProtocolAuthResponse(const std::shared_ptr<uniter::messages::UniterMessage>& request)
+{
+    using namespace uniter::messages;
+
+    auto response = std::make_shared<UniterMessage>(*request);
+    response->status    = MessageStatus::RESPONSE;
+    response->protact   = ProtocolAction::GETCONFIG; // позже AUTH
+    response->subsystem = Subsystem::PROTOCOL;
+
+    bool success = QRandomGenerator::global()->bounded(100) < 70; // 70% успех
+
+    if (success) {
+        response->error    = ErrorCode::SUCCESS;
+        response->resource = makeMockUserWithRandomSubsystems();
+    } else {
+        response->error = ErrorCode::BAD_REQUEST;
+    }
+
+    return response;
+}
+
+// Формирование CRUD-ответа (эхо с рандомным ErrorCode)
+std::shared_ptr<uniter::messages::UniterMessage>
+makeCrudResponse(const std::shared_ptr<uniter::messages::UniterMessage>& request)
+{
+    using namespace uniter::messages;
+
+    auto response = std::make_shared<UniterMessage>(*request);
+    response->status = MessageStatus::RESPONSE;
+
+    bool ok = (QRandomGenerator::global()->bounded(2) == 1); // 50/50
+    response->error = ok ? ErrorCode::SUCCESS : ErrorCode::BAD_REQUEST;
+
+    return response;
+}
+
+} // anonymous namespace
 
 namespace uniter::net {
 
+using namespace uniter::messages;
 
 MockNetManager::MockNetManager(QObject* parent)
     : QObject(parent)
-    , connected_(false)
-    , latency_ms_(0)
-    , packet_loss_rate_(0.0)
-    , seq_id_sent_(0)
-    , seq_id_received_(0)
 {
-
 }
 
-MockNetManager::~MockNetManager()
-{
+MockNetManager::~MockNetManager() = default;
 
-}
+// === Слоты ===
 
-void MockNetManager::makeConnection()
-{
-    if (!connected_) {
-        connected_ = true;
-        qDebug() << "Mock: Connection ESTABLISHED";
+void MockNetManager::onMakeConnection() {
+    qDebug() << "MockNetManager::onMakeConnection() - START";
+
+    int roll = QRandomGenerator::global()->bounded(100);
+    bool success = (roll < 30);
+
+    connected_ = success;
+
+    if (success) {
         emit signalConnected();
-    }
-}
 
-void MockNetManager::loseConnection()
-{
-    if (connected_) {
-        connected_ = false;
-        qDebug() << "Mock: Connection LOST";
+        // QTimer вместо std::async
+        int seconds = QRandomGenerator::global()->bounded(60, 121);
+        QTimer::singleShot(seconds * 1000, this, [this]() {
+            if (connected_) {
+                connected_ = false;
+                qDebug() << "MockNetManager: auto-disconnect triggered";
+                emit signalDisconnected();
+            }
+        });
+    } else {
         emit signalDisconnected();
     }
+
+    qDebug() << "MockNetManager::onMakeConnection() - END";
 }
 
-bool MockNetManager::isConnected() const
-{
-    return connected_;
-}
-
-void MockNetManager::sendMessage(std::shared_ptr<messages::UniterMessage> message)
-{
-    if (!message) return;
-
-    // Имитировать потерю пакета
-    if (packet_loss_rate_ > 0.0) {
-        double rand_val = static_cast<double>(std::rand()) / RAND_MAX;
-        if (rand_val < packet_loss_rate_) {
-            qDebug() << "Mock: Message LOST (packet loss simulation)";
-            return;
-        }
-    }
-
-    send_queue_.push(message);
-    seq_id_sent_++;
-
-    qDebug() << "Mock: Message queued for sending. Queue size:" << send_queue_.size();
-
-    // Имитировать отправку после задержки
-    if (connected_ && latency_ms_ == 0) {
-        // Отправить сразу
-        auto sent_msg = send_queue_.front();
-        send_queue_.pop();
-        qDebug() << "Mock: Message SENT (seq_id:" << seq_id_sent_ << ")";
-        emit signalMessageSent(sent_msg);
-    }
-}
-
-void MockNetManager::receiveMessage(std::shared_ptr<messages::UniterMessage> message)
-{
-    if (!message || !connected_) return;
-
-    seq_id_received_++;
-    qDebug() << "Mock: Message RECEIVED (seq_id:" << seq_id_received_ << ")";
-    emit signalRecvMessage(message);
-}
-
-int MockNetManager::queueSize() const
-{
-    return send_queue_.size();
-}
-
-void MockNetManager::setLatency(int milliseconds)
-{
-    latency_ms_ = milliseconds;
-    qDebug() << "Mock: Latency set to" << latency_ms_ << "ms";
-}
-
-void MockNetManager::setPacketLossRate(double rate)
-{
-    packet_loss_rate_ = rate;
-    qDebug() << "Mock: Packet loss rate set to" << (rate * 100) << "%";
-}
-
-void MockNetManager::onMakeConnection()
-{
-    makeConnection();
-}
 
 void MockNetManager::onSendMessage(std::shared_ptr<messages::UniterMessage> message)
 {
-    sendMessage(message);
+    if (!connected_) {
+        return;
+    }
+
+    ++seq_id_sent_;
+
+    // Протокол: PROTOCOL + GETCONFIG
+    if (message->subsystem == Subsystem::PROTOCOL &&
+        message->protact  == ProtocolAction::GETCONFIG)
+    {
+        auto response = makeProtocolAuthResponse(message);
+        ++seq_id_received_;
+        emit signalRecvMessage(response);
+        return;
+    }
+
+    // CRUD: эхо с рандомным успехом/ошибкой
+    if (message->crudact != CrudAction::NOTCRUD) {
+        auto response = makeCrudResponse(message);
+        ++seq_id_received_;
+        emit signalRecvMessage(response);
+        return;
+    }
+
+    // Остальное: тупое эхо
+    auto echo = std::make_shared<UniterMessage>(*message);
+    ++seq_id_received_;
+    emit signalRecvMessage(echo);
 }
 
 void MockNetManager::onShutdown()
 {
-    loseConnection();
-    while (!send_queue_.empty()) {
-        send_queue_.pop();
+    if (connected_) {
+        connected_ = false;
+        emit signalDisconnected();
     }
-    qDebug() << "Mock: Shutdown complete";
 }
 
-
-} // net
+} // namespace uniter::net

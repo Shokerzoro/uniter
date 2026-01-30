@@ -113,6 +113,7 @@ qt_add_executable(Uniter WIN32 ${UNITER_SOURCES}
     widgets_generative/subsystemicon.h widgets_generative/subsystemicon.cpp
     database/datamanager.h database/datamanager.cpp
     network/mocknetwork.h network/mocknetwork.cpp
+    managers/configmanager.h
 
 )
 

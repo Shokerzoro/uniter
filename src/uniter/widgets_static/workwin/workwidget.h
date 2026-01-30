@@ -21,7 +21,7 @@ public slots:
     void onSendUniterMessage(std::shared_ptr<messages::UniterMessage> message);
     void onSubsystemAdded(messages::Subsystem subsystem,
                           messages::GenSubsystemType genType,
-                          uint64_t genId,
+                          std::optional<uint64_t> genId,
                           bool created);
 
 signals:
@@ -53,14 +53,14 @@ private:
     // Приватные методы
     bool findIndex(messages::Subsystem subsystem,
                    messages::GenSubsystemType genType,
-                   uint64_t genId,
+                   std::optional<uint64_t> genId,
                    int& outIndex) const;
     void addSubsystem(messages::Subsystem subsystem,
                       messages::GenSubsystemType genType,
-                      uint64_t genId);
+                      std::optional<uint64_t> genId);
     void removeSubsystem(messages::Subsystem subsystem,
                          messages::GenSubsystemType genType,
-                         uint64_t genId);
+                         std::optional<uint64_t> genId);
 };
 
 } // uniter::staticwdg

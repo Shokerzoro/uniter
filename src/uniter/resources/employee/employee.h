@@ -1,6 +1,7 @@
 #ifndef EMPLOYEE_H
 #define EMPLOYEE_H
 
+#include "../../messages/unitermessage.h"
 #include "../resourceabstract.h"
 #include "permissions.h"
 #include <tinyxml2.h>
@@ -13,8 +14,9 @@ namespace uniter::resources::employees {
 
 
 struct EmployeeAssignment {
-    Subsystem subsystem;
-    std::optional<uint64_t> assigned_subsystem_id;  // Для генеративных подсистем
+    messages::Subsystem subsystem;
+    messages::GenSubsystemType genSubsystem = messages::GenSubsystemType::NOTGEN;
+    std::optional<uint64_t> genId = std::nullopt;
     std::vector<uint8_t> permissions;
 };
 

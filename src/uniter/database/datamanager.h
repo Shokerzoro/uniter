@@ -5,7 +5,7 @@
 #include "../resources/resourceabstract.h"
 #include "../widgets_generative/generativetab.h"
 #include <QObject>
-#include <QCryptographicHash>
+#include <QByteArray>
 #include <memory>
 
 
@@ -30,7 +30,7 @@ private:
 
 public slots:
     void onRecvUniterMessage(std::shared_ptr<messages::UniterMessage> message);
-    void onStartLoadResources(QCryptographicHash& userhash); // От менеджера приложения
+    void onStartLoadResources(QByteArray  userhash); // От менеджера приложения
     void onSubsystemGenerate(messages::Subsystem subsystem,
                              messages::GenSubsystemType genType,
                              uint64_t genId,
@@ -57,7 +57,7 @@ public slots:
 
 signals:
     void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> message);
-    void signalCutomize(QCryptographicHash& userhash); // Для менеджера конфигураций
+    void signalCutomize(QByteArray& userhash); // Для менеджера конфигураций
     void signalResourcesLoaded(); // Менеджеру приложения
 };
 

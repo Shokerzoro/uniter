@@ -9,6 +9,8 @@ set(TEST_SOURCES
 set(MANAGERS
     ../src/uniter/managers/appmanager.cpp
     ../src/uniter/managers/appmanager.h
+    ../src/uniter/managers/configmanager.h
+    ../src/uniter/managers/configmanager.cpp
 )
 
 set(RESOURCES

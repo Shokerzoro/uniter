@@ -1,21 +1,39 @@
+#ifndef CONFIGMANAGER_H
+#define CONFIGMANAGER_H
 
 #include "../resources/employee/employee.h"
+#include "../messages/unitermessage.h"
+#include <QObject>
 #include <memory>
+#include <optional>
+#include <cstdint>
 
 namespace uniter::managers {
 
-// Управляет созданием подсистем
 class ConfigManager : public QObject
 {
     Q_OBJECT
+private:
+    std::shared_ptr<resources::employees::Employee> user;
 public:
-    ConfigManager() {}
-    virtual ~ConfigManager() {}
+    ConfigManager(QObject* parent = nullptr);
+    ~ConfigManager() = default;
 
-    // Генерация конфигурации
 public slots:
-    void GenerateConfiguration(std::shared_ptr<resources::employees::Employee> User);
+    // Генерация конфигурации по данным пользователя
+    void onConfigProc(std::shared_ptr<resources::employees::Employee> User);
+
+signals:
+    // Уведомление AppManager о завершении конфигурирования
+    void signalConfigured();
+
+    // Для каждой назначенной пользователю подсистемы
+    void signalSubsystemAdded(messages::Subsystem subsystem,
+                              messages::GenSubsystemType genType,
+                              std::optional<uint64_t> genId,
+                              bool created);
 };
 
+} // namespace uniter::managers
 
-} // managers
+#endif // CONFIGMANAGER_H

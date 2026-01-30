@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <cstdint>
+#include <optional>
 
 namespace uniter::staticwdg {
 
@@ -47,8 +48,10 @@ void WorkWdg::onSendUniterMessage(std::shared_ptr<messages::UniterMessage> messa
 
 void WorkWdg::onSubsystemAdded(messages::Subsystem subsystem,
                                messages::GenSubsystemType genType,
-                               uint64_t genId,
+                               std::optional<uint64_t> genId,
                                bool created) {
+
+
     if (created) {
         addSubsystem(subsystem, genType, genId);
     } else {
@@ -58,26 +61,30 @@ void WorkWdg::onSubsystemAdded(messages::Subsystem subsystem,
 
 void WorkWdg::addSubsystem(messages::Subsystem subsystem,
                            messages::GenSubsystemType genType,
-                           uint64_t genId) {
+                           std::optional<uint64_t> genId) {
+
     // Выделяем индекс для новой подсистемы
     int index = nextIndex++;
+    uint64_t genId_ = (genId == std::nullopt) ? 0 : genId.value();
 
     // Добавляем в map активных подсистем
     indexToSubsystem.insert_or_assign(
         index,
-        ActiveSubsystem{subsystem, genType, genId}
+        ActiveSubsystem{subsystem, genType, genId_}
     );
 
     // Вызываем методы StatusBar и WorkArea для добавления подсистемы
     statusBar->addSubsystem(genType, "Subsystem", index);  // TODO: получить правильное имя
-    workArea->addSubsystem(subsystem, genType, genId, index);
+    workArea->addSubsystem(subsystem, genType, genId_, index);
 }
 
 void WorkWdg::removeSubsystem(messages::Subsystem subsystem,
                               messages::GenSubsystemType genType,
-                              uint64_t genId) {
+                              std::optional<uint64_t> genId) {
     int index = -1;
-    if (findIndex(subsystem, genType, genId, index)) {
+    uint64_t genId_ = (genId == std::nullopt) ? 0 : genId.value();
+
+    if (findIndex(subsystem, genType, genId_, index)) {
         indexToSubsystem.erase(index);
         statusBar->removeSubsystem(index);
         workArea->removeSubsystem(index);
@@ -86,12 +93,14 @@ void WorkWdg::removeSubsystem(messages::Subsystem subsystem,
 
 bool WorkWdg::findIndex(messages::Subsystem subsystem,
                         messages::GenSubsystemType genType,
-                        uint64_t genId,
+                        std::optional<uint64_t> genId,
                         int& outIndex) const {
+    uint64_t genId_ = (genId == std::nullopt) ? 0 : genId.value();
+
     for (const auto& [idx, active] : indexToSubsystem) {
         if (active.subsystem == subsystem &&
             active.genType == genType &&
-            active.genId == genId) {
+            active.genId == genId_) {
             outIndex = idx;
             return true;
         }

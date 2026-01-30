@@ -34,9 +34,9 @@ int main(int argc, char *argv[])
 
     // === 1. Маршрутизация сообщений (всё, что гоняет UniterMessage) ===
 
-    // AppManager ↔ MainWidget (только вниз)
-    QObject::connect(&AManager, &managers::AppManager::signalSendUniterMessage,
-                     &MWindow,  &staticwdg::MainWidget::onSendUniterMessage);
+    // MainWidget → AppManager (только вверх, от UI к менеджеру)
+    QObject::connect(&MWindow,  &staticwdg::MainWidget::signalSendUniterMessage,
+                     &AManager, &managers::AppManager::onSendUniterMessage);
 
     // AppManager ↔ DataManager
     QObject::connect(&DManager, &data::DataManager::signalSendUniterMessage,
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
                      &AManager, &managers::AppManager::onResourcesLoaded);
 
     // AppManager → DataManager (старт загрузки ресурсов)
-    QObject::connect(&AManager, &managers::AppManager::signalStartLoadResources,
+    QObject::connect(&AManager, &managers::AppManager::signalLoadResources,
                      &DManager, &data::DataManager::onStartLoadResources);
 
     // === 5. Управление аутентификацией и UI ===
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 
 
     // Запуск FSM приложения и подсвечиваем виджеты
-
+    AManager.start_run();
     MWindow.show();
 
     return app.exec();
