@@ -15,18 +15,15 @@ namespace uniter::managers {
 
 AppManager::AppManager()
 {
-    ConfigMgr = std::make_unique<ConfigManager>();
+    auto cofManager = ConfigManager::instance();
 
     // Подписка ConfigManager → AppManager
-    QObject::connect(ConfigMgr.get(), &ConfigManager::signalConfigured,
+    QObject::connect(cofManager, &ConfigManager::signalConfigured,
                      this,          &AppManager::onConfigured);
-
-    QObject::connect(ConfigMgr.get(), &ConfigManager::signalSubsystemAdded,
-                     this,          &AppManager::onSubsystemAdded);
 
     // AppManager → ConfigManager (запуск конфигурации по User)
     QObject::connect(this, &AppManager::signalConfigProc,
-                     ConfigMgr.get(), &ConfigManager::onConfigProc);
+                     cofManager, &ConfigManager::onConfigProc);
 }
 
 
@@ -153,10 +150,14 @@ void AppManager::onRecvUniterMessage(std::shared_ptr<messages::UniterMessage> Me
 
                 if(Message->error == messages::ErrorCode::SUCCESS && Message->resource) {
                     User = std::dynamic_pointer_cast<resources::employees::Employee>(Message->resource);
+
+                    qDebug() << "AppManager::onRecvUniterMessage(): got success auth message";
                     SetAppState(AppState::AUTHENTIFICATED);
                     return;
                 }
                 else if(Message->error == messages::ErrorCode::BAD_REQUEST) {
+
+                    qDebug() << "AppManager::onRecvUniterMessage(): got bad request auth message";
                     emit signalAuthed(false);
                 }
 
@@ -172,7 +173,7 @@ void AppManager::onRecvUniterMessage(std::shared_ptr<messages::UniterMessage> Me
 // Маршрутизация вверх
 void AppManager::onSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message) {
 
-    qDebug() << "AppManager::onSendUniterMessage()";
+
 
     // Пересылка обычных crud
     if (AState == AppState::READY) {
@@ -197,8 +198,9 @@ void AppManager::onSendUniterMessage(std::shared_ptr<messages::UniterMessage> Me
 
             // Если CONNECTED и ONLINE записываем и отправляем
             if(AState == AppState::CONNECTED && NState == NetState::ONLINE) {
+
+                qDebug() << "AppManager::onSendUniterMessage: sending auth request";
                 emit signalSendUniterMessage(AuthMessage);
-                qDebug() << "AppManager::onSendUniterMessage: sending getconfig message";
             }
         }
 
@@ -222,6 +224,9 @@ void AppManager::onDisconnected() {
 }
 
 void AppManager::onResourcesLoaded() {
+
+    qDebug() << "AppManager::onResourcesLoaded()";
+
     // Переход из AUTHENTICATED в DBLOADED после инициализации БД
     if(AState == AppState::AUTHENTIFICATED) {
         SetAppState(AppState::DBLOADED);
@@ -229,6 +234,9 @@ void AppManager::onResourcesLoaded() {
 }
 
 void AppManager::onConfigured() {
+
+    qDebug() << "AppManager::onConfigured()";
+
     // Переход из DBLOADED в READY после завершения работы ConfigManager
     if(AState == AppState::DBLOADED) {
         SetAppState(AppState::READY);
@@ -239,15 +247,6 @@ void AppManager::onConfigured() {
 void AppManager::onShutDown() {
     // TODO: выполнить сохранение
     // TODO: на выход регестрируем слот shutdown
-}
-
-void AppManager::onSubsystemAdded(messages::Subsystem subsystem,
-                                  messages::GenSubsystemType genType,
-                                  std::optional<uint64_t> genId,
-                                  bool created)
-{
-    // Пока просто пробрасываем сигнал выше (например, в UI или логику вкладок)
-    emit signalSubsystemAdded(subsystem, genType, genId, created);
 }
 
 

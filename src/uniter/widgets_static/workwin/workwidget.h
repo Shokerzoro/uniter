@@ -2,7 +2,7 @@
 #define WORKWIDGET_H
 
 #include "../../messages/unitermessage.h"
-#include "./statusbar/statusbar.h"
+#include "./workbar/workbar.h"
 #include "./workarea/workarea.h"
 #include <QWidget>
 #include <map>
@@ -29,7 +29,7 @@ signals:
     void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> message);
 private:
     // Виджеты
-    StatusBar* statusBar;
+    WorkBar* workbar;
     WorkArea* workArea;
 
     // Вектор активных подсистем

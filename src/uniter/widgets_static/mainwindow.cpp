@@ -1,10 +1,10 @@
 
 #include "../messages/unitermessage.h"
+#include "../managers/uimanager.h"
 #include "./authwin/authwidget.h"
 #include "./offlinewin/offlinewdg.h"
 #include "./workwin/workwidget.h"
 #include "mainwindow.h"
-#include "uisettings.h"
 #include <QStackedLayout>
 #include <QWidget>
 #include <QDebug>
@@ -14,7 +14,7 @@ namespace uniter::staticwdg {
 MainWidget::MainWidget(QWidget* parent) : QWidget(parent) {
 
     // Применяем настройки
-    auto settings = UISettings::instance();
+    auto settings = managers::UIManager::instance();
     settings->applyMainWinSettings(this);
 
     // Создаем stacked layout
@@ -45,9 +45,6 @@ MainWidget::MainWidget(QWidget* parent) : QWidget(parent) {
     WWdg = new WorkWdg();
     MLayout->addWidget(WWdg);
 
-    connect(this, &MainWidget::signalSubsystemAdded,
-            WWdg, &WorkWdg::onSubsystemAdded);
-
     connect(WWdg, &WorkWdg::signalSendUniterMessage,
             this, &MainWidget::onSendUniterMessage);
 
@@ -69,19 +66,17 @@ void MainWidget::SetAuthState(AuthState newAState) {
 void MainWidget::SetNetState(NetState newNState) {
     NState = newNState;
     if (newNState == NetState::OFFLINE) {
-        qDebug() << "MainWidget::SetNetState(): OFFLINE";
+        qDebug() << "MainWidget::SetNetState(): OfflineWdg";
         MLayout->setCurrentWidget(OffWdg);
     } else if (newNState == NetState::ONLINE) {
-        qDebug() << "MainWidget::SetNetState(): ONLINE";
+
         // Возвращаемся в виджет согласно AuthState
         if (AState == AuthState::AUTHED) {
-            qDebug() << "MainWidget::SetNetState(): AUTHED";
+            qDebug() << "MainWidget::SetNetState(): WorkWdg";
             MLayout->setCurrentWidget(WWdg);
         } else if (AState == AuthState::NONE) {
-            qDebug() << "MainWidget::SetNetState(): NONE";
-            qDebug() << "MainWidget::SetNetState(): NONE - before setCurrentWidget";
+            qDebug() << "MainWidget::SetNetState(): AuthWidget";
             MLayout->setCurrentWidget(AWdg);
-            qDebug() << "MainWidget::SetNetState(): NONE - after setCurrentWidget";
         }
     }
 }
@@ -125,11 +120,6 @@ void MainWidget::onSendUniterMessage(std::shared_ptr<messages::UniterMessage> Me
     emit signalSendUniterMessage(Message);
 }
 
-void MainWidget::onSubsystemAdded(messages::Subsystem subsystem,
-                                  messages::GenSubsystemType genType,
-                                  std::optional<uint64_t> genId,
-                                  bool created) {
-    emit signalSubsystemAdded(subsystem, genType, genId, created);
-}
+
 
 } // uniter::staticwdg

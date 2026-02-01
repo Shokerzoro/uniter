@@ -18,7 +18,6 @@ namespace {
 // Создание мок-пользователя с рандомными подсистемами
 std::shared_ptr<uniter::resources::employees::Employee> makeMockUserWithRandomSubsystems()
 {
-
     auto user = std::make_shared<uniter::resources::employees::Employee>(
         /*sid*/ 1,
         /*actual*/ true,
@@ -34,15 +33,18 @@ std::shared_ptr<uniter::resources::employees::Employee> makeMockUserWithRandomSu
         );
 
     std::vector<uniter::resources::employees::EmployeeAssignment> assignments;
+    QStringList subsystemNames;
 
     if (QRandomGenerator::global()->bounded(2) == 1) {
         assignments.push_back(uniter::resources::employees::EmployeeAssignment{
-            uniter::messages::Subsystem::MANAGER,           // subsystem
-            uniter::messages::GenSubsystemType::NOTGEN,     // genSubsystem
-            std::nullopt,                 // genId
-            {}                            // permissions
+            uniter::messages::Subsystem::MANAGER,
+            uniter::messages::GenSubsystemType::NOTGEN,
+            std::nullopt,
+            {}
         });
+        subsystemNames << "MANAGER";
     }
+
     if (QRandomGenerator::global()->bounded(2) == 1) {
         assignments.push_back(uniter::resources::employees::EmployeeAssignment{
             uniter::messages::Subsystem::MATERIALS,
@@ -50,7 +52,9 @@ std::shared_ptr<uniter::resources::employees::Employee> makeMockUserWithRandomSu
             std::nullopt,
             {}
         });
+        subsystemNames << "MATERIALS";
     }
+
     if (QRandomGenerator::global()->bounded(2) == 1) {
         assignments.push_back(uniter::resources::employees::EmployeeAssignment{
             uniter::messages::Subsystem::PURCHASES,
@@ -58,21 +62,24 @@ std::shared_ptr<uniter::resources::employees::Employee> makeMockUserWithRandomSu
             std::nullopt,
             {}
         });
+        subsystemNames << "PURCHASES";
     }
 
-    // Гарантируем хотя бы одну подсистему
     // Гарантируем хотя бы одну подсистему
     if (assignments.empty()) {
         assignments.push_back(uniter::resources::employees::EmployeeAssignment{
-            uniter::messages::Subsystem::MANAGER,           // subsystem
-            uniter::messages::GenSubsystemType::NOTGEN,     // genSubsystem
-            std::nullopt,                                   // genId
-            {}                                              // permissions
+            uniter::messages::Subsystem::MANAGER,
+            uniter::messages::GenSubsystemType::NOTGEN,
+            std::nullopt,
+            {}
         });
+        subsystemNames << "MANAGER";
     }
 
-
     user->assignments = std::move(assignments);
+
+    qDebug() << "MockNetManager: Created user with subsystems:" << subsystemNames.join(", ");
+
     return user;
 }
 
@@ -83,7 +90,7 @@ std::shared_ptr<uniter::messages::UniterMessage> makeProtocolAuthResponse(const 
 
     auto response = std::make_shared<UniterMessage>(*request);
     response->status    = MessageStatus::RESPONSE;
-    response->protact   = ProtocolAction::GETCONFIG; // позже AUTH
+    response->protact   = ProtocolAction::GETCONFIG;
     response->subsystem = Subsystem::PROTOCOL;
 
     bool success = QRandomGenerator::global()->bounded(100) < 70; // 70% успех
@@ -92,6 +99,7 @@ std::shared_ptr<uniter::messages::UniterMessage> makeProtocolAuthResponse(const 
         response->error    = ErrorCode::SUCCESS;
         response->resource = makeMockUserWithRandomSubsystems();
     } else {
+        qDebug() << "MockNetManager: Auth FAILED";
         response->error = ErrorCode::BAD_REQUEST;
     }
 
@@ -129,7 +137,7 @@ MockNetManager::~MockNetManager() = default;
 // === Слоты ===
 
 void MockNetManager::onMakeConnection() {
-    qDebug() << "MockNetManager::onMakeConnection() - START";
+
 
     int roll = QRandomGenerator::global()->bounded(100);
     bool success = (roll < 30);
@@ -137,6 +145,7 @@ void MockNetManager::onMakeConnection() {
     connected_ = success;
 
     if (success) {
+        qDebug() << "MockNetManager::onMakeConnection() - emit signalConnected()";
         emit signalConnected();
 
         // QTimer вместо std::async
@@ -149,10 +158,9 @@ void MockNetManager::onMakeConnection() {
             }
         });
     } else {
+        qDebug() << "MockNetManager::onMakeConnection() - signalDisconnected()";
         emit signalDisconnected();
     }
-
-    qDebug() << "MockNetManager::onMakeConnection() - END";
 }
 
 

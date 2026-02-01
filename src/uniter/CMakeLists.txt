@@ -1,9 +1,57 @@
 project(uniter_app LANGUAGES CXX)
 
-set(BUILDER_SOURCES
-    builder/appbuilder.cpp
-    builder/appbuilder.h
+
+set(STATIC_WIDGETS_SOURCES
+    widgets_static/mainwindow.cpp
+    widgets_static/mainwindow.h
+
+    widgets_static/authwin/authwidget.cpp
+    widgets_static/authwin/authwidget.h
+
+    widgets_static/offlinewin/offlinewdg.h
+    widgets_static/offlinewin/offlinewdg.cpp
+
+    widgets_static/workwin/workwidget.cpp
+    widgets_static/workwin/workwidget.h
+
+    widgets_static/workwin/workbar/workbar.h
+    widgets_static/workwin/workbar/workbar.cpp
+
+    widgets_static/workwin/workarea/workarea.h
+    widgets_static/workwin/workarea/workarea.cpp
 )
+
+set(GENERATIVE_WIDGETS_SOURCES
+    widgets_generative/generativetab.cpp
+    widgets_generative/generativetab.h
+
+    widgets_generative/subsystemicon.h
+    widgets_generative/subsystemicon.cpp
+)
+
+set(DYNAMIC_WIDGETS_SOURCES
+    widgets_dynamic/dynamicwidget.cpp
+    widgets_dynamic/dynamicwidget.h
+)
+
+
+set(DATABASE_SOURCES
+    database/datamanager.h
+    database/datamanager.cpp
+)
+
+
+set(CONTROL_SOURCES
+    managers/appmanager.cpp
+    managers/appmanager.h
+
+    managers/configmanager.cpp
+    managers/configmanager.h
+
+    managers/uimanager.cpp
+    managers/uimanager.h
+)
+
 
 set(NETWORK_SOURCES
     network/tcpconnector.cpp
@@ -13,24 +61,21 @@ set(NETWORK_SOURCES
     network/updaterworker.cpp
     network/updaterworker.h
     network/unetmestags.h
+
+    network/mocknetwork.h
+    network/mocknetwork.cpp
 )
+
 
 set(MESSAGES_SOURCES
+    messages/unitermessage.cpp
     messages/unitermessage.h
-    messages/internalmessage.cpp
-    messages/internalmessage.h
+    resources/resourceabstract.h
 )
 
-set(MANAGERS_SOURCES
-    managers/appmanager.cpp
-    managers/appmanager.h
-    managers/configmanager.cpp
-    managers/configmanager.h
-)
 
 set(RESOUCES_SOURCES
-    messages/unitermessage.cpp
-    resources/resourceabstract.h
+
     resources/material/segment.h
     resources/material/materialtemplatebase.h
 
@@ -59,45 +104,27 @@ set(RESOUCES_SOURCES
     resources/plant/task.h resources/plant/task.cpp
 )
 
-set(DYNAMIC_WIDGETS_SOURCES
-    widgets_dynamic/dynamicwidget.cpp
-    widgets_dynamic/dynamicwidget.h
-)
-
-set(GENERATIVE_WIDGETS_SOURCES
-    widgets_generative/generativetab.cpp
-    widgets_generative/generativetab.h
-)
-
-set(STATIC_WIDGETS_SOURCES
-    widgets_static/mainwindow.cpp
-    widgets_static/mainwindow.h
-
-    widgets_static/authwin/authwidget.cpp
-    widgets_static/authwin/authwidget.h
-
-    widgets_static/offlinewin/offlinewdg.h
-    widgets_static/offlinewin/offlinewdg.cpp
-
-    widgets_static/workwin/workwidget.cpp
-    widgets_static/workwin/workwidget.h
-
-    widgets_static/workwin/statusbar/statusbar.h
-    widgets_static/workwin/statusbar/statusbar.cpp
-
-    widgets_static/workwin/workarea/workarea.h
-    widgets_static/workwin/workarea/workarea.cpp
+set(CONTRACT_SOURCES
+    ${MESSAGES_SOURCES}
+    ${RESOUCES_SOURCES}
 )
 
 set(UNITER_SOURCES
     main.cpp
-    ${NETWORK_SOURCES}
-    ${MESSAGES_SOURCES}
-    ${MANAGERS_SOURCES}
-    ${RESOUCES_SOURCES}
+
+    #UI Layer
     ${STATIC_WIDGETS_SOURCES}
     ${GENERATIVE_WIDGETS_SOURCES}
     ${DYNAMIC_WIDGETS_SOURCES}
+
+    #Data layer
+    ${DATABASE_SOURCES}
+    #Control layer
+    ${CONTROL_SOURCES}
+    #Net layer
+    ${NETWORK_SOURCES}
+    #Contract (client/server)
+    ${CONTRACT_SOURCES}
 )
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
@@ -107,13 +134,16 @@ find_package(Qt6 REQUIRED COMPONENTS Core)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Core)
 find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
 
 qt_add_executable(Uniter WIN32 ${UNITER_SOURCES}
-    widgets_static/uisettings.h widgets_static/uisettings.cpp
-    widgets_generative/subsystemicon.h widgets_generative/subsystemicon.cpp
-    database/datamanager.h database/datamanager.cpp
-    network/mocknetwork.h network/mocknetwork.cpp
-    managers/configmanager.h
+    managers/uiconstraints.h
+
+
+
+
+
+
 
 )
 
@@ -135,6 +165,7 @@ target_link_libraries(Uniter PRIVATE Qt6::Widgets)
 target_link_libraries(Uniter PRIVATE Qt6::Widgets)
 target_link_libraries(Uniter PRIVATE Qt6::Core)
 target_link_libraries(Uniter PRIVATE Qt6::Widgets)
+target_link_libraries(Uniter PRIVATE Qt6::Core)
 target_link_libraries(Uniter PRIVATE Qt6::Core)
 target_link_libraries(Uniter PRIVATE Qt6::Core)
 

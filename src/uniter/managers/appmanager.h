@@ -1,5 +1,4 @@
 
-#include "configmanager.h"
 #include "../messages/unitermessage.h"
 #include "../resources/employee/employee.h"
 #include <QObject>
@@ -33,10 +32,6 @@ protected:
     // Временное хранение данных аутентификации
     std::shared_ptr<messages::UniterMessage>            AuthMessage;
     std::shared_ptr<resources::employees::Employee>     User;
-
-    // Менеджер конфигураций
-    std::unique_ptr<ConfigManager> ConfigMgr;
-
 public:
     AppManager();
     ~AppManager() override = default;
@@ -52,12 +47,6 @@ public slots:
     void onResourcesLoaded();   // AUTHENTICATED -> DBLOADED (от БД после инициализации)
     void onConfigured();        // DBLOADED -> READY (от ConfigManager)
     void onShutDown();
-
-    // От ConfigManager
-    void onSubsystemAdded(messages::Subsystem subsystem,
-                          messages::GenSubsystemType genType,
-                          std::optional<uint64_t> genId,
-                          bool created);
 
     // Маршрутизация сообщений
     void onRecvUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
@@ -81,12 +70,6 @@ signals:
     // Для маршрутизации
     void signalRecvUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
     void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
-
-    // Передача информации о подсистемах вверх по стеку (при необходимости)
-    void signalSubsystemAdded(messages::Subsystem subsystem,
-                              messages::GenSubsystemType genType,
-                              std::optional<uint64_t> genId,
-                              bool created);
 };
 
 } // namespace uniter::managers

@@ -1,4 +1,5 @@
 #include "../src/uniter/managers/appmanager.h"
+#include "../src/uniter/managers/configmanager.h"
 #include "../src/uniter/messages/unitermessage.h"
 #include "../src/uniter/resources/resourceabstract.h"
 #include "../src/uniter/resources/employee/employee.h"
@@ -166,6 +167,7 @@ public:
     uniter::managers::AppManager::NetState getNetState() const {
         return NState;
     }
+
     // Методы проверки состояний
     bool isIdle() const { return AState == uniter::managers::AppManager::AppState::IDLE; }
     bool isStarted() const { return AState == uniter::managers::AppManager::AppState::STARTED; }
@@ -181,21 +183,19 @@ public:
     // Замена внутреннего ConfigManager на mock для тестирования
     void replaceMockConfigManager(MockConfigManager* mock) {
         // Отключаем старые подписки внутреннего ConfigManager
-        if (ConfigMgr) {
-            QObject::disconnect(ConfigMgr.get(), nullptr, this, nullptr);
-            QObject::disconnect(this, nullptr, ConfigMgr.get(), nullptr);
-        }
+        auto ConfigMgr = managers::ConfigManager::instance();
+        QObject::disconnect(ConfigMgr, nullptr, this, nullptr);
+        QObject::disconnect(this, nullptr, ConfigMgr, nullptr);
 
         // Подписываем mock напрямую
+        // ❌ УДАЛЕНО: onSubsystemAdded больше не существует в AppManager
         QObject::connect(mock, &MockConfigManager::signalConfigured,
                          this, &AppManager::onConfigured);
-        QObject::connect(mock, &MockConfigManager::signalSubsystemAdded,
-                         this, &AppManager::onSubsystemAdded);
         QObject::connect(this, &AppManager::signalConfigProc,
                          mock, &MockConfigManager::onConfigProc);
     }
-
 };
+
 
 // Создаем и линкуем объекты
 class AppManagerTest : public ::testing::Test {

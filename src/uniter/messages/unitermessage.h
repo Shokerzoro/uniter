@@ -4,6 +4,7 @@
 
 #include "../resources/resourceabstract.h"
 #include "tinyxml2.h"
+#include <QString>
 #include <optional>
 #include <memory>
 
@@ -104,6 +105,25 @@ public:
     void to_xml(tinyxml2::XMLElement* xmlel) const;
     void form_xml(tinyxml2::XMLElement* xmlel);
 };
+
+
+inline QString subsystemToString(Subsystem subsystem) {
+    switch (subsystem) {
+    case Subsystem::DESIGN: return "DESIGN";
+    case Subsystem::GENERATIVE: return "GENERATIVE";
+    case Subsystem::MANAGER: return "MANAGER";
+    case Subsystem::MATERIALS: return "MATERIALS";
+    case Subsystem::PROTOCOL: return "PROTOCOL";
+    case Subsystem::PURCHASES: return "PURCHASES";
+    default: return "UNKNOWN";
+    }
+}
+
+// Опционально: перегрузка оператора << для прямого логирования
+inline QDebug operator<<(QDebug debug, Subsystem subsystem) {
+    debug.noquote() << subsystemToString(subsystem);
+    return debug;
+}
 
 
 } // messages

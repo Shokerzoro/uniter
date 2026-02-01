@@ -23,6 +23,7 @@ void DataManager::onRecvUniterMessage(std::shared_ptr<messages::UniterMessage> m
 void DataManager::onStartLoadResources(QByteArray userhash)
 {
     // TODO: реализация
+    emit signalResourcesLoaded();
 }
 
 void DataManager::onSubsystemGenerate(messages::Subsystem subsystem,

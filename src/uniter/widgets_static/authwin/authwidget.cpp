@@ -58,8 +58,9 @@ AuthWdg::AuthWdg(QWidget* parent)
     this->setLayout(mainLayout);
 
     // Подключаем сигналы
-    connect(m_rememberCheckBox, QOverload<int>::of(&QCheckBox::stateChanged),
+    connect(m_rememberCheckBox, &QCheckBox::checkStateChanged,
             this, &AuthWdg::onRememberCheckChanged);
+
 
     connect(m_loginButton, &QPushButton::clicked,
             this, [this]() { this->sendSignUpData(); });
@@ -67,9 +68,7 @@ AuthWdg::AuthWdg(QWidget* parent)
 }
 
 void AuthWdg::onFindAuthData() {
-    qDebug() << "AuthWdg::onFindAuthData(): start";
-    qDebug() << "m_loginInput:" << m_loginInput;
-    qDebug() << "m_passwordInput:" << m_passwordInput;
+    qDebug() << "AuthWdg::onFindAuthData()";
 
     QSettings settings("Uniter", "Uniter");
     QString login = settings.value("last_login", "").toString();
@@ -78,30 +77,22 @@ void AuthWdg::onFindAuthData() {
     qDebug() << "login:" << login << ", password:" << password;
 
     if (!login.isEmpty() && !password.isEmpty()) {
-        qDebug() << "before setText(login)";
+
         m_loginInput->setText(login);
-        qDebug() << "after setText(login)";
-
-        qDebug() << "before setText(password)";
         m_passwordInput->setText(password);
-        qDebug() << "after setText(password)";
-
-        qDebug() << "before sendSignUpData()";
         sendSignUpData();
-        qDebug() << "after sendSignUpData()";
     }
 
-    qDebug() << "AuthWdg::onFindAuthData(): end";
+
 }
 
 
 void AuthWdg::sendSignUpData() {
-    qDebug() << "AuthWdg::sendSignUpData() - START";
+
+    qDebug() << "AuthWdg::sendSignUpData()";
 
     QString login = m_loginInput->text();
     QString password = m_passwordInput->text();
-
-    qDebug() << "AuthWdg::sendSignUpData() - creating message";
 
     auto message = std::make_shared<uniter::messages::UniterMessage>();
     message->subsystem = messages::Subsystem::PROTOCOL;
@@ -109,9 +100,7 @@ void AuthWdg::sendSignUpData() {
     message->add_data.emplace("login", login);
     message->add_data.emplace("password", password);
 
-    qDebug() << "AuthWdg::sendSignUpData() - emitting signal";
     emit signalSendUniterMessage(message);
-    qDebug() << "AuthWdg::sendSignUpData() - END";
 }
 
 

@@ -1,10 +1,13 @@
 
 #include "workwidget.h"
+#include "../../managers/uimanager.h"
+#include "../../managers/configmanager.h"
 #include "../../messages/unitermessage.h"
-#include "./statusbar/statusbar.h"
+#include "./workbar/workbar.h"
 #include "./workarea/workarea.h"
 #include <QWidget>
-#include <QBoxLayout>
+#include <QHBoxLayout>
+#include <QDebug>
 #include <map>
 #include <memory>
 #include <cstdint>
@@ -16,29 +19,33 @@ namespace uniter::staticwdg {
 WorkWdg::WorkWdg(QWidget* parent) : QWidget(parent) {
 
     // Создаём виджеты
-    statusBar = new StatusBar(this);
+    workbar = new WorkBar(this);
     workArea = new WorkArea(this);
 
-    // Компоновка
-    auto* layout = new QVBoxLayout(this);
-    layout->addWidget(workArea, 1);
-    layout->addWidget(statusBar, 0);
+    // Компоновка - ГОРИЗОНТАЛЬНАЯ для размещения workbar слева
+    auto* layout = new QHBoxLayout(this);
+    layout->addWidget(workbar, 0);      // Слева, без растяжения
+    layout->addWidget(workArea, 1);     // Справа, растягивается
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
-    // Коннекты StatusBar → WorkArea
-    connect(statusBar, &StatusBar::signalSwitchTab,
+    // Коннекты WorkBar → WorkArea
+    connect(workbar, &WorkBar::signalSwitchTab,
             workArea, &WorkArea::onSwitchTab);
 
-    // Коннекты StatusBar → WorkWdg (сообщения идут вверх в сеть)
-    connect(statusBar, &StatusBar::signalSendUniterMessage,
+    // Коннекты WorkBar → WorkWdg (сообщения идут вверх в сеть)
+    connect(workbar, &WorkBar::signalSendUniterMessage,
             this, &WorkWdg::signalSendUniterMessage);
 
     // Коннекты WorkArea → WorkWdg (сообщения идут вверх в сеть)
     connect(workArea, &WorkArea::signalSendUniterMessage,
             this, &WorkWdg::signalSendUniterMessage);
-}
 
+    // Коннект с ConfigManager
+    auto ConMgr = managers::ConfigManager::instance();
+    connect(ConMgr, &managers::ConfigManager::signalSubsystemAdded,
+            this, &WorkWdg::onSubsystemAdded);
+}
 
 
 
@@ -51,6 +58,7 @@ void WorkWdg::onSubsystemAdded(messages::Subsystem subsystem,
                                std::optional<uint64_t> genId,
                                bool created) {
 
+    qDebug() << "WorkWdg::onSubsystemAdded() -" << subsystem << (created ? "ADD" : "REMOVE");
 
     if (created) {
         addSubsystem(subsystem, genType, genId);
@@ -63,6 +71,8 @@ void WorkWdg::addSubsystem(messages::Subsystem subsystem,
                            messages::GenSubsystemType genType,
                            std::optional<uint64_t> genId) {
 
+    qDebug() << "WorkWdg::addSubsystem():" << subsystem;
+
     // Выделяем индекс для новой подсистемы
     int index = nextIndex++;
     uint64_t genId_ = (genId == std::nullopt) ? 0 : genId.value();
@@ -73,8 +83,8 @@ void WorkWdg::addSubsystem(messages::Subsystem subsystem,
         ActiveSubsystem{subsystem, genType, genId_}
     );
 
-    // Вызываем методы StatusBar и WorkArea для добавления подсистемы
-    statusBar->addSubsystem(genType, "Subsystem", index);  // TODO: получить правильное имя
+    // Вызываем методы WorkBar и WorkArea для добавления подсистемы
+    workbar->addSubsystem(subsystem, genType, genId_, index);  // TODO: получить правильное имя
     workArea->addSubsystem(subsystem, genType, genId_, index);
 }
 
@@ -86,7 +96,7 @@ void WorkWdg::removeSubsystem(messages::Subsystem subsystem,
 
     if (findIndex(subsystem, genType, genId_, index)) {
         indexToSubsystem.erase(index);
-        statusBar->removeSubsystem(index);
+        workbar->removeSubsystem(index);
         workArea->removeSubsystem(index);
     }
 }

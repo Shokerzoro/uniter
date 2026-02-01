@@ -1,5 +1,5 @@
-#ifndef STATUSBAR_H
-#define STATUSBAR_H
+#ifndef WORKBAR_H
+#define WORKBAR_H
 
 #include "../../../messages/unitermessage.h"
 #include "../../../widgets_generative/subsystemicon.h"
@@ -11,14 +11,15 @@
 namespace uniter::staticwdg {
 
 
-class StatusBar : public QWidget {
+class WorkBar : public QWidget {
     Q_OBJECT
 
 public:
-    explicit StatusBar(QWidget* parent = nullptr);
+    explicit WorkBar(QWidget* parent = nullptr);
 
-    void addSubsystem(messages::GenSubsystemType genType,
-                      const QString& name,
+    void addSubsystem(messages::Subsystem subsystem,
+                      messages::GenSubsystemType genType,
+                      uint64_t genId,
                       int index);
     void removeSubsystem(int index);
 
@@ -36,6 +37,9 @@ private:
     QWidget* iconContainer;
     QVBoxLayout* iconLayout;
     std::map<int, genwdg::SubsystemIcon*> subsystemIcons;
+protected:
+    // Переопределяем paintEvent для рисования правой границы
+    void paintEvent(QPaintEvent* event) override;
 };
 
 
@@ -43,4 +47,4 @@ private:
 } // uniter::staticwdg
 
 
-#endif // STATUSBAR_H
+#endif // WORKBAR_H

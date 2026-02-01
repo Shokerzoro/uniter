@@ -13,11 +13,25 @@ namespace uniter::managers {
 class ConfigManager : public QObject
 {
     Q_OBJECT
+
 private:
+    // Приватный конструктор
+    ConfigManager();
+
+    // Запрет копирования и перемещения
+    ConfigManager(const ConfigManager&) = delete;
+    ConfigManager& operator=(const ConfigManager&) = delete;
+    ConfigManager(ConfigManager&&) = delete;
+    ConfigManager& operator=(ConfigManager&&) = delete;
+
+    // Текущая конфигурация
     std::shared_ptr<resources::employees::Employee> user;
+
 public:
-    ConfigManager(QObject* parent = nullptr);
-    ~ConfigManager() = default;
+    // Единственная точка доступа к синглтону
+    static ConfigManager* instance();
+
+    ~ConfigManager() override = default;
 
 public slots:
     // Генерация конфигурации по данным пользователя

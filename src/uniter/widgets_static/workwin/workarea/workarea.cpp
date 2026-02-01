@@ -21,6 +21,9 @@ void WorkArea::addSubsystem(messages::Subsystem subsystem,
                             messages::GenSubsystemType genType,
                             uint64_t genId,
                             int index) {
+
+    qDebug() << "WorkArea::addSubsystem():" << subsystem;
+
     auto* subsWdg = new genwdg::ISubsWdg(subsystem, genType, genId, this);
 
     subsystemWidgets[index] = subsWdg;
@@ -49,9 +52,11 @@ void WorkArea::removeSubsystem(int index) {
 void WorkArea::onSwitchTab(int index) {
     auto it = subsystemWidgets.find(index);
     if (it != subsystemWidgets.end()) {
+        qDebug() << "WorkArea::onSwitchTab(): switching to index" << index;
         stackedLayout->setCurrentWidget(it->second);
     }
 }
+
 
 void WorkArea::onSendUniterMessage(std::shared_ptr<messages::UniterMessage> message) {
     emit signalSendUniterMessage(message);
