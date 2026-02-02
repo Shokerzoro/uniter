@@ -6,42 +6,36 @@ set(TEST_SOURCES
     appmanagertest.cpp
 )
 
-set(MANAGERS
-    ../src/uniter/managers/appmanager.cpp
-    ../src/uniter/managers/appmanager.h
-    ../src/uniter/managers/configmanager.h
-    ../src/uniter/managers/configmanager.cpp
-)
-
-set(RESOURCES
-    ../src/uniter/resources/resourceabstract.cpp
-    ../src/uniter/resources/resourceabstract.h
-    ../src/uniter/resources/employee/employee.cpp
-    ../src/uniter/resources/employee/employee.h
-
-    ../src/uniter/resources/supply/purchase.cpp
-    ../src/uniter/resources/supply/purchase.cpp
-)
-
-set(GENERATIVE_WIDGETS_SOURCES
-    ../src/uniter/widgets_generative/generativetab.cpp
-    ../src/uniter/widgets_generative/generativetab.h
-)
+include(../src/uniter/sources.cmake)
 
 add_executable(UniterTests
     ${TEST_SOURCES}
-    ${MANAGERS}
-    ${RESOURCES}
+
+    #UI Layer
+    ${STATIC_WIDGETS_SOURCES}
+    ${GENERATIVE_WIDGETS_SOURCES}
+    ${DYNAMIC_WIDGETS_SOURCES}
+
+    #Data layer
+    ${DATA_SOURCES}
+    #Control layer
+    ${CONTROL_SOURCES}
+    #Net layer
+    ${NETWORK_SOURCES}
+    #Contract (client/server)
+    ${CONTRACT_SOURCES}
 )
 
 target_link_libraries(UniterTests
     PRIVATE
-        GTest::gtest_main
-        GTest::gmock_main
-        Qt6::Core
-        Qt6::Test
-        Qt6::Widgets
-        tinyxml2
+    uniter_common
+    GTest::gtest_main
+    GTest::gmock_main
+    Qt6::Core
+    Qt6::Test
+    Qt6::Widgets
+    Qt6::Network
+    tinyxml2
 )
 
 target_include_directories(UniterTests PRIVATE
