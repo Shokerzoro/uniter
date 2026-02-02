@@ -1,6 +1,8 @@
 
 #include "appmanager.h"
 #include "configmanager.h"
+#include "../database/datamanager.h"
+#include "../network/mocknetwork.h"
 #include "../messages/unitermessage.h"
 #include "../resources/employee/employee.h"
 
@@ -13,17 +15,16 @@
 namespace uniter::managers {
 
 
+AppManager* AppManager::instance()
+{
+    static AppManager instance;
+    return &instance;
+}
+
+
 AppManager::AppManager()
 {
-    auto cofManager = ConfigManager::instance();
-
-    // Подписка ConfigManager → AppManager
-    QObject::connect(cofManager, &ConfigManager::signalConfigured,
-                     this,          &AppManager::onConfigured);
-
-    // AppManager → ConfigManager (запуск конфигурации по User)
-    QObject::connect(this, &AppManager::signalConfigProc,
-                     cofManager, &ConfigManager::onConfigProc);
+    // Конструктор пустой - все связи устанавливаются в main.cpp
 }
 
 
@@ -250,4 +251,4 @@ void AppManager::onShutDown() {
 }
 
 
-} // managers
+} // namespace uniter::managers

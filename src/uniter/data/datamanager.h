@@ -1,93 +1,80 @@
-// datamanager.h
+
 #ifndef DATAMANAGER_H
 #define DATAMANAGER_H
 
-#include "../contract/unitermessage.h"
-#include "../contract/resourceabstract.h"
-#include "idataobserver.h"
+#include "../messages/unitermessage.h"
+#include "../resources/resourceabstract.h"
+#include "../widgets_generative/generativetab.h"
 #include <QObject>
-#include <QPointer>
 #include <QByteArray>
 #include <memory>
-#include <map>
-#include <vector>
+
 
 namespace uniter::data {
 
 class DataManager : public QObject
 {
     Q_OBJECT
-public:
-    explicit DataManager(QObject* parent = nullptr);  // ✅ Публичный конструктор!
-    ~DataManager() override = default;
 
 private:
+    // Приватный конструктор для синглтона
+    DataManager();
+
+    // Запрет копирования и перемещения
+    DataManager(const DataManager&) = delete;
+    DataManager& operator=(const DataManager&) = delete;
+    DataManager(DataManager&&) = delete;
+    DataManager& operator=(DataManager&&) = delete;
+
     // State Management
     enum class DBState { IDLE, LOADING, LOADED, ERROR };
     DBState state = DBState::IDLE;
     void setState(DBState newState);
 
-    // Структура для хранения observers
-    struct ObserverKey {
-        contract::Subsystem subsystem;
-        contract::ResourceType type;
-        uint64_t resourceId = 0;
+    // Список обзерверов
+    std::vector<std::weak_ptr<genwdg::ISubsWdg>> treeObservers;
+    std::vector<std::weak_ptr<genwdg::ISubsWdg>> listObservers;
+    std::vector<std::weak_ptr<genwdg::ISubsWdg>> resourceObservers;
 
-        bool operator<(const ObserverKey& other) const {
-            if (subsystem != other.subsystem) return subsystem < other.subsystem;
-            if (type != other.type) return type < other.type;
-            return resourceId < other.resourceId;
-        }
-    };
+public:
+    // Публичный статический метод получения экземпляра
+    static DataManager* instance();
 
-    // Три списка observers
-    std::map<ObserverKey, std::vector<QPointer<IDataObserver>>> m_listObservers;
-    std::map<ObserverKey, std::vector<QPointer<IDataObserver>>> m_treeObservers;
-    std::map<ObserverKey, std::vector<QPointer<IDataObserver>>> m_resourceObservers;
-
-    // Приватные методы для уведомления
-    void notifyListObservers(contract::Subsystem subsystem, contract::ResourceType type,
-                             std::vector<std::shared_ptr<contract::ResourceAbstract>> data);
-    void notifyTreeObservers(contract::Subsystem subsystem, contract::ResourceType type,
-                             std::vector<std::shared_ptr<contract::ResourceAbstract>> data);
-    void notifyResourceObservers(contract::Subsystem subsystem, contract::ResourceType type, uint64_t resId,
-                                 std::shared_ptr<contract::ResourceAbstract> resource);
+    ~DataManager() override = default;
 
 public slots:
-    // СЛОТЫ для подписок
-    void onSubscribeToResourceList(contract::Subsystem subsystem,
-                                   contract::ResourceType type,
-                                   IDataObserver* observer);
-
-    void onSubscribeToResourceTree(contract::Subsystem subsystem,
-                                   contract::ResourceType type,
-                                   IDataObserver* observer);
-
-    void onSubscribeToResource(contract::Subsystem subsystem,
-                               contract::ResourceType type,
-                               uint64_t resId,
-                               IDataObserver* observer);
-
-    void onGetResource(contract::Subsystem subsystem,
-                       contract::ResourceType type,
-                       uint64_t resourceId,
-                       IDataObserver* observer);
-
-    // Другие слоты
-    void onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> message);
-    void onStartLoadResources(QByteArray userhash);
-    void onSubsystemGenerate(contract::Subsystem subsystem,
-                             contract::GenSubsystemType genType,
+    void onRecvUniterMessage(std::shared_ptr<messages::UniterMessage> message);
+    void onStartLoadResources(QByteArray userhash); // От менеджера приложения
+    void onSubsystemGenerate(messages::Subsystem subsystem,
+                             messages::GenSubsystemType genType,
                              uint64_t genId,
                              bool created);
-    void onCustomized();
+    void onCustomized(); // От менеджера конфигураций
+
+    // Подписки на ресурсы (доп. аргумент – ISubsWdg)
+    void onSubscribeToResourceList(messages::Subsystem subsystem,
+                                   messages::ResourceType type,
+                                   std::shared_ptr<genwdg::ISubsWdg> observer);
+    void onSubscribeToResourceTree(messages::Subsystem subsystem,
+                                   messages::ResourceType type,
+                                   std::shared_ptr<genwdg::ISubsWdg> observer);
+    void onSubscribeToResource(messages::Subsystem subsystem,
+                               messages::ResourceType type,
+                               uint64_t resId,
+                               std::shared_ptr<genwdg::ISubsWdg> observer);
+
+    // Получить ресурс
+    void onGetResource(messages::Subsystem subsystem,
+                       messages::ResourceType type,
+                       uint64_t resourceId,
+                       std::shared_ptr<genwdg::ISubsWdg> observer);
 
 signals:
-    void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
-    void signalCutomize(QByteArray& userhash);
-    void signalResourcesLoaded();
+    void signalCutomize(QByteArray& userhash); // Для менеджера конфигураций
+    void signalResourcesLoaded(); // Менеджеру приложения
 };
 
 } // namespace uniter::data
 
 #endif // DATAMANAGER_H
+

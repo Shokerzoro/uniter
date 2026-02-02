@@ -3,8 +3,8 @@
 #define ISUBSWDG_H
 
 #include "../messages/unitermessage.h"
-#include <QWidget>
 #include <cstdint>
+#include <QWidget>
 
 namespace uniter::genwdg {
 

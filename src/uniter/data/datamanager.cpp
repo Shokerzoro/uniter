@@ -1,87 +1,86 @@
-// idataobserver.cpp
-#include "idataobserver.h"
 #include "datamanager.h"
+#include "../messages/unitermessage.h"
+#include <QByteArray>
 
 namespace uniter::data {
 
-IDataObserver::IDataObserver(DataManager* dataManager, QObject *parent)
-    : QObject(parent)
-    , m_dataManager(dataManager)
+DataManager* DataManager::instance()
 {
-    // ✅ Коннектим сигналы к слотам DataManager
-    connect(this, &IDataObserver::signalSubscribeToList,
-            m_dataManager, &DataManager::onSubscribeToResourceList);
-
-    connect(this, &IDataObserver::signalSubscribeToTree,
-            m_dataManager, &DataManager::onSubscribeToResourceTree);
-
-    connect(this, &IDataObserver::signalSubscribeToResource,
-            m_dataManager, &DataManager::onSubscribeToResource);
+    static DataManager instance;
+    return &instance;
 }
 
-IDataObserver::~IDataObserver()
+DataManager::DataManager()
+    : QObject(nullptr)
+    , state(DBState::IDLE)
 {
 }
 
-// ✅ Виджет вызывает эти методы для подписки
-void IDataObserver::subscribeToList(contract::Subsystem subsystem, contract::ResourceType type)
+void DataManager::setState(DBState newState)
 {
-    m_listSubscription.subsystem = subsystem;
-    m_listSubscription.type = type;
-
-    // ✅ Испускаем сигнал - он уже законнекчен к DataManager
-    emit signalSubscribeToList(subsystem, type, this);
+    state = newState;
 }
 
-void IDataObserver::subscribeToTree(contract::Subsystem subsystem, contract::ResourceType type)
+void DataManager::onRecvUniterMessage(std::shared_ptr<messages::UniterMessage> message)
 {
-    m_treeSubscription.subsystem = subsystem;
-    m_treeSubscription.type = type;
-
-    emit signalSubscribeToTree(subsystem, type, this);
+    // TODO: реализация обработки входящих CRUD операций
+    // Обновление локальной БД/кэша
+    // Уведомление обзерверов через вызов их методов напрямую
 }
 
-void IDataObserver::subscribeToResource(contract::Subsystem subsystem, contract::ResourceType type, uint64_t resId)
+void DataManager::onStartLoadResources(QByteArray userhash)
 {
-    m_resourceSubscription.subsystem = subsystem;
-    m_resourceSubscription.type = type;
-    m_resourceSubscription.resourceId = resId;
-
-    emit signalSubscribeToResource(subsystem, type, resId, this);
+    // TODO: реализация загрузки ресурсов из БД
+    emit signalResourcesLoaded();
 }
 
-// DataManager вызывает эти методы напрямую
-void IDataObserver::notifyListObservers(contract::Subsystem subsystem,
-                                       contract::ResourceType type,
-                                       std::vector<std::shared_ptr<contract::ResourceAbstract>> data)
+void DataManager::onSubsystemGenerate(messages::Subsystem subsystem,
+                                      messages::GenSubsystemType genType,
+                                      uint64_t genId,
+                                      bool created)
 {
-    if (m_listSubscription.subsystem == subsystem && m_listSubscription.type == type) {
-        m_listData = std::move(data);
-        emit listDataChanged();
-    }
+    // TODO: реализация
 }
 
-void IDataObserver::notifyTreeObservers(contract::Subsystem subsystem,
-                                       contract::ResourceType type,
-                                       std::vector<std::shared_ptr<contract::ResourceAbstract>> data)
+void DataManager::onCustomized()
 {
-    if (m_treeSubscription.subsystem == subsystem && m_treeSubscription.type == type) {
-        m_treeData = std::move(data);
-        emit treeDataChanged();
-    }
+    // TODO: реализация
 }
 
-void IDataObserver::notifyResourceObservers(contract::Subsystem subsystem,
-                                           contract::ResourceType type,
-                                           uint64_t resId,
-                                           std::shared_ptr<contract::ResourceAbstract> resource)
+void DataManager::onSubscribeToResourceList(messages::Subsystem subsystem,
+                                            messages::ResourceType type,
+                                            std::shared_ptr<genwdg::ISubsWdg> observer)
 {
-    if (m_resourceSubscription.subsystem == subsystem &&
-        m_resourceSubscription.type == type &&
-        m_resourceSubscription.resourceId == resId) {
-        m_resourceData = resource;
-        emit resourceDataChanged();
-    }
+    // TODO: реализация
+    // Добавить observer в listObservers
 }
+
+void DataManager::onSubscribeToResourceTree(messages::Subsystem subsystem,
+                                            messages::ResourceType type,
+                                            std::shared_ptr<genwdg::ISubsWdg> observer)
+{
+    // TODO: реализация
+    // Добавить observer в treeObservers
+}
+
+void DataManager::onSubscribeToResource(messages::Subsystem subsystem,
+                                        messages::ResourceType type,
+                                        uint64_t resId,
+                                        std::shared_ptr<genwdg::ISubsWdg> observer)
+{
+    // TODO: реализация
+    // Добавить observer в resourceObservers
+}
+
+void DataManager::onGetResource(
+    messages::Subsystem subsystem,
+    messages::ResourceType type,
+    uint64_t resourceId,
+    std::shared_ptr<genwdg::ISubsWdg> observer)
+{
+    // TODO: реализация
+    // Вернуть ресурс через вызов метода observer
+}
+
 
 } // namespace uniter::data

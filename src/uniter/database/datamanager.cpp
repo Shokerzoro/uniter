@@ -1,11 +1,18 @@
+
 #include "datamanager.h"
 #include "../messages/unitermessage.h"
 #include <QByteArray>
 
 namespace uniter::data {
 
-DataManager::DataManager(QObject* parent)
-    : QObject(parent)
+DataManager* DataManager::instance()
+{
+    static DataManager instance;
+    return &instance;
+}
+
+DataManager::DataManager()
+    : QObject(nullptr)
     , state(DBState::IDLE)
 {
 }
@@ -17,19 +24,21 @@ void DataManager::setState(DBState newState)
 
 void DataManager::onRecvUniterMessage(std::shared_ptr<messages::UniterMessage> message)
 {
-    // TODO: реализация
+    // TODO: реализация обработки входящих CRUD операций
+    // Обновление локальной БД/кэша
+    // Уведомление обзерверов через вызов их методов напрямую
 }
 
 void DataManager::onStartLoadResources(QByteArray userhash)
 {
-    // TODO: реализация
+    // TODO: реализация загрузки ресурсов из БД
     emit signalResourcesLoaded();
 }
 
 void DataManager::onSubsystemGenerate(messages::Subsystem subsystem,
-                                     messages::GenSubsystemType genType,
-                                     uint64_t genId,
-                                     bool created)
+                                      messages::GenSubsystemType genType,
+                                      uint64_t genId,
+                                      bool created)
 {
     // TODO: реализация
 }
@@ -44,6 +53,7 @@ void DataManager::onSubscribeToResourceList(messages::Subsystem subsystem,
                                             std::shared_ptr<genwdg::ISubsWdg> observer)
 {
     // TODO: реализация
+    // Добавить observer в listObservers
 }
 
 void DataManager::onSubscribeToResourceTree(messages::Subsystem subsystem,
@@ -51,6 +61,7 @@ void DataManager::onSubscribeToResourceTree(messages::Subsystem subsystem,
                                             std::shared_ptr<genwdg::ISubsWdg> observer)
 {
     // TODO: реализация
+    // Добавить observer в treeObservers
 }
 
 void DataManager::onSubscribeToResource(messages::Subsystem subsystem,
@@ -59,6 +70,7 @@ void DataManager::onSubscribeToResource(messages::Subsystem subsystem,
                                         std::shared_ptr<genwdg::ISubsWdg> observer)
 {
     // TODO: реализация
+    // Добавить observer в resourceObservers
 }
 
 void DataManager::onGetResource(
@@ -68,6 +80,7 @@ void DataManager::onGetResource(
     std::shared_ptr<genwdg::ISubsWdg> observer)
 {
     // TODO: реализация
+    // Вернуть ресурс через вызов метода observer
 }
 
 

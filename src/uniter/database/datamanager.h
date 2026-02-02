@@ -1,3 +1,4 @@
+
 #ifndef DATAMANAGER_H
 #define DATAMANAGER_H
 
@@ -14,10 +15,17 @@ namespace uniter::data {
 class DataManager : public QObject
 {
     Q_OBJECT
-public:
-    DataManager(QObject* parent = nullptr);
 
 private:
+    // Приватный конструктор для синглтона
+    DataManager();
+
+    // Запрет копирования и перемещения
+    DataManager(const DataManager&) = delete;
+    DataManager& operator=(const DataManager&) = delete;
+    DataManager(DataManager&&) = delete;
+    DataManager& operator=(DataManager&&) = delete;
+
     // State Management
     enum class DBState { IDLE, LOADING, LOADED, ERROR };
     DBState state = DBState::IDLE;
@@ -28,9 +36,15 @@ private:
     std::vector<std::weak_ptr<genwdg::ISubsWdg>> listObservers;
     std::vector<std::weak_ptr<genwdg::ISubsWdg>> resourceObservers;
 
+public:
+    // Публичный статический метод получения экземпляра
+    static DataManager* instance();
+
+    ~DataManager() override = default;
+
 public slots:
     void onRecvUniterMessage(std::shared_ptr<messages::UniterMessage> message);
-    void onStartLoadResources(QByteArray  userhash); // От менеджера приложения
+    void onStartLoadResources(QByteArray userhash); // От менеджера приложения
     void onSubsystemGenerate(messages::Subsystem subsystem,
                              messages::GenSubsystemType genType,
                              uint64_t genId,
@@ -56,7 +70,6 @@ public slots:
                        std::shared_ptr<genwdg::ISubsWdg> observer);
 
 signals:
-    void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> message);
     void signalCutomize(QByteArray& userhash); // Для менеджера конфигураций
     void signalResourcesLoaded(); // Менеджеру приложения
 };

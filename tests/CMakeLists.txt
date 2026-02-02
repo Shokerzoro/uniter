@@ -23,6 +23,11 @@ set(RESOURCES
     ../src/uniter/resources/supply/purchase.cpp
 )
 
+set(GENERATIVE_WIDGETS_SOURCES
+    ../src/uniter/widgets_generative/generativetab.cpp
+    ../src/uniter/widgets_generative/generativetab.h
+)
+
 add_executable(UniterTests
     ${TEST_SOURCES}
     ${MANAGERS}
@@ -35,6 +40,7 @@ target_link_libraries(UniterTests
         GTest::gmock_main
         Qt6::Core
         Qt6::Test
+        Qt6::Widgets
         tinyxml2
 )
 

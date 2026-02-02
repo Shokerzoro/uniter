@@ -2,6 +2,7 @@
 #include "widgets_static/mainwindow.h"
 #include "database/datamanager.h"
 #include "managers/appmanager.h"
+#include "managers/configmanager.h"
 #include "network/mocknetwork.h"
 #include "../common/appfuncs.h"
 
@@ -25,90 +26,110 @@ int main(int argc, char *argv[])
     common::appfuncs::set_env(AEnviroment);
     common::appfuncs::open_log(AEnviroment.logfile);
 
-    // Создаем слои - основные компоненты
+    // ========== ИНИЦИАЛИЗАЦИЯ СИНГЛТОНОВ ==========
+    auto* dataManager = data::DataManager::instance();
+    auto* appManager = managers::AppManager::instance();
+    auto* configManager = managers::ConfigManager::instance();
+    auto* netManager = net::MockNetManager::instance();
+
+    // ========== СОЗДАНИЕ UI ==========
     staticwdg::MainWidget MWindow;
-    data::DataManager DManager;
-    managers::AppManager AManager;
-    net::MockNetManager MNManager;
 
 
-    // === 1. Маршрутизация сообщений (всё, что гоняет UniterMessage) ===
+    // ==========================================================================
+    // СТАТИЧЕСКИЕ СВЯЗИ СИГНАЛОВ/СЛОТОВ (все в одном месте для проверки)
+    // ==========================================================================
 
-    // MainWidget → AppManager (только вверх, от UI к менеджеру)
-    QObject::connect(&MWindow,  &staticwdg::MainWidget::signalSendUniterMessage,
-                     &AManager, &managers::AppManager::onSendUniterMessage);
+    // === 1. Маршрутизация UniterMessage ===
 
-    // AppManager ↔ DataManager
-    QObject::connect(&DManager, &data::DataManager::signalSendUniterMessage,
-                     &AManager, &managers::AppManager::onSendUniterMessage);
-    QObject::connect(&AManager, &managers::AppManager::signalRecvUniterMessage,
-                     &DManager, &data::DataManager::onRecvUniterMessage);
+    // Network → AppManager (входящие сообщения из сети)
+    QObject::connect(netManager, &net::MockNetManager::signalRecvMessage,
+                     appManager, &managers::AppManager::onRecvUniterMessage);
 
-    // AppManager ↔ MockNetworkProcessor
-    QObject::connect(&AManager,  &managers::AppManager::signalSendUniterMessage,
-                     &MNManager, &net::MockNetManager::onSendMessage);
-    QObject::connect(&MNManager, &net::MockNetManager::signalRecvMessage,
-                     &AManager,  &managers::AppManager::onRecvUniterMessage);
+    // AppManager → DataManager (пересылка входящих сообщений)
+    QObject::connect(appManager, &managers::AppManager::signalRecvUniterMessage,
+                     dataManager, &data::DataManager::onRecvUniterMessage);
 
-    // === 2. Подписки/ресурсы (UI ↔ DataManager) ===
+    // AppManager → Network (исходящие сообщения в сеть)
+    QObject::connect(appManager, &managers::AppManager::signalSendUniterMessage,
+                     netManager, &net::MockNetManager::onSendMessage);
 
-    QObject::connect(&MWindow, &staticwdg::MainWidget::signalSubscribeToResourceList,
-                     &DManager, &data::DataManager::onSubscribeToResourceList);
-    QObject::connect(&MWindow, &staticwdg::MainWidget::signalSubscribeToResourceTree,
-                     &DManager, &data::DataManager::onSubscribeToResourceTree);
-    QObject::connect(&MWindow, &staticwdg::MainWidget::signalSubscribeToResource,
-                     &DManager, &data::DataManager::onSubscribeToResource);
-    QObject::connect(&MWindow, &staticwdg::MainWidget::signalGetResource,
-                     &DManager, &data::DataManager::onGetResource);
+    // MainWidget → AppManager (исходящие сообщения от UI)
+    QObject::connect(&MWindow, &staticwdg::MainWidget::signalSendUniterMessage,
+                     appManager, &managers::AppManager::onSendUniterMessage);
 
-    // === 3. Управление сетевым состоянием (connect / disconnect) ===
+
+    // === 2. Управление сетевым состоянием ===
 
     // Network → AppManager
-    QObject::connect(&MNManager, &net::MockNetManager::signalConnected,
-                     &AManager,  &managers::AppManager::onConnected);
-    QObject::connect(&MNManager, &net::MockNetManager::signalDisconnected,
-                     &AManager,  &managers::AppManager::onDisconnected);
+    QObject::connect(netManager, &net::MockNetManager::signalConnected,
+                     appManager, &managers::AppManager::onConnected);
+    QObject::connect(netManager, &net::MockNetManager::signalDisconnected,
+                     appManager, &managers::AppManager::onDisconnected);
 
-    // AppManager → MainWidget (отражение состояния в UI)
-    QObject::connect(&AManager, &managers::AppManager::signalConnected,
-                     &MWindow,  &staticwdg::MainWidget::onConnected);
-    QObject::connect(&AManager, &managers::AppManager::signalDisconnected,
-                     &MWindow,  &staticwdg::MainWidget::onDisconnected);
+    // AppManager → Network
+    QObject::connect(appManager, &managers::AppManager::signalMakeConnection,
+                     netManager, &net::MockNetManager::onMakeConnection);
 
-    // === 4. Управление запуском/инициализацией (ресурсы, БД) ===
+    // AppManager → UI (отражение состояния)
+    QObject::connect(appManager, &managers::AppManager::signalConnected,
+                     &MWindow, &staticwdg::MainWidget::onConnected);
+    QObject::connect(appManager, &managers::AppManager::signalDisconnected,
+                     &MWindow, &staticwdg::MainWidget::onDisconnected);
 
-    // DataManager → AppManager (ресурсы готовы)
-    QObject::connect(&DManager, &data::DataManager::signalResourcesLoaded,
-                     &AManager, &managers::AppManager::onResourcesLoaded);
-
-    // AppManager → DataManager (старт загрузки ресурсов)
-    QObject::connect(&AManager, &managers::AppManager::signalLoadResources,
-                     &DManager, &data::DataManager::onStartLoadResources);
-
-    // === 5. Управление аутентификацией и UI ===
-
-    // AppManager → MainWidget (результат аутентификации)
-    QObject::connect(&AManager, &managers::AppManager::signalAuthed,
-                     &MWindow,  &staticwdg::MainWidget::onAuthed);
-
-    // AppManager → MainWidget (поиск локальных данных аутентификации)
-    QObject::connect(&AManager, &managers::AppManager::signalFindAuthData,
-                     &MWindow,  &staticwdg::MainWidget::onFindAuthData);
-
-    // === 6. Управляющие сетевым подключением (MakeConnect) ===
-
-    // UI → AppManager (пользователь нажал "подключиться")
-    QObject::connect(&MWindow,  &staticwdg::MainWidget::signalMakeConnect,
-                     &AManager, &managers::AppManager::signalMakeConnection);
-
-    // AppManager → Network (команда установить соединение)
-    QObject::connect(&AManager,  &managers::AppManager::signalMakeConnection,
-                     &MNManager, &net::MockNetManager::onMakeConnection);
+    // UI → AppManager (команда подключиться)
+    QObject::connect(&MWindow, &staticwdg::MainWidget::signalMakeConnect,
+                     appManager, &managers::AppManager::signalMakeConnection);
 
 
+    // === 3. Управление ресурсами и БД ===
 
-    // Запуск FSM приложения и подсвечиваем виджеты
-    AManager.start_run();
+    // AppManager → DataManager
+    QObject::connect(appManager, &managers::AppManager::signalLoadResources,
+                     dataManager, &data::DataManager::onStartLoadResources);
+
+    // DataManager → AppManager
+    QObject::connect(dataManager, &data::DataManager::signalResourcesLoaded,
+                     appManager, &managers::AppManager::onResourcesLoaded);
+
+
+    // === 4. Конфигурация ===
+
+    // ConfigManager → AppManager
+    QObject::connect(configManager, &managers::ConfigManager::signalConfigured,
+                     appManager, &managers::AppManager::onConfigured);
+
+    // AppManager → ConfigManager
+    QObject::connect(appManager, &managers::AppManager::signalConfigProc,
+                     configManager, &managers::ConfigManager::onConfigProc);
+
+
+    // === 5. Аутентификация ===
+
+    // AppManager → UI
+    QObject::connect(appManager, &managers::AppManager::signalAuthed,
+                     &MWindow, &staticwdg::MainWidget::onAuthed);
+    QObject::connect(appManager, &managers::AppManager::signalFindAuthData,
+                     &MWindow, &staticwdg::MainWidget::onFindAuthData);
+
+
+    // === 6. Подписки на ресурсы (UI и динамические виджеты → DataManager) ===
+
+    QObject::connect(&MWindow, &staticwdg::MainWidget::signalSubscribeToResourceList,
+                     dataManager, &data::DataManager::onSubscribeToResourceList);
+    QObject::connect(&MWindow, &staticwdg::MainWidget::signalSubscribeToResourceTree,
+                     dataManager, &data::DataManager::onSubscribeToResourceTree);
+    QObject::connect(&MWindow, &staticwdg::MainWidget::signalSubscribeToResource,
+                     dataManager, &data::DataManager::onSubscribeToResource);
+    QObject::connect(&MWindow, &staticwdg::MainWidget::signalGetResource,
+                     dataManager, &data::DataManager::onGetResource);
+
+
+    // ==========================================================================
+    // ЗАПУСК ПРИЛОЖЕНИЯ (после установки всех связей)
+    // ==========================================================================
+
+    appManager->start_run();
     MWindow.show();
 
     return app.exec();

@@ -127,8 +127,14 @@ namespace uniter::net {
 
 using namespace uniter::messages;
 
-MockNetManager::MockNetManager(QObject* parent)
-    : QObject(parent)
+MockNetManager* MockNetManager::instance()
+{
+    static MockNetManager instance;
+    return &instance;
+}
+
+MockNetManager::MockNetManager()
+    : QObject(nullptr)
 {
 }
 

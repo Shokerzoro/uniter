@@ -1,3 +1,4 @@
+
 #ifndef MOCKNETWORK_H
 #define MOCKNETWORK_H
 
@@ -12,8 +13,26 @@ class MockNetManager : public QObject
 {
     Q_OBJECT
 
+private:
+    // Приватный конструктор для синглтона
+    MockNetManager();
+
+    // Запрет копирования и перемещения
+    MockNetManager(const MockNetManager&) = delete;
+    MockNetManager& operator=(const MockNetManager&) = delete;
+    MockNetManager(MockNetManager&&) = delete;
+    MockNetManager& operator=(MockNetManager&&) = delete;
+
+    bool connected_ = false;
+
+    // Для статистики/отладки (при желании можно убрать)
+    int seq_id_sent_ = 0;
+    int seq_id_received_ = 0;
+
 public:
-    explicit MockNetManager(QObject* parent = nullptr);
+    // Публичный статический метод получения экземпляра
+    static MockNetManager* instance();
+
     ~MockNetManager() override;
 
 public slots:
@@ -33,13 +52,6 @@ signals:
 
     // Network → AppManager: входящее сообщение
     void signalRecvMessage(std::shared_ptr<messages::UniterMessage> message);
-
-private:
-    bool connected_ = false;
-
-    // Для статистики/отладки (при желании можно убрать)
-    int seq_id_sent_ = 0;
-    int seq_id_received_ = 0;
 };
 
 } // namespace uniter::net

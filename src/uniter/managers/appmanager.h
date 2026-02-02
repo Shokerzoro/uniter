@@ -1,3 +1,5 @@
+    #ifndef APPMANAGER_H
+#define APPMANAGER_H
 
 #include "../messages/unitermessage.h"
 #include "../resources/employee/employee.h"
@@ -11,13 +13,24 @@ namespace uniter::managers {
 
 class AppManager : public QObject {
     Q_OBJECT
+
+private:
+    // Приватный конструктор для синглтона
+    AppManager();
+
+    // Запрет копирования и перемещения
+    AppManager(const AppManager&) = delete;
+    AppManager& operator=(const AppManager&) = delete;
+    AppManager(AppManager&&) = delete;
+    AppManager& operator=(AppManager&&) = delete;
+
 protected:
     enum class AppState {
         IDLE,
         STARTED,
         CONNECTED,
         AUTHENTIFICATED,
-        DBLOADED,      // Переименовано: DB_LOADED
+        DBLOADED,
         READY,
         SHUTDOWN
     };
@@ -32,8 +45,11 @@ protected:
     // Временное хранение данных аутентификации
     std::shared_ptr<messages::UniterMessage>            AuthMessage;
     std::shared_ptr<resources::employees::Employee>     User;
+
 public:
-    AppManager();
+    // Публичный статический метод получения экземпляра
+    static AppManager* instance();
+
     ~AppManager() override = default;
 
     void start_run();
@@ -74,4 +90,4 @@ signals:
 
 } // namespace uniter::managers
 
-
+#endif // APPMANAGER_H
