@@ -1,6 +1,6 @@
 
 #include "widgets_static/mainwindow.h"
-#include "database/datamanager.h"
+#include "data/datamanager.h"
 #include "managers/appmanager.h"
 #include "managers/configmanager.h"
 #include "network/mocknetwork.h"

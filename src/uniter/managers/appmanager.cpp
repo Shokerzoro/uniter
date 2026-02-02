@@ -1,7 +1,7 @@
 
 #include "appmanager.h"
 #include "configmanager.h"
-#include "../database/datamanager.h"
+#include "../data/datamanager.h"
 #include "../network/mocknetwork.h"
 #include "../messages/unitermessage.h"
 #include "../resources/employee/employee.h"

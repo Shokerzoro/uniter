@@ -35,9 +35,9 @@ set(DYNAMIC_WIDGETS_SOURCES
 )
 
 
-set(DATABASE_SOURCES
-    database/datamanager.h
-    database/datamanager.cpp
+set(DATA_SOURCES
+    data/datamanager.h
+    data/datamanager.cpp
 )
 
 
@@ -66,6 +66,11 @@ set(NETWORK_SOURCES
     network/mocknetwork.cpp
 )
 
+# = = = = = = = = common sources = = = = = = = = #
+
+set(DATABASE_SOURCES
+
+)
 
 set(MESSAGES_SOURCES
     messages/unitermessage.cpp
@@ -107,6 +112,7 @@ set(RESOUCES_SOURCES
 set(CONTRACT_SOURCES
     ${MESSAGES_SOURCES}
     ${RESOUCES_SOURCES}
+    ${DATABASE_SOURCES}
 )
 
 set(UNITER_SOURCES
@@ -118,7 +124,7 @@ set(UNITER_SOURCES
     ${DYNAMIC_WIDGETS_SOURCES}
 
     #Data layer
-    ${DATABASE_SOURCES}
+    ${DATA_SOURCES}
     #Control layer
     ${CONTROL_SOURCES}
     #Net layer
