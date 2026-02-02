@@ -1,8 +1,8 @@
     #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include "../messages/unitermessage.h"
-#include "../resources/resourceabstract.h"
+#include "../contract/unitermessage.h"
+#include "../contract/resourceabstract.h"
 #include "./authwin/authwidget.h"
 #include "./offlinewin/offlinewdg.h"
 #include "./workwin/workwidget.h"
@@ -47,7 +47,7 @@ public slots:
 
     // От нижнего уровня
     void onMakeConnect();
-    void onSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
+    void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
 
 signals:
     // Для виджета аутентификации
@@ -57,15 +57,7 @@ signals:
     void signalMakeConnect();
 
     // Для маршрутизации сообщений
-    void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
-
-    // Подписка на ресурсы
-    void signalSubscribeToResourceList(messages::Subsystem subsystem, messages::ResourceType type, std::shared_ptr<genwdg::ISubsWdg> observer);
-    void signalSubscribeToResourceTree(messages::Subsystem subsystem, messages::ResourceType type, std::shared_ptr<genwdg::ISubsWdg> observer);
-    void signalSubscribeToResource(messages::Subsystem subsystem, messages::ResourceType type, uint64_t resId, std::shared_ptr<genwdg::ISubsWdg> observer);
-    // Получить ресурс
-    void signalGetResource(messages::Subsystem subsystem, messages::ResourceType type, uint64_t resId, std::shared_ptr<genwdg::ISubsWdg> observer);
-};
+    void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);};
 
 } // namespace uniter::staticwdg
 

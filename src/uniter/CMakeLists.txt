@@ -5,6 +5,7 @@ include(sources.cmake)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
 
 qt_add_executable(Uniter WIN32
     main.cpp
@@ -22,6 +23,8 @@ qt_add_executable(Uniter WIN32
     ${NETWORK_SOURCES}
     #Contract (client/server)
     ${CONTRACT_SOURCES}
+    contract/uniterprotocol.h
+    data/idataobserver.h data/idataobserver.cpp
 )
 
 target_include_directories(Uniter
@@ -39,6 +42,7 @@ target_link_libraries(Uniter
 )
 
 target_link_libraries(Uniter PRIVATE Qt6::Widgets)
+target_link_libraries(Uniter PRIVATE Qt6::Core)
 target_link_libraries(Uniter PRIVATE Qt6::Core)
 
 # Логика вывода/макросов

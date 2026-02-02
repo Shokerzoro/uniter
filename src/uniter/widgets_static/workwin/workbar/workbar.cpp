@@ -1,6 +1,6 @@
 
-#include "../../../managers/uimanager.h"
-#include "../../../messages/unitermessage.h"
+#include "../../../control/uimanager.h"
+#include "../../../contract/unitermessage.h"
 #include "../../../widgets_generative/subsystemicon.h"
 #include "workbar.h"
 #include <QWidget>
@@ -14,7 +14,7 @@ namespace uniter::staticwdg {
 WorkBar::WorkBar(QWidget* parent) : QWidget(parent) {
 
     // Применяем UI настройки
-    auto settings = managers::UIManager::instance();
+    auto settings = control::UIManager::instance();
     settings->applyWorkBarSettings(this);
 
     // Создаём контейнер для иконок
@@ -32,8 +32,8 @@ WorkBar::WorkBar(QWidget* parent) : QWidget(parent) {
     setLayout(mainLayout);
 }
 
-void WorkBar::addSubsystem(messages::Subsystem subsystem,
-                           messages::GenSubsystemType genType,
+void WorkBar::addSubsystem(contract::Subsystem subsystem,
+                           contract::GenSubsystemType genType,
                            uint64_t genId,
                            int index) {
 
@@ -73,7 +73,7 @@ void WorkBar::removeSubsystem(int index) {
     }
 }
 
-void WorkBar::onSendUniterMessage(std::shared_ptr<messages::UniterMessage> message) {
+void WorkBar::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> message) {
     emit signalSendUniterMessage(message);
 }
 
@@ -88,7 +88,7 @@ void WorkBar::paintEvent(QPaintEvent* event) {
     painter.setRenderHint(QPainter::Antialiasing);
 
     // Получаем constraints
-    auto settings = managers::UIManager::instance();
+    auto settings = control::UIManager::instance();
     const auto& constr = settings->getWorkBarConstraints();
 
     // Рисуем тонкую светлую полоску справа

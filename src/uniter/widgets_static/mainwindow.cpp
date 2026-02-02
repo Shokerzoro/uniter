@@ -1,6 +1,6 @@
 
-#include "../messages/unitermessage.h"
-#include "../managers/uimanager.h"
+#include "../contract/unitermessage.h"
+#include "../control/uimanager.h"
 #include "./authwin/authwidget.h"
 #include "./offlinewin/offlinewdg.h"
 #include "./workwin/workwidget.h"
@@ -14,7 +14,7 @@ namespace uniter::staticwdg {
 MainWidget::MainWidget(QWidget* parent) : QWidget(parent) {
 
     // Применяем настройки
-    auto settings = managers::UIManager::instance();
+    auto settings = control::UIManager::instance();
     settings->applyMainWinSettings(this);
 
     // Создаем stacked layout
@@ -116,7 +116,7 @@ void MainWidget::onMakeConnect() {
     emit signalMakeConnect();
 }
 
-void MainWidget::onSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message) {
+void MainWidget::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message) {
     emit signalSendUniterMessage(Message);
 }
 

@@ -1,7 +1,7 @@
 #ifndef WORKWIDGET_H
 #define WORKWIDGET_H
 
-#include "../../messages/unitermessage.h"
+#include "../../contract/unitermessage.h"
 #include "./workbar/workbar.h"
 #include "./workarea/workarea.h"
 #include <QWidget>
@@ -18,15 +18,15 @@ public:
     explicit WorkWdg(QWidget* parent = nullptr);
 
 public slots:
-    void onSendUniterMessage(std::shared_ptr<messages::UniterMessage> message);
-    void onSubsystemAdded(messages::Subsystem subsystem,
-                          messages::GenSubsystemType genType,
+    void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
+    void onSubsystemAdded(contract::Subsystem subsystem,
+                          contract::GenSubsystemType genType,
                           std::optional<uint64_t> genId,
                           bool created);
 
 signals:
     // Снизу (от виджетов)
-    void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> message);
+    void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
 private:
     // Виджеты
     WorkBar* workbar;
@@ -34,15 +34,15 @@ private:
 
     // Вектор активных подсистем
     struct ActiveSubsystem {
-        ActiveSubsystem(messages::Subsystem subsystem_,
-                        messages::GenSubsystemType genType_,
+        ActiveSubsystem(contract::Subsystem subsystem_,
+                        contract::GenSubsystemType genType_,
                         uint64_t genId_)
             : subsystem{subsystem_}
             , genType{genType_}
             , genId{genId_}
         {}
-        messages::Subsystem subsystem;
-        messages::GenSubsystemType genType;
+        contract::Subsystem subsystem;
+        contract::GenSubsystemType genType;
         uint64_t genId = 0;
     };
 
@@ -51,15 +51,15 @@ private:
 
 
     // Приватные методы
-    bool findIndex(messages::Subsystem subsystem,
-                   messages::GenSubsystemType genType,
+    bool findIndex(contract::Subsystem subsystem,
+                   contract::GenSubsystemType genType,
                    std::optional<uint64_t> genId,
                    int& outIndex) const;
-    void addSubsystem(messages::Subsystem subsystem,
-                      messages::GenSubsystemType genType,
+    void addSubsystem(contract::Subsystem subsystem,
+                      contract::GenSubsystemType genType,
                       std::optional<uint64_t> genId);
-    void removeSubsystem(messages::Subsystem subsystem,
-                         messages::GenSubsystemType genType,
+    void removeSubsystem(contract::Subsystem subsystem,
+                         contract::GenSubsystemType genType,
                          std::optional<uint64_t> genId);
 };
 

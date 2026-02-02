@@ -1,5 +1,5 @@
 #include "subsystemicon.h"
-#include "../managers/uimanager.h"
+#include "../control/uimanager.h"
 #include <QMouseEvent>
 #include <QPainter>
 #include <QString>
@@ -8,20 +8,20 @@
 
 namespace uniter::genwdg {
 
-SubsystemIcon::SubsystemIcon(messages::Subsystem subsystem,
-                             messages::GenSubsystemType genType,
+SubsystemIcon::SubsystemIcon(contract::Subsystem subsystem,
+                             contract::GenSubsystemType genType,
                              uint64_t genId,
                              int index,
                              QWidget* parent)
     : QWidget(parent), index(index) {
 
     QString name;
-    if (subsystem == messages::Subsystem::GENERATIVE) {
+    if (subsystem == contract::Subsystem::GENERATIVE) {
         switch (genType) {
-        case messages::GenSubsystemType::INTERGATION:
+        case contract::GenSubsystemType::INTERGATION:
             name = "IGR";
             break;
-        case messages::GenSubsystemType::PRODUCTION:
+        case contract::GenSubsystemType::PRODUCTION:
             name = "PRD";
             break;
         default:
@@ -29,16 +29,16 @@ SubsystemIcon::SubsystemIcon(messages::Subsystem subsystem,
         }
     } else {
         switch (subsystem) {
-        case messages::Subsystem::DESIGN:
+        case contract::Subsystem::DESIGN:
             name = "DGN";
             break;
-        case messages::Subsystem::MANAGER:
+        case contract::Subsystem::MANAGER:
             name = "MGR";
             break;
-        case messages::Subsystem::MATERIALS:
+        case contract::Subsystem::MATERIALS:
             name = "MTR";
             break;
-        case messages::Subsystem::PURCHASES:
+        case contract::Subsystem::PURCHASES:
             name = "PRCH";
             break;
         default:
@@ -57,7 +57,7 @@ SubsystemIcon::SubsystemIcon(messages::Subsystem subsystem,
     setLayout(layout);
 
     // Применяем настройки UIManager
-    auto settings = managers::UIManager::instance();
+    auto settings = control::UIManager::instance();
     settings->applySubsIconSettings(this);
 }
 
@@ -75,7 +75,7 @@ void SubsystemIcon::paintEvent(QPaintEvent* event) {
     painter.setRenderHint(QPainter::Antialiasing);
 
     // Получаем constraints
-    auto settings = managers::UIManager::instance();
+    auto settings = control::UIManager::instance();
     const auto& constr = settings->getSubsIconConstraints();
 
     // Рисуем фон (дефолтный или hover)

@@ -1,7 +1,7 @@
 #ifndef WORKBAR_H
 #define WORKBAR_H
 
-#include "../../../messages/unitermessage.h"
+#include "../../../contract/unitermessage.h"
 #include "../../../widgets_generative/subsystemicon.h"
 #include <QBoxLayout>
 #include <QWidget>
@@ -17,18 +17,18 @@ class WorkBar : public QWidget {
 public:
     explicit WorkBar(QWidget* parent = nullptr);
 
-    void addSubsystem(messages::Subsystem subsystem,
-                      messages::GenSubsystemType genType,
+    void addSubsystem(contract::Subsystem subsystem,
+                      contract::GenSubsystemType genType,
                       uint64_t genId,
                       int index);
     void removeSubsystem(int index);
 
 signals:
     void signalSwitchTab(int index);
-    void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> message);
+    void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
 
 public slots:
-    void onSendUniterMessage(std::shared_ptr<messages::UniterMessage> message);
+    void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
 
 private slots:
     void onIconClicked(int index);

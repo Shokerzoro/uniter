@@ -12,240 +12,371 @@
 
 namespace uniter::control {
 
-
-AppManager::AppManager()
-{
-    auto cofManager = ConfigManager::instance();
-
-    // Подписка ConfigManager → AppManager
-    QObject::connect(cofManager, &ConfigManager::signalConfigured,
-                     this,          &AppManager::onConfigured);
-
-    // AppManager → ConfigManager (запуск конфигурации по User)
-    QObject::connect(this, &AppManager::signalConfigProc,
-                     cofManager, &ConfigManager::onConfigProc);
+AppManager* AppManager::instance() {
+    static AppManager instance;
+    return &instance;
 }
 
+AppManager::AppManager() {
+    // Конструктор пустой - все связи устанавливаются в main.cpp
+}
 
-// Запуск приложения
 void AppManager::start_run() {
-    SetAppState(AppState::STARTED);
+    ProcessEvent(Events::START);
 }
 
+void AppManager::ProcessEvent(Events event) {
 
-// Все действия при переходе в новое состояние
-void AppManager::SetAppState(AppState NewState) {
-    // Всегда устанавливаем состояние
-    // А действия производим только в online (кроме STARTED)
-    AState = NewState;
+    // Обработчики входа в состояния
+    static auto in_idle = [](AppManager* mgr) {
+        mgr->m_appState = AppState::IDLE;
+        qDebug() << "AppManager::in_idle(): entered IDLE state";
+    };
 
-    if (NState == NetState::OFFLINE && NewState != AppState::STARTED)
+    static auto in_started = [](AppManager* mgr) {
+        mgr->m_appState = AppState::STARTED;
+        qDebug() << "AppManager::in_started(): entered STARTED state";
+        emit mgr->signalMakeConnection();
+    };
+
+    static auto in_connected = [](AppManager* mgr) {
+        mgr->m_appState = AppState::CONNECTED;
+        qDebug() << "AppManager::in_connected(): entered CONNECTED state";
+        emit mgr->signalConnected();
+
+        // Если есть сохраненное сообщение аутентификации - отправляем
+        if (mgr->m_authMessage) {
+            qDebug() << "AppManager::in_connected(): sending stored auth request";
+            emit mgr->signalSendUniterMessage(mgr->m_authMessage);
+        } else {
+            // Иначе запрашиваем данные для аутентификации
+            emit mgr->signalFindAuthData();
+            qDebug() << "AppManager::in_connected(): emitted signalFindAuthData";
+        }
+    };
+
+    static auto in_authentificated = [](AppManager* mgr) {
+        mgr->m_appState = AppState::AUTHENTIFICATED;
+        qDebug() << "AppManager::in_authentificated(): entered AUTHENTIFICATED state";
+        emit mgr->signalAuthed(true);
+
+        // Запуск инициализации БД
+        QCryptographicHash hash(QCryptographicHash::Sha256);
+        if (mgr->m_user) {
+            QString userName = mgr->m_user->name + mgr->m_user->surname + mgr->m_user->patronymic;
+            hash.addData(userName.toUtf8());
+        }
+        emit mgr->signalLoadResources(hash.result());
+    };
+
+    static auto in_dbloaded = [](AppManager* mgr) {
+        mgr->m_appState = AppState::DBLOADED;
+        qDebug() << "AppManager::in_dbloaded(): entered DBLOADED state";
+        emit mgr->signalConfigProc(mgr->m_user);
+    };
+
+    static auto in_ready = [](AppManager* mgr) {
+        mgr->m_appState = AppState::READY;
+        qDebug() << "AppManager::in_ready(): entered READY state";
+        emit mgr->signalPollMessages();
+    };
+
+    static auto in_shutdown = [](AppManager* mgr) {
+        mgr->m_appState = AppState::SHUTDOWN;
+        qDebug() << "AppManager::in_shutdown(): entered SHUTDOWN state";
+        // TODO: сохранение настроек и буферов
+    };
+
+    // Обработчики выхода из состояний
+    static auto out_idle = [](AppManager* mgr) {
+        qDebug() << "AppManager::out_idle(): leaving IDLE state";
+    };
+
+    static auto out_started = [](AppManager* mgr) {
+        qDebug() << "AppManager::out_started(): leaving STARTED state";
+    };
+
+    static auto out_connected = [](AppManager* mgr) {
+        qDebug() << "AppManager::out_connected(): leaving CONNECTED state";
+    };
+
+    static auto out_authentificated = [](AppManager* mgr) {
+        qDebug() << "AppManager::out_authentificated(): leaving AUTHENTIFICATED state";
+    };
+
+    static auto out_dbloaded = [](AppManager* mgr) {
+        qDebug() << "AppManager::out_dbloaded(): leaving DBLOADED state";
+    };
+
+    static auto out_ready = [](AppManager* mgr) {
+        qDebug() << "AppManager::out_ready(): leaving READY state";
+    };
+
+    static auto out_shutdown = [](AppManager* mgr) {
+        qDebug() << "AppManager::out_shutdown(): leaving SHUTDOWN state";
+    };
+
+    // Обработчики самопереходов при восстановлении сети
+    static auto self_connected = [](AppManager* mgr) {
+        qDebug() << "AppManager::self_connected(): network restored in CONNECTED state";
+        // Переотправляем запрос аутентификации если он есть
+        if (mgr->m_authMessage) {
+            emit mgr->signalSendUniterMessage(mgr->m_authMessage);
+        }
+    };
+
+    static auto self_authentificated = [](AppManager* mgr) {
+        qDebug() << "AppManager::self_authentificated(): network restored in AUTHENTIFICATED state";
+        // Можем повторить инициализацию БД если нужно
+    };
+
+    static auto self_dbloaded = [](AppManager* mgr) {
+        qDebug() << "AppManager::self_dbloaded(): network restored in DBLOADED state";
+        // Можем повторить запрос конфигурации если нужно
+    };
+
+    static auto self_ready = [](AppManager* mgr) {
+        qDebug() << "AppManager::self_ready(): network restored in READY state";
+        emit mgr->signalPollMessages();
+    };
+
+    // Обработка сетевых событий отдельно - они влияют на NetState
+    if (event == Events::NET_CONNECTED) {
+        qDebug() << "AppManager::ProcessEvent(): NET_CONNECTED event";
+        m_netState = NetState::ONLINE;
+        emit signalConnected();
+
+        // Самопереходы в зависимости от текущего состояния приложения
+        switch (m_appState) {
+        case AppState::STARTED:
+            // Только из STARTED сетевое подключение переводит в CONNECTED
+            out_started(this);
+            in_connected(this);
+            return;
+        case AppState::CONNECTED:
+            self_connected(this);
+            return;
+        case AppState::AUTHENTIFICATED:
+            self_authentificated(this);
+            return;
+        case AppState::DBLOADED:
+            self_dbloaded(this);
+            return;
+        case AppState::READY:
+            self_ready(this);
+            return;
+        case AppState::IDLE:
+        case AppState::SHUTDOWN:
+            // В этих состояниях просто фиксируем подключение
+            return;
+        }
+        return;
+    }
+
+    if (event == Events::NET_DISCONNECTED) {
+        qDebug() << "AppManager::ProcessEvent(): NET_DISCONNECTED event";
+        m_netState = NetState::OFFLINE;
+        emit signalDisconnected();
+        // AppState не меняется, только блокируем UI
+        return;
+    }
+
+    // Обработка событий приложения (требуют ONLINE, кроме START и SHUTDOWN)
+    if (event != Events::START && event != Events::SHUTDOWN && m_netState == NetState::OFFLINE) {
+        qDebug() << "AppManager::ProcessEvent(): ignoring event in OFFLINE state";
+        return;
+    }
+
+    switch (m_appState) {
+    case AppState::IDLE:
+        if (event == Events::START) {
+            out_idle(this);
+            in_started(this);
+            return;
+        }
+        break;
+
+    case AppState::STARTED:
+        // Переход в CONNECTED происходит только через NET_CONNECTED (обработан выше)
+        if (event == Events::SHUTDOWN) {
+            out_started(this);
+            in_shutdown(this);
+            return;
+        }
+        break;
+
+    case AppState::CONNECTED:
+        if (event == Events::AUTH_SUCCESS) {
+            out_connected(this);
+            in_authentificated(this);
+            return;
+        }
+        if (event == Events::SHUTDOWN) {
+            out_connected(this);
+            in_shutdown(this);
+            return;
+        }
+        break;
+
+    case AppState::AUTHENTIFICATED:
+        if (event == Events::DB_LOADED) {
+            out_authentificated(this);
+            in_dbloaded(this);
+            return;
+        }
+        if (event == Events::SHUTDOWN) {
+            out_authentificated(this);
+            in_shutdown(this);
+            return;
+        }
+        break;
+
+    case AppState::DBLOADED:
+        if (event == Events::CONFIG_DONE) {
+            out_dbloaded(this);
+            in_ready(this);
+            return;
+        }
+        if (event == Events::SHUTDOWN) {
+            out_dbloaded(this);
+            in_shutdown(this);
+            return;
+        }
+        break;
+
+    case AppState::READY:
+        if (event == Events::SHUTDOWN) {
+            out_ready(this);
+            in_shutdown(this);
+            return;
+        }
+        break;
+
+    case AppState::SHUTDOWN:
+        // Финальное состояние - переходы не допускаются
+        qDebug() << "AppManager::ProcessEvent(): already in SHUTDOWN, ignoring event";
         return;
 
-    switch(NewState) {
-    case AppState::IDLE:
-        qDebug() << "AppManager::SetAppState(): IDLE";
-        // Разрыв соединения и т.д.
-        break;
-    case AppState::STARTED:
-        qDebug() << "AppManager::SetAppState(): STARTED";
-        // Запрос на подключение
-        emit signalMakeConnection();
-        break;
-    case AppState::CONNECTED:
-        qDebug() << "AppManager::SetAppState(): CONNECTED";
-        if(AuthMessage) { // Если AuthMessage нет, запрашиваем
-            emit signalSendUniterMessage(AuthMessage);
-            break;
-        }
-        emit signalFindAuthData();
-        qDebug() << "AppManager::SetAppState(): emited signalFindAuthData";
-        break;
-    case AppState::AUTHENTIFICATED:
-        qDebug() << "AppManager::SetAppState(): AUTHENTIFICATED";
-        emit signalAuthed(true); // Переключение на рабочий виджет
-        // Запуск инициализации БД
-        {
-            QCryptographicHash hash(QCryptographicHash::Sha256);
-            if (User) {
-                QString userName = User->name + User->surname + User->patronymic;
-                hash.addData(userName.toUtf8());
-            }
-            emit signalLoadResources(hash.result());
-        }
-        break;
-    case AppState::DBLOADED:
-        qDebug() << "AppManager::SetAppState(): DBLOADED";
-        // Вызов менеджера конфигурации для загрузки ресурсов
-        emit signalConfigProc(User);
-        break;
-    case AppState::READY:
-        qDebug() << "AppManager::SetAppState(): READY";
-        emit signalPollMessages(); // Запрос на POLL сообщений
-        break;
-    case AppState::SHUTDOWN:
-        qDebug() << "AppManager::SetAppState(): SHUTDOWN";
-        // TODO: сохранение настроек и буферов
-        break;
     default:
-        throw std::runtime_error("AppManager::SetAppState():: error state");
-        break;
+        throw std::runtime_error("AppManager::ProcessEvent(): unknown state");
     }
+
+    // Если дошли сюда - переход не допустим
+    qDebug() << "AppManager::ProcessEvent(): invalid transition from current state for given event";
 }
 
-
-// Не проверяет валидность переходов, только отрабатывает
-void AppManager::SetNetState(NetState NewState) {
-
-    NState = NewState;
-
-    switch (NewState) {
-    case NetState::OFFLINE:
-        qDebug() << "AppManager::SetNetState(): OFFLINE";
-        emit signalConnectionUpdated(false); // Блокировка UI (виджет переподключения)
-        break;
-    case NetState::ONLINE:
-        qDebug() << "AppManager::SetNetState(): ONLINE";
-
-        // Если возникло при запуске, просто переходим в Connected
-        if(AState == AppState::STARTED) {
-            SetAppState(AppState::CONNECTED);
-        }
-        // else: уже находимся в каком-то состоянии, просто разблокируем UI
-
-        emit signalConnectionUpdated(true);
-        break;
-
-
-    default:
-        throw std::runtime_error("AppManager::SetNetState(): error state");
-        break;
-    }
+// Слоты от сетевого класса
+void AppManager::onConnected() {
+    qDebug() << "AppManager::onConnected()";
+    ProcessEvent(Events::NET_CONNECTED);
 }
 
-
-// Маршрутизация вниз
-void AppManager::onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message) {
-
-    // Пересылка обычных crud
-    if(AState == AppState::READY && Message->subsystem != contract::Subsystem::PROTOCOL) {
-        emit signalRecvUniterMessage(Message);
-    }
-
-    // Протокольные сообщения в ready состоянии
-    if(AState == AppState::READY && Message->subsystem == contract::Subsystem::PROTOCOL) {
-        // TODO: обновление конфигурации user
-
-        // TODO: то что связано с sync - синхронизацией
-
-        // TODO: удаление пользователя
-    }
-
-    // Протокольные сообщения во время инициализации
-    if(AState != AppState::READY && Message->subsystem == contract::Subsystem::PROTOCOL) {
-
-        // Если ждем аутентификацию
-        if (AState == AppState::CONNECTED && Message->protact == contract::ProtocolAction::AUTH) {
-            if(Message->status == contract::MessageStatus::RESPONSE) {
-
-                if(Message->error == contract::ErrorCode::SUCCESS && Message->resource) {
-                    User = std::dynamic_pointer_cast<contract::employees::Employee>(Message->resource);
-
-                    qDebug() << "AppManager::onRecvUniterMessage(): got success auth message";
-                    SetAppState(AppState::AUTHENTIFICATED);
-                    return;
-                }
-                else if(Message->error == contract::ErrorCode::BAD_REQUEST) {
-
-                    qDebug() << "AppManager::onRecvUniterMessage(): got bad request auth message";
-                    emit signalAuthed(false);
-                }
-
-            }
-        }
-
-        // Если необходимо выполнять sync перед переходом в ready
-        // Ответ на POLL - bad_request
-
-    }
+void AppManager::onDisconnected() {
+    qDebug() << "AppManager::onDisconnected()";
+    ProcessEvent(Events::NET_DISCONNECTED);
 }
-
-// Маршрутизация вверх
-void AppManager::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message) {
-
-
-
-    // Пересылка обычных crud
-    if (AState == AppState::READY) {
-        emit signalSendUniterMessage(Message);
-    }
-
-    // Протокольные сообщения во время appstate::ready
-    if (AState == AppState::READY && Message->subsystem == contract::Subsystem::PROTOCOL) {
-        // Обработка изменения конфига
-
-        // Обработка выхода (например пользователь удален)
-
-    }
-
-    // Протокольные сообщения во время инициализации
-    if (AState != AppState::READY && Message->subsystem == contract::Subsystem::PROTOCOL) {
-
-        // Обработка запроса на аутентификацию
-        if(Message->protact == contract::ProtocolAction::AUTH &&
-            Message->status == contract::MessageStatus::REQUEST) {
-            AuthMessage = std::move(Message);
-
-            // Если CONNECTED и ONLINE записываем и отправляем
-            if(AState == AppState::CONNECTED && NState == NetState::ONLINE) {
-
-                qDebug() << "AppManager::onSendUniterMessage: sending auth request";
-                emit signalSendUniterMessage(AuthMessage);
-            }
-        }
-
-    }
-
-}
-
-// Сигналы от сетевого класса
-void AppManager::onConnectionUpdated(bool state) {
-    if (state) {
-        qDebug() << "AppManager::onConnected()";
-        SetNetState(NetState::ONLINE);
-    } else {
-        qDebug() << "AppManager::onDisonnected()";
-        SetNetState(NetState::OFFLINE);
-    }
-
-}
-
 
 void AppManager::onResourcesLoaded() {
-
     qDebug() << "AppManager::onResourcesLoaded()";
-
-    // Переход из AUTHENTICATED в DBLOADED после инициализации БД
-    if(AState == AppState::AUTHENTIFICATED) {
-        SetAppState(AppState::DBLOADED);
-    }
+    ProcessEvent(Events::DB_LOADED);
 }
 
 void AppManager::onConfigured() {
-
     qDebug() << "AppManager::onConfigured()";
+    ProcessEvent(Events::CONFIG_DONE);
+}
 
-    // Переход из DBLOADED в READY после завершения работы ConfigManager
-    if(AState == AppState::DBLOADED) {
-        SetAppState(AppState::READY);
+void AppManager::onShutDown() {
+    qDebug() << "AppManager::onShutDown()";
+    ProcessEvent(Events::SHUTDOWN);
+}
+
+// Маршрутизация входящих сообщений
+void AppManager::onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message) {
+
+
+    // Проверяем состояние сети
+    if (m_netState == NetState::OFFLINE) {
+        qDebug() << "AppManager::onRecvUniterMessage(): ignoring message in OFFLINE state";
+        return;
+    }
+
+    // Пересылка обычных CRUD в состоянии READY
+    if (m_appState == AppState::READY && Message->subsystem != contract::Subsystem::PROTOCOL) {
+        emit signalRecvUniterMessage(Message);
+        return;
+    }
+
+    // Протокольные сообщения в READY
+    if (m_appState == AppState::READY && Message->subsystem == contract::Subsystem::PROTOCOL) {
+        // TODO: обновление конфигурации user
+        // TODO: синхронизация
+        // TODO: удаление пользователя
+        return;
+    }
+
+    // Протокольные сообщения во время инициализации
+    if (m_appState != AppState::READY && Message->subsystem == contract::Subsystem::PROTOCOL) {
+
+        // Ответ на аутентификацию
+        if (m_appState == AppState::CONNECTED &&
+            Message->protact == contract::ProtocolAction::AUTH &&
+            Message->status == contract::MessageStatus::RESPONSE) {
+
+            if (Message->error == contract::ErrorCode::SUCCESS && Message->resource) {
+                m_user = std::dynamic_pointer_cast<contract::employees::Employee>(Message->resource);
+                qDebug() << "AppManager::onRecvUniterMessage(): authentication successful";
+
+                // Разблокируем mutex перед вызовом ProcessEvent (он сам захватит mutex)
+                ProcessEvent(Events::AUTH_SUCCESS);
+                return; // mutex уже разблокирован, выходим
+
+            } else if (Message->error == contract::ErrorCode::BAD_REQUEST) {
+                qDebug() << "AppManager::onRecvUniterMessage(): authentication failed";
+                // Остаемся в CONNECTED, только уведомляем UI
+                emit signalAuthed(false);
+            }
+            return;
+        }
     }
 }
 
+// Маршрутизация исходящих сообщений
+void AppManager::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message) {
 
-void AppManager::onShutDown() {
-    // TODO: выполнить сохранение
-    // TODO: на выход регестрируем слот shutdown
+    // Проверяем состояние сети
+    if (m_netState == NetState::OFFLINE) {
+        qDebug() << "AppManager::onSendUniterMessage(): cannot send message in OFFLINE state";
+        return;
+    }
+
+    // Пересылка обычных CRUD в состоянии READY
+    if (m_appState == AppState::READY) {
+        emit signalSendUniterMessage(Message);
+        return;
+    }
+
+    // Протокольные сообщения в READY
+    if (m_appState == AppState::READY && Message->subsystem == contract::Subsystem::PROTOCOL) {
+        // TODO: обработка изменения конфига
+        // TODO: обработка выхода
+        return;
+    }
+
+    // Обработка запроса аутентификации
+    if (Message->subsystem == contract::Subsystem::PROTOCOL &&
+        Message->protact == contract::ProtocolAction::AUTH &&
+        Message->status == contract::MessageStatus::REQUEST) {
+
+        m_authMessage = Message;
+        qDebug() << "AppManager::onSendUniterMessage(): stored auth request";
+
+        // Если уже в CONNECTED - отправляем сразу
+        if (m_appState == AppState::CONNECTED) {
+            qDebug() << "AppManager::onSendUniterMessage(): sending auth request immediately";
+            emit signalSendUniterMessage(m_authMessage);
+        }
+    }
 }
-
 
 } // control

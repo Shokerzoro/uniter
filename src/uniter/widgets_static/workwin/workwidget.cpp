@@ -1,8 +1,8 @@
 
 #include "workwidget.h"
-#include "../../managers/uimanager.h"
-#include "../../managers/configmanager.h"
-#include "../../messages/unitermessage.h"
+#include "../../control/uimanager.h"
+#include "../../control/configmanager.h"
+#include "../../contract/unitermessage.h"
 #include "./workbar/workbar.h"
 #include "./workarea/workarea.h"
 #include <QWidget>
@@ -42,19 +42,19 @@ WorkWdg::WorkWdg(QWidget* parent) : QWidget(parent) {
             this, &WorkWdg::signalSendUniterMessage);
 
     // Коннект с ConfigManager
-    auto ConMgr = managers::ConfigManager::instance();
-    connect(ConMgr, &managers::ConfigManager::signalSubsystemAdded,
+    auto ConMgr = control::ConfigManager::instance();
+    connect(ConMgr, &control::ConfigManager::signalSubsystemAdded,
             this, &WorkWdg::onSubsystemAdded);
 }
 
 
 
-void WorkWdg::onSendUniterMessage(std::shared_ptr<messages::UniterMessage> message) {
+void WorkWdg::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> message) {
     emit signalSendUniterMessage(message);
 }
 
-void WorkWdg::onSubsystemAdded(messages::Subsystem subsystem,
-                               messages::GenSubsystemType genType,
+void WorkWdg::onSubsystemAdded(contract::Subsystem subsystem,
+                               contract::GenSubsystemType genType,
                                std::optional<uint64_t> genId,
                                bool created) {
 
@@ -67,8 +67,8 @@ void WorkWdg::onSubsystemAdded(messages::Subsystem subsystem,
     }
 }
 
-void WorkWdg::addSubsystem(messages::Subsystem subsystem,
-                           messages::GenSubsystemType genType,
+void WorkWdg::addSubsystem(contract::Subsystem subsystem,
+                           contract::GenSubsystemType genType,
                            std::optional<uint64_t> genId) {
 
     qDebug() << "WorkWdg::addSubsystem():" << subsystem;
@@ -88,8 +88,8 @@ void WorkWdg::addSubsystem(messages::Subsystem subsystem,
     workArea->addSubsystem(subsystem, genType, genId_, index);
 }
 
-void WorkWdg::removeSubsystem(messages::Subsystem subsystem,
-                              messages::GenSubsystemType genType,
+void WorkWdg::removeSubsystem(contract::Subsystem subsystem,
+                              contract::GenSubsystemType genType,
                               std::optional<uint64_t> genId) {
     int index = -1;
     uint64_t genId_ = (genId == std::nullopt) ? 0 : genId.value();
@@ -101,8 +101,8 @@ void WorkWdg::removeSubsystem(messages::Subsystem subsystem,
     }
 }
 
-bool WorkWdg::findIndex(messages::Subsystem subsystem,
-                        messages::GenSubsystemType genType,
+bool WorkWdg::findIndex(contract::Subsystem subsystem,
+                        contract::GenSubsystemType genType,
                         std::optional<uint64_t> genId,
                         int& outIndex) const {
     uint64_t genId_ = (genId == std::nullopt) ? 0 : genId.value();

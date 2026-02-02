@@ -1,10 +1,10 @@
 
-#include "../src/uniter/managers/appmanager.h"
-#include "../src/uniter/managers/configmanager.h"
-#include "../src/uniter/messages/unitermessage.h"
-#include "../src/uniter/resources/resourceabstract.h"
-#include "../src/uniter/resources/employee/employee.h"
-#include "../src/uniter/resources/supply/purchase.h"
+#include "../src/uniter/control/appmanager.h"
+#include "../src/uniter/control/configmanager.h"
+#include "../src/uniter/contract/unitermessage.h"
+#include "../src/uniter/contract/resourceabstract.h"
+#include "../src/uniter/contract/employee/employee.h"
+#include "../src/uniter/contract/supply/purchase.h"
 
 #include <gtest/gtest.h>
 #include <QObject>
@@ -23,9 +23,9 @@ public:
     MockAuthWidget() = default;
     bool authed = false;
     void emitUserData() {
-        auto authReqMessage = std::make_shared<messages::UniterMessage>();
-        authReqMessage->subsystem = messages::Subsystem::PROTOCOL;
-        authReqMessage->protact = messages::ProtocolAction::GETCONFIG;
+        auto authReqMessage = std::make_shared<contract::UniterMessage>();
+        authReqMessage->subsystem = contract::Subsystem::PROTOCOL;
+        authReqMessage->protact = contract::ProtocolAction::AUTH;
         authReqMessage->add_data.emplace("login", "niger");
         authReqMessage->add_data.emplace("password", "12345");
         emit signalSendUniterMessage(authReqMessage);
@@ -39,7 +39,7 @@ public slots:
         authed = result;
     }
 signals:
-    void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
+    void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
 };
 
 class MockNetwork : public QObject {
@@ -52,12 +52,12 @@ public:
 
     // Отправка crud сообщения
     void emitCrudMessage() {
-        auto crudMessage = std::make_shared<messages::UniterMessage>();
-        crudMessage->subsystem = messages::Subsystem::PURCHASES;
-        crudMessage->crudact = messages::CrudAction::CREATE;
-        crudMessage->status = messages::MessageStatus::NOTIFICATION;
+        auto crudMessage = std::make_shared<contract::UniterMessage>();
+        crudMessage->subsystem = contract::Subsystem::PURCHASES;
+        crudMessage->crudact = contract::CrudAction::CREATE;
+        crudMessage->status = contract::MessageStatus::NOTIFICATION;
 
-        auto newPurch = std::make_shared<resources::supply::Purchase>(
+        auto newPurch = std::make_shared<contract::supply::Purchase>(
             1001,                                    // id
             true,                                    // actual
             QDateTime::currentDateTime(),            // created_at
@@ -66,7 +66,7 @@ public:
             12345,                                   // updated_by
             QString("Закупка стали 10т"),            // name
             QString("Нужна сталь для проекта #47"),  // description
-            resources::supply::PurchStatus::DRAFT,   // status
+            contract::supply::PurchStatus::DRAFT,   // status
             nullptr                                  // material (пока null)
             );
         crudMessage->resource = std::move(newPurch);
@@ -77,16 +77,16 @@ public:
     // Отправляем ответы на запрос об авторизации
     void emitAuthSuccess() {
 
-        auto authMessageSuccess = std::make_shared<messages::UniterMessage>();
+        auto authMessageSuccess = std::make_shared<contract::UniterMessage>();
         // Настройка успешного ответа аутентификации
-        authMessageSuccess->subsystem = messages::Subsystem::PROTOCOL;
-        authMessageSuccess->protact = messages::ProtocolAction::GETCONFIG;
-        authMessageSuccess->status = messages::MessageStatus::RESPONSE;
+        authMessageSuccess->subsystem = contract::Subsystem::PROTOCOL;
+        authMessageSuccess->protact = contract::ProtocolAction::AUTH;
+        authMessageSuccess->status = contract::MessageStatus::RESPONSE;
         // Создаем тестового пользователя
-        std::vector<resources::employees::EmployeeAssignment> assignments;
+        std::vector<contract::employees::EmployeeAssignment> assignments;
 
         // Employee: 10 аргументов
-        auto employee = std::make_shared<resources::employees::Employee>(
+        auto employee = std::make_shared<contract::employees::Employee>(
             12345,                                   // id
             true,                                    // is_actual
             QDateTime::currentDateTime(),            // created_at
@@ -106,13 +106,13 @@ public:
 
     void emitAuthError() {
 
-        auto errorMessage = std::make_shared<messages::UniterMessage>();
+        auto errorMessage = std::make_shared<contract::UniterMessage>();
         // Настройка сообщения об ошибке аутентификации
         errorMessage->version = 1;
-        errorMessage->subsystem = messages::Subsystem::PROTOCOL;
-        errorMessage->protact = messages::ProtocolAction::GETCONFIG;
-        errorMessage->status = messages::MessageStatus::RESPONSE;
-        errorMessage->error = messages::ErrorCode::BAD_REQUEST;
+        errorMessage->subsystem = contract::Subsystem::PROTOCOL;
+        errorMessage->protact = contract::ProtocolAction::AUTH;
+        errorMessage->status = contract::MessageStatus::RESPONSE;
+        errorMessage->error = contract::ErrorCode::BAD_REQUEST;
 
         emit signalRecvUniterMessage(errorMessage);
     }
@@ -123,7 +123,7 @@ public slots:
 
     }
     // Получение сообщения от AppManager
-    void onSendUniterMessage(std::shared_ptr<messages::UniterMessage> Message) {
+    void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message) {
         // Логируем или обрабатываем
 
     };
@@ -132,26 +132,26 @@ signals:
     void signalConnected();
     void signalDisconnected();
     // Получение сообщения из сети
-    void signalRecvUniterMessage(std::shared_ptr<messages::UniterMessage> Message);
+    void signalRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
 };
 
 class MockConfigManager : public QObject {
     Q_OBJECT;
 public:
     MockConfigManager() = default;
-    std::shared_ptr<resources::employees::Employee> m_User;
+    std::shared_ptr<contract::employees::Employee> m_User;
     void emitConfigured() {
         emit signalConfigured();
     }
 public slots:
-    void onConfigProc(std::shared_ptr<resources::employees::Employee> User) {
+    void onConfigProc(std::shared_ptr<contract::employees::Employee> User) {
         // Копируем User
         m_User = std::move(User);
     }
 signals:
     void signalConfigured();
-    void signalSubsystemAdded(messages::Subsystem subsystem,
-                              messages::GenSubsystemType genType,
+    void signalSubsystemAdded(contract::Subsystem subsystem,
+                              contract::GenSubsystemType genType,
                               std::optional<uint64_t> genId,
                               bool created);
 };
@@ -162,16 +162,16 @@ signals:
 // ============================================================================
 class AppManagerTesting {
 private:
-    managers::AppManager* appManager_;
+    control::AppManager* appManager_;
 
 public:
     AppManagerTesting() {
         // Получаем указатель на синглтон
-        appManager_ = managers::AppManager::instance();
+        appManager_ = control::AppManager::instance();
     }
 
     // Получить указатель для подключения сигналов/слотов
-    managers::AppManager* get() {
+    control::AppManager* get() {
         return appManager_;
     }
 
@@ -198,14 +198,14 @@ public:
     // Для replaceMockConfigManager нужно отключить синглтон ConfigManager
     void replaceMockConfigManager(MockConfigManager* mock) {
         // Отключаем старые подписки внутреннего ConfigManager
-        auto ConfigMgr = managers::ConfigManager::instance();
+        auto ConfigMgr = control::ConfigManager::instance();
         QObject::disconnect(ConfigMgr, nullptr, appManager_, nullptr);
         QObject::disconnect(appManager_, nullptr, ConfigMgr, nullptr);
 
         // Подписываем mock напрямую
         QObject::connect(mock, &MockConfigManager::signalConfigured,
-                         appManager_, &managers::AppManager::onConfigured);
-        QObject::connect(appManager_, &managers::AppManager::signalConfigProc,
+                         appManager_, &control::AppManager::onConfigured);
+        QObject::connect(appManager_, &control::AppManager::signalConfigProc,
                          mock, &MockConfigManager::onConfigProc);
     }
 };
@@ -234,24 +234,24 @@ protected:
 
         // Теперь линкуем сигналы и слоты (connect)
         // appmanager и сетевой класс
-        QObject::connect(appManager->get(), &managers::AppManager::signalSendUniterMessage,
+        QObject::connect(appManager->get(), &control::AppManager::signalSendUniterMessage,
                          mockNetwork.get(), &MockNetwork::onSendUniterMessage);
-        QObject::connect(appManager->get(), &managers::AppManager::signalMakeConnection,
+        QObject::connect(appManager->get(), &control::AppManager::signalMakeConnection,
                          mockNetwork.get(), &MockNetwork::onMakeConnection);
         QObject::connect(mockNetwork.get(), &MockNetwork::signalRecvUniterMessage,
-                         appManager->get(), &managers::AppManager::onRecvUniterMessage);
+                         appManager->get(), &control::AppManager::onRecvUniterMessage);
         QObject::connect(mockNetwork.get(), &MockNetwork::signalConnected,
-                         appManager->get(), &managers::AppManager::onConnected);
+                         appManager->get(), &control::AppManager::onConnected);
         QObject::connect(mockNetwork.get(), &MockNetwork::signalDisconnected,
-                         appManager->get(), &managers::AppManager::onDisconnected);
+                         appManager->get(), &control::AppManager::onDisconnected);
 
 
         // appmanager и виджет аутентификации
         QObject::connect(mockAuthWidget.get(), &MockAuthWidget::signalSendUniterMessage,
-                         appManager->get(), &managers::AppManager::onSendUniterMessage);
-        QObject::connect(appManager->get(), &managers::AppManager::signalFindAuthData,
+                         appManager->get(), &control::AppManager::onSendUniterMessage);
+        QObject::connect(appManager->get(), &control::AppManager::signalFindAuthData,
                          mockAuthWidget.get(), &MockAuthWidget::onFindAuthData);
-        QObject::connect(appManager->get(), &managers::AppManager::signalAuthed,
+        QObject::connect(appManager->get(), &control::AppManager::signalAuthed,
                          mockAuthWidget.get(), &MockAuthWidget::onAuthed);
     }
 
@@ -276,7 +276,7 @@ TEST_F(AppManagerTest, BasicFSM) {
 
     // 2. Шпион для проверки сигнала signalMakeConnection
     QSignalSpy spyMakeConnection(appManager->get(),
-                                 &uniter::managers::AppManager::signalMakeConnection);
+                                 &uniter::control::AppManager::signalMakeConnection);
 
     // 3. Запуск AppManager - переход в STARTED
     appManager->start_run();
@@ -286,10 +286,10 @@ TEST_F(AppManagerTest, BasicFSM) {
 
     // 5. Шпион для проверки сигнала signalConnected (UI разблокировка)
     QSignalSpy spyConnected(appManager->get(),
-                            &uniter::managers::AppManager::signalConnected);
+                            &uniter::control::AppManager::signalConnected);
     // 5.1. Шпион для проверки отправки сигнала signalFindAuthData
     QSignalSpy spyAuthRequest(appManager->get(),
-                              &uniter::managers::AppManager::signalFindAuthData);
+                              &uniter::control::AppManager::signalFindAuthData);
 
     // 6. Симуляция успешного подключения сети
     mockNetwork->emitConnected();
@@ -300,7 +300,7 @@ TEST_F(AppManagerTest, BasicFSM) {
 
     // 8. Шпион для проверки сигнала signalDisconnected (UI блокировка)
     QSignalSpy spyDisconnected(appManager->get(),
-                               &uniter::managers::AppManager::signalDisconnected);
+                               &uniter::control::AppManager::signalDisconnected);
 
     // 9. Симуляция разрыва соединения
     mockNetwork->emitDisconnected();
@@ -318,7 +318,7 @@ TEST_F(AppManagerTest, BasicFSM) {
     mockNetwork->emitDisconnected();
     mockAuthWidget->emitUserData();
     QSignalSpy spySendMessage(appManager->get(),
-                              &uniter::managers::AppManager::signalSendUniterMessage);
+                              &uniter::control::AppManager::signalSendUniterMessage);
 
     // 14. Соединяем
     mockNetwork->emitConnected();
@@ -331,9 +331,9 @@ TEST_F(AppManagerTest, BasicFSM) {
 // Сценарии неудачной аутентификации
 TEST_F(AppManagerTest, badAuth) {
     // 0. Шпион передачи сообщений в сеть
-    QSignalSpy spyMessagesSend(appManager->get(), &managers::AppManager::signalSendUniterMessage);
+    QSignalSpy spyMessagesSend(appManager->get(), &control::AppManager::signalSendUniterMessage);
     // Шпион получения аутентификации
-    QSignalSpy spyAuthProc(appManager->get(), &managers::AppManager::signalAuthed);
+    QSignalSpy spyAuthProc(appManager->get(), &control::AppManager::signalAuthed);
 
     // 1. Базовый FSM до запроса авторизации
     appManager->start_run();
@@ -363,7 +363,7 @@ TEST_F(AppManagerTest, badAuth) {
 // Сценарий удачной аутентификации
 TEST_F(AppManagerTest, goodAuth) {
     // 0. Шпион передачи сообщений в сеть
-    QSignalSpy spyMessagesSend(appManager->get(), &managers::AppManager::signalSendUniterMessage);
+    QSignalSpy spyMessagesSend(appManager->get(), &control::AppManager::signalSendUniterMessage);
 
     // 1. Базовый FSM до запроса авторизации
     appManager->start_run();
@@ -374,9 +374,9 @@ TEST_F(AppManagerTest, goodAuth) {
     EXPECT_EQ(spyMessagesSend.count(), 1);
 
     // Шпион получения аутентификации
-    QSignalSpy spyAuthProc(appManager->get(), &managers::AppManager::signalAuthed);
+    QSignalSpy spyAuthProc(appManager->get(), &control::AppManager::signalAuthed);
     // Шпион запроса загрузки БД
-    QSignalSpy spyLoadResources(appManager->get(), &managers::AppManager::signalLoadResources);
+    QSignalSpy spyLoadResources(appManager->get(), &control::AppManager::signalLoadResources);
 
     // 3. Генерируем ответ (успешная авторизация)
     mockNetwork->emitAuthSuccess();
@@ -391,12 +391,12 @@ TEST_F(AppManagerTest, goodAuth) {
 TEST_F(AppManagerTest, postAuthSettings) {
 
     // 0. Шпионы за FSM переходами
-    QSignalSpy spyConfigProc(appManager->get(), &managers::AppManager::signalConfigProc);
-    QSignalSpy spyLoadResources(appManager->get(), &managers::AppManager::signalLoadResources);
-    QSignalSpy spyPollMessages(appManager->get(), &managers::AppManager::signalPollMessages);
+    QSignalSpy spyConfigProc(appManager->get(), &control::AppManager::signalConfigProc);
+    QSignalSpy spyLoadResources(appManager->get(), &control::AppManager::signalLoadResources);
+    QSignalSpy spyPollMessages(appManager->get(), &control::AppManager::signalPollMessages);
 
     // Шпион пересылки сообщений appmanager вниз (CRUD forwarding)
-    QSignalSpy spyRecvMessages(appManager->get(), &managers::AppManager::signalRecvUniterMessage);
+    QSignalSpy spyRecvMessages(appManager->get(), &control::AppManager::signalRecvUniterMessage);
 
     // 1. BasicFSM → AUTHENTIFICATED
     appManager->start_run();
@@ -422,10 +422,10 @@ TEST_F(AppManagerTest, postAuthSettings) {
 
     // 7. Бонус: проверяем параметры CRUD сообщения
     auto crudArgs = spyRecvMessages.takeFirst();
-    auto message = qvariant_cast<std::shared_ptr<messages::UniterMessage>>(crudArgs.at(0));
+    auto message = qvariant_cast<std::shared_ptr<contract::UniterMessage>>(crudArgs.at(0));
     ASSERT_NE(message, nullptr);
-    EXPECT_EQ(message->subsystem, messages::Subsystem::PURCHASES);
-    EXPECT_EQ(message->crudact, messages::CrudAction::CREATE);
+    EXPECT_EQ(message->subsystem, contract::Subsystem::PURCHASES);
+    EXPECT_EQ(message->crudact, contract::CrudAction::CREATE);
 }
 
 

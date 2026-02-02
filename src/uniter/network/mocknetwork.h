@@ -5,7 +5,7 @@
 #include <QObject>
 #include <memory>
 #include <queue>
-#include "../messages/unitermessage.h"
+#include "../contract/unitermessage.h"
 
 namespace uniter::net {
 
@@ -40,7 +40,7 @@ public slots:
     void onMakeConnection();
 
     // Команда от AppManager: отправить сообщение на «сервер»
-    void onSendMessage(std::shared_ptr<messages::UniterMessage> message);
+    void onSendMessage(std::shared_ptr<contract::UniterMessage> message);
 
     // Завершение работы (если нужно дергать явно)
     void onShutdown();
@@ -51,7 +51,7 @@ signals:
     void signalDisconnected();
 
     // Network → AppManager: входящее сообщение
-    void signalRecvMessage(std::shared_ptr<messages::UniterMessage> message);
+    void signalRecvMessage(std::shared_ptr<contract::UniterMessage> message);
 };
 
 } // namespace uniter::net

@@ -1,8 +1,8 @@
 #ifndef WORKAREA_H
 #define WORKAREA_H
 
-#include "../../../messages/unitermessage.h"
-#include "../../../widgets_generative/generativetab.h"
+#include "../../../contract/unitermessage.h"
+#include "../../../widgets_generative/subsystemtab.h"
 #include <QWidget>
 #include <QStackedLayout>
 #include <map>
@@ -19,8 +19,8 @@ public:
     explicit WorkArea(QWidget* parent = nullptr);
 
     // Вызывается WorkWdg при добавлении подсистемы
-    void addSubsystem(messages::Subsystem subsystem,
-                      messages::GenSubsystemType genType,
+    void addSubsystem(contract::Subsystem subsystem,
+                      contract::GenSubsystemType genType,
                       uint64_t genId,
                       int index);
 
@@ -29,18 +29,18 @@ public:
 
 signals:
     // Проксирует сообщения вверх в сеть
-    void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> message);
+    void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
 
 public slots:
     // Получает сигнал от StatusBar через WorkWdg
     void onSwitchTab(int index);
 
     // Получает сообщения из WorkWdg
-    void onSendUniterMessage(std::shared_ptr<messages::UniterMessage> message);
+    void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
 
 private:
     // Хранит виджеты подсистем (index -> SubsWdg)
-    std::map<int, genwdg::ISubsWdg*> subsystemWidgets;
+    std::map<int, genwdg::SubsystemTab*> subsystemWidgets;
 
     // StackedLayout для переключения между вкладками
     QStackedLayout* stackedLayout;

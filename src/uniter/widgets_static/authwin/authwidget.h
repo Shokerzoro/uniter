@@ -1,7 +1,7 @@
 #ifndef AUTHWDG_H
 #define AUTHWDG_H
 
-#include "../../messages/unitermessage.h"
+#include "../../contract/unitermessage.h"
 //#include <qtkeychain/keychain.h> TODO: добавить безопасное хранение логина и пароля
 #include <QWidget>
 #include <QLineEdit>
@@ -57,7 +57,7 @@ public slots:
     void onRememberCheckChanged(int state);
 
 signals:
-    void signalSendUniterMessage(std::shared_ptr<uniter::messages::UniterMessage> Message);
+    void signalSendUniterMessage(std::shared_ptr<uniter::contract::UniterMessage> Message);
 };
 
 } // namespace uniter::staticwdg

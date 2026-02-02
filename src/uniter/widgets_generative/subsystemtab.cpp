@@ -1,24 +1,24 @@
-#include "generativetab.h"
-#include "../managers/uimanager.h"
+#include "subsystemtab.h"
+#include "../control/uimanager.h"
 #include <QLabel>
 #include <QVBoxLayout>
 
 namespace uniter::genwdg {
 
-ISubsWdg::ISubsWdg(messages::Subsystem subsystem,
-                   messages::GenSubsystemType genType,
+SubsystemTab::SubsystemTab(contract::Subsystem subsystem,
+                   contract::GenSubsystemType genType,
                    uint64_t genId,
                    QWidget* parent)
     : QWidget(parent), subsystem(subsystem), genType(genType), genId(genId) {
 
     QString fullName;
 
-    if (subsystem == messages::Subsystem::GENERATIVE) {
+    if (subsystem == contract::Subsystem::GENERATIVE) {
         switch (genType) {
-        case messages::GenSubsystemType::INTERGATION:
+        case contract::GenSubsystemType::INTERGATION:
             fullName = "Integration";
             break;
-        case messages::GenSubsystemType::PRODUCTION:
+        case contract::GenSubsystemType::PRODUCTION:
             fullName = "Production";
             break;
         default:
@@ -27,16 +27,16 @@ ISubsWdg::ISubsWdg(messages::Subsystem subsystem,
         }
     } else {
         switch (subsystem) {
-        case messages::Subsystem::DESIGN:
+        case contract::Subsystem::DESIGN:
             fullName = "Design";
             break;
-        case messages::Subsystem::MANAGER:
+        case contract::Subsystem::MANAGER:
             fullName = "Manager";
             break;
-        case messages::Subsystem::MATERIALS:
+        case contract::Subsystem::MATERIALS:
             fullName = "Materials";
             break;
-        case messages::Subsystem::PURCHASES:
+        case contract::Subsystem::PURCHASES:
             fullName = "Purchases";
             break;
         default:
@@ -56,11 +56,11 @@ ISubsWdg::ISubsWdg(messages::Subsystem subsystem,
     setLayout(layout);
 
     // Применяем настройки UIManager
-    auto settings = managers::UIManager::instance();
+    auto settings = control::UIManager::instance();
     settings->applyGenerativeTabSettings(this);
 }
 
-void ISubsWdg::onSendUniterMessage(std::shared_ptr<messages::UniterMessage> message) {
+void SubsystemTab::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> message) {
     message->subsystem = subsystem;
     emit signalSendUniterMessage(message);
 }

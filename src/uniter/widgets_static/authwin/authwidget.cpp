@@ -94,9 +94,9 @@ void AuthWdg::sendSignUpData() {
     QString login = m_loginInput->text();
     QString password = m_passwordInput->text();
 
-    auto message = std::make_shared<uniter::messages::UniterMessage>();
-    message->subsystem = messages::Subsystem::PROTOCOL;
-    message->protact = messages::ProtocolAction::GETCONFIG;
+    auto message = std::make_shared<uniter::contract::UniterMessage>();
+    message->subsystem = contract::Subsystem::PROTOCOL;
+    message->protact = contract::ProtocolAction::AUTH;
     message->add_data.emplace("login", login);
     message->add_data.emplace("password", password);
 

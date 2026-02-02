@@ -6,50 +6,77 @@
 #include <optional>
 #include <memory>
 
-
 namespace uniter::control {
 
 class AppManager : public QObject {
     Q_OBJECT
-protected:
+
+public:
+    // События для FSM
+    enum class Events {
+        START,              // Запуск приложения
+        NET_CONNECTED,      // Сеть подключена
+        NET_DISCONNECTED,   // Сеть отключена
+        AUTH_SUCCESS,       // Успешная аутентификация
+        DB_LOADED,          // БД загружена
+        CONFIG_DONE,        // Конфигурация завершена
+        SHUTDOWN            // Завершение работы
+    };
+
+private:
+    // Состояния приложения
     enum class AppState {
         IDLE,
         STARTED,
         CONNECTED,
         AUTHENTIFICATED,
-        DBLOADED,      // Переименовано: DB_LOADED
+        DBLOADED,
         READY,
         SHUTDOWN
     };
-    enum class NetState {ONLINE, OFFLINE};
 
-    AppState AState = AppState::IDLE;
-    NetState NState = NetState::OFFLINE;
+    // Состояние сети (независимое от AppState)
+    enum class NetState {
+        ONLINE,
+        OFFLINE
+    };
 
-    void SetAppState(AppState NewState);
-    void SetNetState(NetState NewState);
-
-    // Временное хранение данных аутентификации
-    std::shared_ptr<contract::UniterMessage>            AuthMessage;
-    std::shared_ptr<contract::employees::Employee>     User;
-public:
+    // Приватный конструктор для синглтона
     AppManager();
-    ~AppManager() = default;
-    // Удалям для безопасности
+
+    // Запрет копирования и перемещения
     AppManager(const AppManager&) = delete;
     AppManager& operator=(const AppManager&) = delete;
     AppManager(AppManager&&) = delete;
     AppManager& operator=(AppManager&&) = delete;
 
-    // Запуск FSM
+    // Текущие состояния
+    AppState m_appState = AppState::IDLE;
+    NetState m_netState = NetState::OFFLINE;
+
+    // Временное хранение данных
+    std::shared_ptr<contract::UniterMessage> m_authMessage;
+    std::shared_ptr<contract::employees::Employee> m_user;
+
+    // Основной метод перехода между состояниями
+    void ProcessEvent(Events event);
+
+public:
+    // Публичный статический метод получения экземпляра
+    static AppManager* instance();
+
+    ~AppManager() override = default;
+
     void start_run();
+
 public slots:
     // От сетевого класса
-    void onConnectionUpdated(bool state);
+    void onConnected();
+    void onDisconnected();
 
     // От менеджеров / переходы между состояниями
-    void onResourcesLoaded();   // AUTHENTICATED -> DBLOADED (от БД после инициализации)
-    void onConfigured();        // DBLOADED -> READY (от ConfigManager)
+    void onResourcesLoaded();   // AUTHENTICATED -> DBLOADED
+    void onConfigured();        // DBLOADED -> READY
     void onShutDown();
 
     // Маршрутизация сообщений
@@ -62,18 +89,20 @@ signals:
     void signalPollMessages();
 
     // Внутренние для UI
-    void signalConnectionUpdated(bool state);
+    void signalConnected();
+    void signalDisconnected();
     void signalAuthed(bool result);
 
     // Внутренние для менеджеров
     void signalFindAuthData();
-    void signalLoadResources(QByteArray userhash);  // Инициализация БД (AUTHENTICATED -> DBLOADED)
-    void signalConfigProc(std::shared_ptr<contract::employees::Employee> User);  // Вызов ConfigManager (DBLOADED -> READY)
+    void signalLoadResources(QByteArray userhash);
+    void signalConfigProc(std::shared_ptr<contract::employees::Employee> User);
 
     // Для маршрутизации
     void signalRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
     void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
 };
+
 
 } // namespace uniter::control
 

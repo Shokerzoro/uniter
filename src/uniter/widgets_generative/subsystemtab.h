@@ -2,19 +2,19 @@
 #ifndef ISUBSWDG_H
 #define ISUBSWDG_H
 
-#include "../messages/unitermessage.h"
+#include "../contract/unitermessage.h"
 #include <cstdint>
 #include <QWidget>
 
 namespace uniter::genwdg {
 
 
-class ISubsWdg : public QWidget {
+class SubsystemTab : public QWidget {
     Q_OBJECT
 
 public:
-    explicit ISubsWdg(messages::Subsystem subsystem,
-                     messages::GenSubsystemType genType,
+    explicit SubsystemTab(contract::Subsystem subsystem,
+                     contract::GenSubsystemType genType,
                      uint64_t genId,
                      QWidget* parent = nullptr);
 
@@ -22,15 +22,15 @@ public:
 
 signals:
     // Проксирует сообщения вверх
-    void signalSendUniterMessage(std::shared_ptr<messages::UniterMessage> message);
+    void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
 
 public slots:
     // Получает сообщения (от динамических виджетов)
-    void onSendUniterMessage(std::shared_ptr<messages::UniterMessage> message);
+    void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
 
 private:
-    messages::Subsystem subsystem;
-    messages::GenSubsystemType genType;
+    contract::Subsystem subsystem;
+    contract::GenSubsystemType genType;
     uint64_t genId;
 };
 

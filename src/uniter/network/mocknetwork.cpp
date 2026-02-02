@@ -1,5 +1,6 @@
 
-#include "../resources/employee/employee.h"
+#include "../contract/unitermessage.h"
+#include "../contract/employee/employee.h"
 #include "mocknetwork.h"
 
 #include <QDebug>
@@ -16,9 +17,9 @@ namespace {
 
 
 // Создание мок-пользователя с рандомными подсистемами
-std::shared_ptr<uniter::resources::employees::Employee> makeMockUserWithRandomSubsystems()
+std::shared_ptr<uniter::contract::employees::Employee> makeMockUserWithRandomSubsystems()
 {
-    auto user = std::make_shared<uniter::resources::employees::Employee>(
+    auto user = std::make_shared<uniter::contract::employees::Employee>(
         /*sid*/ 1,
         /*actual*/ true,
         QDateTime::currentDateTime(),
@@ -29,16 +30,16 @@ std::shared_ptr<uniter::resources::employees::Employee> makeMockUserWithRandomSu
         QStringLiteral("User"),
         QStringLiteral("Mock"),
         QStringLiteral("test.user@example.com"),
-        std::vector<uniter::resources::employees::EmployeeAssignment>{}
+        std::vector<uniter::contract::employees::EmployeeAssignment>{}
         );
 
-    std::vector<uniter::resources::employees::EmployeeAssignment> assignments;
+    std::vector<uniter::contract::employees::EmployeeAssignment> assignments;
     QStringList subsystemNames;
 
     if (QRandomGenerator::global()->bounded(2) == 1) {
-        assignments.push_back(uniter::resources::employees::EmployeeAssignment{
-            uniter::messages::Subsystem::MANAGER,
-            uniter::messages::GenSubsystemType::NOTGEN,
+        assignments.push_back(uniter::contract::employees::EmployeeAssignment{
+            uniter::contract::Subsystem::MANAGER,
+            uniter::contract::GenSubsystemType::NOTGEN,
             std::nullopt,
             {}
         });
@@ -46,9 +47,9 @@ std::shared_ptr<uniter::resources::employees::Employee> makeMockUserWithRandomSu
     }
 
     if (QRandomGenerator::global()->bounded(2) == 1) {
-        assignments.push_back(uniter::resources::employees::EmployeeAssignment{
-            uniter::messages::Subsystem::MATERIALS,
-            uniter::messages::GenSubsystemType::NOTGEN,
+        assignments.push_back(uniter::contract::employees::EmployeeAssignment{
+            uniter::contract::Subsystem::MATERIALS,
+            uniter::contract::GenSubsystemType::NOTGEN,
             std::nullopt,
             {}
         });
@@ -56,9 +57,9 @@ std::shared_ptr<uniter::resources::employees::Employee> makeMockUserWithRandomSu
     }
 
     if (QRandomGenerator::global()->bounded(2) == 1) {
-        assignments.push_back(uniter::resources::employees::EmployeeAssignment{
-            uniter::messages::Subsystem::PURCHASES,
-            uniter::messages::GenSubsystemType::NOTGEN,
+        assignments.push_back(uniter::contract::employees::EmployeeAssignment{
+            uniter::contract::Subsystem::PURCHASES,
+            uniter::contract::GenSubsystemType::NOTGEN,
             std::nullopt,
             {}
         });
@@ -67,9 +68,9 @@ std::shared_ptr<uniter::resources::employees::Employee> makeMockUserWithRandomSu
 
     // Гарантируем хотя бы одну подсистему
     if (assignments.empty()) {
-        assignments.push_back(uniter::resources::employees::EmployeeAssignment{
-            uniter::messages::Subsystem::MANAGER,
-            uniter::messages::GenSubsystemType::NOTGEN,
+        assignments.push_back(uniter::contract::employees::EmployeeAssignment{
+            uniter::contract::Subsystem::MANAGER,
+            uniter::contract::GenSubsystemType::NOTGEN,
             std::nullopt,
             {}
         });
@@ -84,13 +85,13 @@ std::shared_ptr<uniter::resources::employees::Employee> makeMockUserWithRandomSu
 }
 
 // Формирование ответа на протокольный GETCONFIG/AUTH
-std::shared_ptr<uniter::messages::UniterMessage> makeProtocolAuthResponse(const std::shared_ptr<uniter::messages::UniterMessage>& request)
+std::shared_ptr<uniter::contract::UniterMessage> makeProtocolAuthResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request)
 {
-    using namespace uniter::messages;
+    using namespace uniter::contract;
 
     auto response = std::make_shared<UniterMessage>(*request);
     response->status    = MessageStatus::RESPONSE;
-    response->protact   = ProtocolAction::GETCONFIG;
+    response->protact   = ProtocolAction::AUTH;
     response->subsystem = Subsystem::PROTOCOL;
 
     bool success = QRandomGenerator::global()->bounded(100) < 70; // 70% успех
@@ -107,10 +108,10 @@ std::shared_ptr<uniter::messages::UniterMessage> makeProtocolAuthResponse(const 
 }
 
 // Формирование CRUD-ответа (эхо с рандомным ErrorCode)
-std::shared_ptr<uniter::messages::UniterMessage>
-makeCrudResponse(const std::shared_ptr<uniter::messages::UniterMessage>& request)
+std::shared_ptr<uniter::contract::UniterMessage>
+makeCrudResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request)
 {
-    using namespace uniter::messages;
+    using namespace uniter::contract;
 
     auto response = std::make_shared<UniterMessage>(*request);
     response->status = MessageStatus::RESPONSE;
@@ -125,7 +126,7 @@ makeCrudResponse(const std::shared_ptr<uniter::messages::UniterMessage>& request
 
 namespace uniter::net {
 
-using namespace uniter::messages;
+using namespace uniter::contract;
 
 MockNetManager* MockNetManager::instance()
 {
@@ -170,7 +171,7 @@ void MockNetManager::onMakeConnection() {
 }
 
 
-void MockNetManager::onSendMessage(std::shared_ptr<messages::UniterMessage> message)
+void MockNetManager::onSendMessage(std::shared_ptr<contract::UniterMessage> message)
 {
     if (!connected_) {
         return;
@@ -180,7 +181,7 @@ void MockNetManager::onSendMessage(std::shared_ptr<messages::UniterMessage> mess
 
     // Протокол: PROTOCOL + GETCONFIG
     if (message->subsystem == Subsystem::PROTOCOL &&
-        message->protact  == ProtocolAction::GETCONFIG)
+        message->protact  == ProtocolAction::AUTH)
     {
         auto response = makeProtocolAuthResponse(message);
         ++seq_id_received_;

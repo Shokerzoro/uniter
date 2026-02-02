@@ -1,7 +1,7 @@
 #ifndef SUBSYSTEMICON_H
 #define SUBSYSTEMICON_H
 
-#include "../messages/unitermessage.h"
+#include "../contract/unitermessage.h"
 #include <QMouseEvent>
 #include <QWidget>
 #include <QString>
@@ -13,8 +13,8 @@ class SubsystemIcon : public QWidget {
     Q_OBJECT
 
 public:
-    explicit SubsystemIcon(messages::Subsystem subsystem,
-                           messages::GenSubsystemType genType,
+    explicit SubsystemIcon(contract::Subsystem subsystem,
+                           contract::GenSubsystemType genType,
                            uint64_t genId,
                            int index,
                            QWidget* parent = nullptr);

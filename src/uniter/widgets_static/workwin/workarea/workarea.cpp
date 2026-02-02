@@ -1,6 +1,6 @@
 
-#include "../../../messages/unitermessage.h"
-#include "../../../widgets_generative/generativetab.h"
+#include "../../../contract/unitermessage.h"
+#include "../../../widgets_generative/subsystemtab.h"
 #include "workarea.h"
 #include <QWidget>
 #include <QStackedLayout>
@@ -17,29 +17,29 @@ WorkArea::WorkArea(QWidget* parent) : QWidget(parent) {
     setLayout(stackedLayout);
 }
 
-void WorkArea::addSubsystem(messages::Subsystem subsystem,
-                            messages::GenSubsystemType genType,
+void WorkArea::addSubsystem(contract::Subsystem subsystem,
+                            contract::GenSubsystemType genType,
                             uint64_t genId,
                             int index) {
 
     qDebug() << "WorkArea::addSubsystem():" << subsystem;
 
-    auto* subsWdg = new genwdg::ISubsWdg(subsystem, genType, genId, this);
+    auto* subsWdg = new genwdg::SubsystemTab(subsystem, genType, genId, this);
 
     subsystemWidgets[index] = subsWdg;
     stackedLayout->addWidget(subsWdg);
 
     // Коннектим сигнал SubsWdg к сигналу WorkArea
-    connect(subsWdg, &genwdg::ISubsWdg::signalSendUniterMessage,
+    connect(subsWdg, &genwdg::SubsystemTab::signalSendUniterMessage,
             this, &WorkArea::signalSendUniterMessage);
 }
 
 void WorkArea::removeSubsystem(int index) {
     auto it = subsystemWidgets.find(index);
     if (it != subsystemWidgets.end()) {
-        genwdg::ISubsWdg* subsWdg = it->second;
+        genwdg::SubsystemTab* subsWdg = it->second;
 
-        disconnect(subsWdg, &genwdg::ISubsWdg::signalSendUniterMessage,
+        disconnect(subsWdg, &genwdg::SubsystemTab::signalSendUniterMessage,
                    this, &WorkArea::signalSendUniterMessage);
 
         stackedLayout->removeWidget(subsWdg);
@@ -58,7 +58,7 @@ void WorkArea::onSwitchTab(int index) {
 }
 
 
-void WorkArea::onSendUniterMessage(std::shared_ptr<messages::UniterMessage> message) {
+void WorkArea::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> message) {
     emit signalSendUniterMessage(message);
 }
 
