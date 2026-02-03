@@ -1,4 +1,4 @@
-    #ifndef MAINWINDOW_H
+#ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
 #include "../contract/unitermessage.h"
@@ -9,54 +9,69 @@
 #include <QStackedLayout>
 #include <QWidget>
 
-namespace uniter::staticwdg {
+    namespace uniter::staticwdg {
 
-class MainWidget : public QWidget {
-    Q_OBJECT
+    class MainWidget : public QWidget {
+        Q_OBJECT
 
-private:
-    // Классы состояний
-    enum class AuthState {NONE, AUTHED, READY};
-    enum class NetState {OFFLINE, ONLINE};
-    AuthState AState = AuthState::NONE;
-    NetState NState = NetState::OFFLINE;
+    private:
+        // Состояния виджета
+        enum class WidgetState {
+            AUTH_OFFLINE,    // OfflineWdg (нет сети, не авторизован)
+            AUTH_ONLINE,     // AuthWdg (есть сеть, не авторизован)
+            WORK_ONLINE,     // WorkWdg (есть сеть, авторизован)
+            WORK_OFFLINE     // OfflineWdg (нет сети, но был авторизован)
+        };
 
-    // Управление машиной состояний (реализуют логику управления при переходах)
-    void SetAuthState(AuthState newAState);
-    void SetNetState(NetState newNState);
+        // События для FSM
+        enum class WidgetEvents {
+            NET_CONNECTED,
+            NET_DISCONNECTED,
+            AUTH_SUCCESS,
+            AUTH_FAILED,
+            LOGOUT
+        };
 
-    // Виджеты
-    QStackedLayout* MLayout = nullptr;
-    AuthWdg* AWdg = nullptr;
-    OfflineWdg* OffWdg = nullptr;
-    WorkWdg* WWdg = nullptr;
+        WidgetState m_widgetState = WidgetState::AUTH_OFFLINE;
 
-public:
-    explicit MainWidget(QWidget* parent = nullptr);
-    MainWidget(const MainWidget&) = delete;
-    MainWidget(MainWidget&&) = delete;
-    MainWidget& operator=(const MainWidget&) = delete;
-    MainWidget& operator=(MainWidget&&) = delete;
+        // FSM обработка событий
+        void ProcessEvent(WidgetEvents event);
 
-public slots:
-    // От менеджера приложения
-    void onConnectionUpdated(bool state);
-    void onAuthed(bool result);
-    void onFindAuthData();
+        // Виджеты
+        QStackedLayout* MLayout = nullptr;
+        AuthWdg* AWdg = nullptr;
+        OfflineWdg* OffWdg = nullptr;
+        WorkWdg* WWdg = nullptr;
 
-    // От нижнего уровня
-    void onMakeConnect();
-    void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
+    public:
+        explicit MainWidget(QWidget* parent = nullptr);
+        MainWidget(const MainWidget&) = delete;
+        MainWidget(MainWidget&&) = delete;
+        MainWidget& operator=(const MainWidget&) = delete;
+        MainWidget& operator=(MainWidget&&) = delete;
 
-signals:
-    // Для виджета аутентификации
-    void signalAuthed(bool result);
-    void signalFindAuthData();
-    // От виджета оффлайна
-    void signalMakeConnect();
+    public slots:
+        // От менеджера приложения
+        void onConnectionUpdated(bool state);
+        void onAuthed(bool result);
+        void onFindAuthData();
+        void onLoggedOut();
 
-    // Для маршрутизации сообщений
-    void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);};
+        // От нижнего уровня
+        void onMakeConnect();
+        void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
+
+    signals:
+        // Для виджета аутентификации
+        void signalAuthed(bool result);
+        void signalFindAuthData();
+
+        // От виджета оффлайна
+        void signalMakeConnect();
+
+        // Для маршрутизации сообщений
+        void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
+    };
 
 } // namespace uniter::staticwdg
 
