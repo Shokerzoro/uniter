@@ -95,6 +95,9 @@ int main(int argc, char *argv[])
     QObject::connect(dataManager, &data::DataManager::signalResourcesLoaded,
                      appManager, &control::AppManager::onResourcesLoaded);
 
+    QObject::connect(appManager, &control::AppManager::signalClearResources,
+                     dataManager, &data::DataManager::onClearResources);
+
 
     // === 4. Конфигурация ===
 
@@ -105,6 +108,9 @@ int main(int argc, char *argv[])
     // AppManager → ConfigManager
     QObject::connect(appManager, &control::AppManager::signalConfigProc,
                      configManager, &control::ConfigManager::onConfigProc);
+
+    QObject::connect(appManager, &control::AppManager::signalClearResources,
+                     configManager, &control::ConfigManager::onClearResources);
 
 
     // === 5. Аутентификация ===

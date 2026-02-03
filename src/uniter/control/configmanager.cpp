@@ -57,5 +57,9 @@ void ConfigManager::onConfigProc(std::shared_ptr<contract::employees::Employee> 
     emit signalConfigured();
 }
 
+void ConfigManager::onClearResources() {
+    // TODO
+}
+
 
 } // uniter::control

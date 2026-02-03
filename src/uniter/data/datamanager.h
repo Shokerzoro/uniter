@@ -46,8 +46,10 @@ public:
     ~DataManager() override = default;
 
 public slots:
+    // От менеджера приложения
+    void onStartLoadResources(QByteArray userhash);
+    void onClearResources();
     void onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> message);
-    void onStartLoadResources(QByteArray userhash); // От менеджера приложения
     void onSubsystemGenerate(contract::Subsystem subsystem,
                              contract::GenSubsystemType genType,
                              std::optional<uint64_t> genId,

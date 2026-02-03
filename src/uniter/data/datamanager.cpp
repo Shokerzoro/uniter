@@ -40,6 +40,10 @@ void DataManager::onStartLoadResources(QByteArray userhash)
     emit signalResourcesLoaded();
 }
 
+void DataManager::onClearResources() {
+    // TODO
+}
+
 void DataManager::onSubsystemGenerate(contract::Subsystem subsystem,
                                       contract::GenSubsystemType genType,
                                       std::optional<uint64_t> genId,

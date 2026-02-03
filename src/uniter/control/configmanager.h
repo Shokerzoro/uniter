@@ -36,7 +36,7 @@ public:
 public slots:
     // Генерация конфигурации по данным пользователя
     void onConfigProc(std::shared_ptr<contract::employees::Employee> User);
-
+    void onClearResources();
 signals:
     // Уведомление AppManager о завершении конфигурирования
     void signalConfigured();
