@@ -57,9 +57,47 @@ void ConfigManager::onConfigProc(std::shared_ptr<contract::employees::Employee> 
     emit signalConfigured();
 }
 
-void ConfigManager::onClearResources() {
-    // TODO
+void ConfigManager::onClearResources()
+{
+    qDebug() << "ConfigManager::onClearResources() - START";
+
+    if (!user) {
+        qDebug() << "ConfigManager::onClearResources() - No user, nothing to clear";
+        return;
+    }
+
+    // Собираем список подсистем для лога
+    QStringList subsystemList;
+    for (const auto& assign : user->assignments) {
+        subsystemList << contract::subsystemToString(assign.subsystem);
+    }
+
+    qDebug() << "ConfigManager::onClearResources() - Clearing user:"
+             << user->surname << user->name
+             << "Subsystems:" << subsystemList.join(", ");
+
+    // Для каждой назначенной подсистемы отправляем событие с created = false
+    for (const contract::employees::EmployeeAssignment& assign : user->assignments) {
+
+        bool created = false; // ← в отличие от onConfigProc()
+        contract::Subsystem subsystem = assign.subsystem;
+        contract::GenSubsystemType genType = contract::GenSubsystemType::NOTGEN;
+        std::optional<uint64_t> genId = std::nullopt;
+
+        if (subsystem == contract::Subsystem::GENERATIVE) {
+            genType = assign.genSubsystem;
+            genId = assign.genId;
+        }
+
+        emit signalSubsystemAdded(subsystem, genType, genId, created);
+    }
+
+    // Освобождаем пользователя
+    user.reset();
+
+    qDebug() << "ConfigManager::onClearResources() - DONE, user cleared";
 }
+
 
 
 } // uniter::control

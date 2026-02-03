@@ -56,22 +56,11 @@
         void onAuthed(bool result);
         void onFindAuthData();
         void onLoggedOut();
-
-        // От нижнего уровня
-        void onMakeConnect();
-        void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
-
     signals:
         // Для виджета аутентификации
         void signalAuthed(bool result);
         void signalFindAuthData();
-
-        // От виджета оффлайна
-        void signalMakeConnect();
-
-        // Для маршрутизации сообщений
-        void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
-    };
+};
 
 } // namespace uniter::staticwdg
 

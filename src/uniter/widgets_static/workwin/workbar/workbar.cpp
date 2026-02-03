@@ -1,4 +1,5 @@
 
+#include "../../../control/appmanager.h"
 #include "../../../control/uimanager.h"
 #include "../../../contract/unitermessage.h"
 #include "../../../widgets_generative/subsystemicon.h"
@@ -6,10 +7,10 @@
 #include <QWidget>
 #include <QBoxLayout>
 #include <QPainter>
+#include <QPushButton>
 #include <QString>
 
 namespace uniter::staticwdg {
-
 
 WorkBar::WorkBar(QWidget* parent) : QWidget(parent) {
 
@@ -25,10 +26,20 @@ WorkBar::WorkBar(QWidget* parent) : QWidget(parent) {
     iconLayout->addStretch();  // Выталкиваем иконки вверх
     iconContainer->setLayout(iconLayout);
 
+    // Создаём кнопку LogOut
+    logoutButton = new QPushButton("LogOut", this);
+    logoutButton->setFixedSize(70, 70);
+
+    // Подключаем сигнал кнопки
+    auto AManager = control::AppManager::instance();
+    connect(logoutButton, &QPushButton::clicked,
+            AManager, &control::AppManager::onLogout);
+
     // Основной layout WorkBar
     auto* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->addWidget(iconContainer);
+    mainLayout->addWidget(iconContainer);      // Иконки подсистем
+    mainLayout->addWidget(logoutButton);       // Кнопка LogOut внизу
     setLayout(mainLayout);
 }
 
@@ -101,9 +112,4 @@ void WorkBar::paintEvent(QPaintEvent* event) {
     painter.drawLine(x, 0, x, height());
 }
 
-
-
-
 } //uniter::staticwdg
-
-

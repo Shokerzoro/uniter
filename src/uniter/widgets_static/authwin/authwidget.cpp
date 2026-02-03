@@ -1,4 +1,5 @@
 
+#include "../../control/appmanager.h"
 #include "authwidget.h"
 //#include <qtkeychain/keychain.h> TODO: добавить безопасное хранение логина и пароля
 #include <QSettings>
@@ -58,6 +59,10 @@ AuthWdg::AuthWdg(QWidget* parent)
     this->setLayout(mainLayout);
 
     // Подключаем сигналы
+    auto AManager = control::AppManager::instance();
+    connect(this, AuthWdg::signalSendUniterMessage,
+            AManager, control::AppManager::onSendUniterMessage);
+
     connect(m_rememberCheckBox, &QCheckBox::checkStateChanged,
             this, &AuthWdg::onRememberCheckChanged);
 

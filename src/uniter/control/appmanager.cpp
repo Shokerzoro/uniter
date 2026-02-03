@@ -53,18 +53,24 @@ namespace uniter::control {
             qDebug() << "AppManager::out_started()";
         };
 
+        auto in_idle_connected = [this]() {
+            qDebug() << "AppManager::in_idle_connected()";
+            m_netState = NetState::ONLINE;
+            emit signalConnectionUpdated(true);
+        };
+
         auto in_connected = [this]() {
             qDebug() << "AppManager::in_connected()";
             m_netState = NetState::ONLINE;
             emit signalConnectionUpdated(true);
-            emit signalFindAuthData();
 
-            // Если уже есть сохранённый auth request - отправляем
+            emit signalFindAuthData();         // ← только здесь
             if (m_authMessage) {
                 qDebug() << "AppManager::in_connected(): sending stored auth request";
                 emit signalSendUniterMessage(m_authMessage);
             }
         };
+
 
         auto out_connected = []() {
             qDebug() << "AppManager::out_connected()";
@@ -190,7 +196,7 @@ namespace uniter::control {
                     emit signalClearResources();
                     emit signalLoggedOut();
                     m_appState = AppState::CONNECTED;
-                    in_connected();
+                    in_idle_connected();
                 }
                 else if (event == Events::NET_DISCONNECTED) {
                     out_ready();
@@ -216,6 +222,9 @@ namespace uniter::control {
             switch (m_appState) {
                 case AppState::STARTED:
                     in_started();
+                    break;
+                case AppState::IDLE_CONNECTED:
+                    in_idle_connected();
                     break;
                 case AppState::CONNECTED:
                     in_connected();

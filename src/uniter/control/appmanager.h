@@ -32,6 +32,7 @@
         enum class AppState {
             IDLE,
             STARTED,
+            IDLE_CONNECTED,
             CONNECTED,
             AUTHENTIFICATED,
             DBLOADED,

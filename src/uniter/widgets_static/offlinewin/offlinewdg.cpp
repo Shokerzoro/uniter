@@ -1,3 +1,4 @@
+#include "../../control/appmanager.h"
 #include "offlinewdg.h"
 #include <QLabel>
 #include <QPushButton>
@@ -18,7 +19,8 @@ OfflineWdg::OfflineWdg(QWidget *parent)
     layout->addWidget(btn);
     layout->addStretch();
 
-    connect(btn, &QPushButton::clicked, this, &OfflineWdg::signalMakeConnect);
+    auto AManager = control::AppManager::instance();
+    connect(btn, &QPushButton::clicked, AManager, &control::AppManager::signalMakeConnection);
 }
 
 } // namespace uniter::staticwdg

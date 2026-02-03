@@ -61,11 +61,6 @@ int main(int argc, char *argv[])
     QObject::connect(appManager, &control::AppManager::signalSendUniterMessage,
                      netManager, &net::MockNetManager::onSendMessage);
 
-    // MainWidget → AppManager (исходящие сообщения от UI)
-    QObject::connect(&MWindow, &staticwdg::MainWidget::signalSendUniterMessage,
-                     appManager, &control::AppManager::onSendUniterMessage);
-
-
     // === 2. Управление сетевым состоянием ===
 
     // Network → AppManager
@@ -79,10 +74,6 @@ int main(int argc, char *argv[])
     // AppManager → UI (отражение состояния)
     QObject::connect(appManager, &control::AppManager::signalConnectionUpdated,
                      &MWindow, &staticwdg::MainWidget::onConnectionUpdated);
-
-    // UI → AppManager (команда подключиться)
-    QObject::connect(&MWindow, &staticwdg::MainWidget::signalMakeConnect,
-                     appManager, &control::AppManager::signalMakeConnection);
 
 
     // === 3. Управление ресурсами и БД ===
@@ -118,8 +109,12 @@ int main(int argc, char *argv[])
     // AppManager → UI
     QObject::connect(appManager, &control::AppManager::signalAuthed,
                      &MWindow, &staticwdg::MainWidget::onAuthed);
+
     QObject::connect(appManager, &control::AppManager::signalFindAuthData,
                      &MWindow, &staticwdg::MainWidget::onFindAuthData);
+
+    QObject::connect(appManager, &control::AppManager::signalLoggedOut,
+                     &MWindow, &staticwdg::MainWidget::onLoggedOut);
 
 
 

@@ -5,11 +5,11 @@
 #include "../../../widgets_generative/subsystemicon.h"
 #include <QBoxLayout>
 #include <QWidget>
+#include <QPushButton>
 #include <map>
 #include <memory>
 
 namespace uniter::staticwdg {
-
 
 class WorkBar : public QWidget {
     Q_OBJECT
@@ -26,6 +26,7 @@ public:
 signals:
     void signalSwitchTab(int index);
     void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
+    void signalLogout(); // Новый сигнал для LogOut
 
 public slots:
     void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
@@ -36,15 +37,13 @@ private slots:
 private:
     QWidget* iconContainer;
     QVBoxLayout* iconLayout;
+    QPushButton* logoutButton; // Кнопка LogOut
     std::map<int, genwdg::SubsystemIcon*> subsystemIcons;
+
 protected:
-    // Переопределяем paintEvent для рисования правой границы
     void paintEvent(QPaintEvent* event) override;
 };
 
-
-
 } // uniter::staticwdg
-
 
 #endif // WORKBAR_H

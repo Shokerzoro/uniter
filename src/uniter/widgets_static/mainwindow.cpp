@@ -31,22 +31,13 @@
         QObject::connect(this, &MainWidget::signalFindAuthData,
                          AWdg, &AuthWdg::onFindAuthData);
 
-        QObject::connect(AWdg, &AuthWdg::signalSendUniterMessage,
-                         this, &MainWidget::onSendUniterMessage);
-
         // Виджет оффлайна
         OffWdg = new OfflineWdg();
         MLayout->addWidget(OffWdg);
 
-        connect(OffWdg, &OfflineWdg::signalMakeConnect,
-                this,   &MainWidget::onMakeConnect);
-
         // Рабочий виджет
         WWdg = new WorkWdg();
         MLayout->addWidget(WWdg);
-
-        connect(WWdg, &WorkWdg::signalSendUniterMessage,
-                this, &MainWidget::onSendUniterMessage);
 
         // Начальное состояние
         MLayout->setCurrentWidget(OffWdg);
@@ -164,16 +155,6 @@
         ProcessEvent(WidgetEvents::LOGOUT);
     }
 
-    void MainWidget::onMakeConnect()
-    {
-        qDebug() << "MainWidget::onMakeConnect()";
-        emit signalMakeConnect();
-    }
-
-    void MainWidget::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message)
-    {
-        emit signalSendUniterMessage(Message);
-    }
 
 } // namespace uniter::staticwdg
 
