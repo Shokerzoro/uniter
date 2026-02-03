@@ -153,7 +153,7 @@ void MockNetManager::onMakeConnection() {
 
     if (success) {
         qDebug() << "MockNetManager::onMakeConnection() - emit signalConnected()";
-        emit signalConnected();
+        emit signalConnectionUpdated(true);
 
         // QTimer вместо std::async
         int seconds = QRandomGenerator::global()->bounded(60, 121);
@@ -161,12 +161,12 @@ void MockNetManager::onMakeConnection() {
             if (connected_) {
                 connected_ = false;
                 qDebug() << "MockNetManager: auto-disconnect triggered";
-                emit signalDisconnected();
+                emit signalConnectionUpdated(false);
             }
         });
     } else {
         qDebug() << "MockNetManager::onMakeConnection() - signalDisconnected()";
-        emit signalDisconnected();
+        emit signalConnectionUpdated(false);
     }
 }
 
@@ -207,7 +207,7 @@ void MockNetManager::onShutdown()
 {
     if (connected_) {
         connected_ = false;
-        emit signalDisconnected();
+        emit signalConnectionUpdated(false);
     }
 }
 

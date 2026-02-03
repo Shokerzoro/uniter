@@ -42,7 +42,7 @@ void AppManager::ProcessEvent(Events event) {
     static auto in_connected = [](AppManager* mgr) {
         mgr->m_appState = AppState::CONNECTED;
         qDebug() << "AppManager::in_connected(): entered CONNECTED state";
-        emit mgr->signalConnected();
+        emit mgr->signalConnectionUpdated(true);
 
         // Если есть сохраненное сообщение аутентификации - отправляем
         if (mgr->m_authMessage) {
@@ -144,7 +144,7 @@ void AppManager::ProcessEvent(Events event) {
     if (event == Events::NET_CONNECTED) {
         qDebug() << "AppManager::ProcessEvent(): NET_CONNECTED event";
         m_netState = NetState::ONLINE;
-        emit signalConnected();
+        emit signalConnectionUpdated(true);
 
         // Самопереходы в зависимости от текущего состояния приложения
         switch (m_appState) {
@@ -176,7 +176,7 @@ void AppManager::ProcessEvent(Events event) {
     if (event == Events::NET_DISCONNECTED) {
         qDebug() << "AppManager::ProcessEvent(): NET_DISCONNECTED event";
         m_netState = NetState::OFFLINE;
-        emit signalDisconnected();
+        emit signalConnectionUpdated(false);
         // AppState не меняется, только блокируем UI
         return;
     }
@@ -266,15 +266,16 @@ void AppManager::ProcessEvent(Events event) {
 }
 
 // Слоты от сетевого класса
-void AppManager::onConnected() {
-    qDebug() << "AppManager::onConnected()";
-    ProcessEvent(Events::NET_CONNECTED);
+void AppManager::onConnectionUpdated(bool state) {
+    if (state) {
+        qDebug() << "AppManager::onConnected()";
+        ProcessEvent(Events::NET_CONNECTED);
+    } else {
+        qDebug() << "AppManager::onDisconnected()";
+        ProcessEvent(Events::NET_DISCONNECTED);
+    }
 }
 
-void AppManager::onDisconnected() {
-    qDebug() << "AppManager::onDisconnected()";
-    ProcessEvent(Events::NET_DISCONNECTED);
-}
 
 void AppManager::onResourcesLoaded() {
     qDebug() << "AppManager::onResourcesLoaded()";

@@ -70,8 +70,7 @@ void IDataObserver::requestResourceSubscription(contract::Subsystem subsystem,
     resourceParams = SubscriptionParams(subsystem, type, resId);
     resourceParams.isActive = true;
 
-    emit subscribeToResource(subsystem, type, resId,
-                            std::dynamic_pointer_cast<IDataObserver>(shared_from_this()));
+    emit subscribeToResource(subsystem, type, resId, this);
 }
 
 void IDataObserver::requestListSubscription(contract::Subsystem subsystem,
@@ -80,8 +79,7 @@ void IDataObserver::requestListSubscription(contract::Subsystem subsystem,
     listParams = SubscriptionParams(subsystem, type);
     listParams.isActive = true;
 
-    emit subscribeToResourceList(subsystem, type,
-                                 std::dynamic_pointer_cast<IDataObserver>(shared_from_this()));
+    emit subscribeToResourceList(subsystem, type, this);
 }
 
 void IDataObserver::requestTreeSubscription(contract::Subsystem subsystem,
@@ -90,8 +88,7 @@ void IDataObserver::requestTreeSubscription(contract::Subsystem subsystem,
     treeParams = SubscriptionParams(subsystem, type);
     treeParams.isActive = true;
 
-    emit subscribeToResourceTree(subsystem, type,
-                                 std::dynamic_pointer_cast<IDataObserver>(shared_from_this()));
+    emit subscribeToResourceTree(subsystem, type, this);
 }
 
 void IDataObserver::cancelResourceSubscription()
@@ -99,8 +96,7 @@ void IDataObserver::cancelResourceSubscription()
     if (!resourceParams.isActive) return;
 
     resourceParams.isActive = false;
-    emit unsubscribeFromResource(
-        std::dynamic_pointer_cast<IDataObserver>(shared_from_this()));
+    emit unsubscribeFromResource(this);
 }
 
 void IDataObserver::cancelListSubscription()
@@ -108,8 +104,7 @@ void IDataObserver::cancelListSubscription()
     if (!listParams.isActive) return;
 
     listParams.isActive = false;
-    emit unsubscribeFromResourceList(
-        std::dynamic_pointer_cast<IDataObserver>(shared_from_this()));
+    emit unsubscribeFromResourceList(this);
 }
 
 void IDataObserver::cancelTreeSubscription()
@@ -117,8 +112,7 @@ void IDataObserver::cancelTreeSubscription()
     if (!treeParams.isActive) return;
 
     treeParams.isActive = false;
-    emit unsubscribeFromResourceTree(
-        std::dynamic_pointer_cast<IDataObserver>(shared_from_this()));
+    emit unsubscribeFromResourceTree(this);
 }
 
 } // namespace uniter::data

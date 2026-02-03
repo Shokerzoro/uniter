@@ -71,8 +71,7 @@ public:
 
 public slots:
     // От сетевого класса
-    void onConnected();
-    void onDisconnected();
+    void onConnectionUpdated(bool state);
 
     // От менеджеров / переходы между состояниями
     void onResourcesLoaded();   // AUTHENTICATED -> DBLOADED
@@ -89,14 +88,15 @@ signals:
     void signalPollMessages();
 
     // Внутренние для UI
-    void signalConnected();
-    void signalDisconnected();
+    void signalConnectionUpdated(bool state);
     void signalAuthed(bool result);
 
     // Внутренние для менеджеров
     void signalFindAuthData();
     void signalLoadResources(QByteArray userhash);
     void signalConfigProc(std::shared_ptr<contract::employees::Employee> User);
+    // И для очистки ресурсов
+    void signalClearResources();
 
     // Для маршрутизации
     void signalRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message);

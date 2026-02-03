@@ -50,31 +50,31 @@ public slots:
     void onStartLoadResources(QByteArray userhash); // От менеджера приложения
     void onSubsystemGenerate(contract::Subsystem subsystem,
                              contract::GenSubsystemType genType,
-                             uint64_t genId,
+                             std::optional<uint64_t> genId,
                              bool created);
 
     // Подписки на ресурсы
     void onSubscribeToResourceList(contract::Subsystem subsystem,
                                    contract::ResourceType type,
-                                   std::shared_ptr<IDataObserver> observer);
+                                   QObject* observer);
     void onSubscribeToResourceTree(contract::Subsystem subsystem,
                                    contract::ResourceType type,
-                                   std::shared_ptr<IDataObserver> observer);
+                                   QObject* observer);
     void onSubscribeToResource(contract::Subsystem subsystem,
                                contract::ResourceType type,
-                               uint64_t resId,
-                               std::shared_ptr<IDataObserver> observer);
+                               std::optional<uint64_t> resId,
+                               QObject* observer);
 
     // Отписки от ресурсов
-    void onUnsubscribeFromResourceList(std::shared_ptr<IDataObserver> observer);
-    void onUnsubscribeFromResourceTree(std::shared_ptr<IDataObserver> observer);
-    void onUnsubscribeFromResource(std::shared_ptr<IDataObserver> observer);
+    void onUnsubscribeFromResourceList(QObject* observer);
+    void onUnsubscribeFromResourceTree(QObject* observer);
+    void onUnsubscribeFromResource(QObject* observer);
 
     // Получить ресурс
     void onGetResource(contract::Subsystem subsystem,
                        contract::ResourceType type,
-                       uint64_t resourceId,
-                       std::shared_ptr<IDataObserver> observer);
+                       std::optional<uint64_t> resourceId,
+                       QObject* observer);
 
 signals:
     void signalResourcesLoaded(); // Менеджеру приложения

@@ -47,8 +47,7 @@ public slots:
 
 signals:
     // Network → AppManager
-    void signalConnected();
-    void signalDisconnected();
+    void signalConnectionUpdated(bool state);
 
     // Network → AppManager: входящее сообщение
     void signalRecvMessage(std::shared_ptr<contract::UniterMessage> message);

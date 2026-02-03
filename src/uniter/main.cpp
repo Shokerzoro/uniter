@@ -69,20 +69,16 @@ int main(int argc, char *argv[])
     // === 2. Управление сетевым состоянием ===
 
     // Network → AppManager
-    QObject::connect(netManager, &net::MockNetManager::signalConnected,
-                     appManager, &control::AppManager::onConnected);
-    QObject::connect(netManager, &net::MockNetManager::signalDisconnected,
-                     appManager, &control::AppManager::onDisconnected);
+    QObject::connect(netManager, &net::MockNetManager::signalConnectionUpdated,
+                     appManager, &control::AppManager::onConnectionUpdated);
 
     // AppManager → Network
     QObject::connect(appManager, &control::AppManager::signalMakeConnection,
                      netManager, &net::MockNetManager::onMakeConnection);
 
     // AppManager → UI (отражение состояния)
-    QObject::connect(appManager, &control::AppManager::signalConnected,
-                     &MWindow, &staticwdg::MainWidget::onConnected);
-    QObject::connect(appManager, &control::AppManager::signalDisconnected,
-                     &MWindow, &staticwdg::MainWidget::onDisconnected);
+    QObject::connect(appManager, &control::AppManager::signalConnectionUpdated,
+                     &MWindow, &staticwdg::MainWidget::onConnectionUpdated);
 
     // UI → AppManager (команда подключиться)
     QObject::connect(&MWindow, &staticwdg::MainWidget::signalMakeConnect,

@@ -81,16 +81,14 @@ void MainWidget::SetNetState(NetState newNState) {
     }
 }
 
-void MainWidget::onConnected() {
-    qDebug() << "MainWidget::onConnected() - START";
-    SetNetState(NetState::ONLINE);
-    qDebug() << "MainWidget::onConnected() - END";
-}
-
-void MainWidget::onDisconnected() {
-
-    qDebug() << "MainWidget::onDisconnected()";
-    SetNetState(NetState::OFFLINE);
+void MainWidget::onConnectionUpdated(bool state) {
+    if (state) {
+        qDebug() << "MainWidget::onConnected()";
+        SetNetState(NetState::ONLINE);
+    } else {
+        qDebug() << "MainWidget::onDisconnected()";
+        SetNetState(NetState::OFFLINE);
+    }
 }
 
 void MainWidget::onAuthed(bool result) {

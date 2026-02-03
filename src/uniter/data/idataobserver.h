@@ -8,8 +8,27 @@
 #include <vector>
 #include <optional>
 
+/* Объявнение на будущее
+Чтобы избежать проблем синхронизации, и висячих указателей на обзерверы, а также широковещательных рассылоа
+В DataManager должен применяться класс-адаптер.
+
+Его задача - быть асоциированнымм с обзервером, и при создании подписки создается адаптер
+Который будет коннектится с конкретным обзервером. И через него будет идти дальнейшее общение с ним.
+
+Это позволяет использовать прокси адаптер, не подлючая менеджер данных и обзерверы напрямую.
+Ведь для уведомления каждого обзервера в отдельности понадобилось бы много слотов.
+
+Таким образом мы примениям для обмена данными сигналы и слоты. При этом пропадает необходимость синхронизации,
+а также проблема висячих указателей и прямого вызова через них, т.к. для слотов и сигналов это не страшно.
+
+*/
+
 
 namespace uniter::data {
+
+class SubscribeAdaptor {
+
+};
 
 // Структура параметров подписки
 struct SubscriptionParams {
@@ -62,21 +81,21 @@ signals:
     // Сигналы для подписки (соединяются с DataManager в конструкторе)
     void subscribeToResource(contract::Subsystem subsystem,
                              contract::ResourceType type,
-                             uint64_t resId,
-                             std::shared_ptr<IDataObserver> observer);
+                             std::optional<uint64_t> resId,
+                             QObject* observer);
 
     void subscribeToResourceList(contract::Subsystem subsystem,
                                  contract::ResourceType type,
-                                 std::shared_ptr<IDataObserver> observer);
+                                 QObject* observer);
 
     void subscribeToResourceTree(contract::Subsystem subsystem,
                                  contract::ResourceType type,
-                                 std::shared_ptr<IDataObserver> observer);
+                                 QObject* observer);
 
     // Сигналы для отписки
-    void unsubscribeFromResource(std::shared_ptr<IDataObserver> observer);
-    void unsubscribeFromResourceList(std::shared_ptr<IDataObserver> observer);
-    void unsubscribeFromResourceTree(std::shared_ptr<IDataObserver> observer);
+    void unsubscribeFromResource(QObject* observer);
+    void unsubscribeFromResourceList(QObject* observer);
+    void unsubscribeFromResourceTree(QObject* observer);
 
     // Уведомление о получении новых данных
     void dataUpdated();

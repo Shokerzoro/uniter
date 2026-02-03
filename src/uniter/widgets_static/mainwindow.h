@@ -40,8 +40,7 @@ public:
 
 public slots:
     // От менеджера приложения
-    void onConnected();
-    void onDisconnected();
+    void onConnectionUpdated(bool state);
     void onAuthed(bool result);
     void onFindAuthData();
 

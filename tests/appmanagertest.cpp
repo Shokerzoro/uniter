@@ -1,4 +1,3 @@
-
 #include "../src/uniter/control/appmanager.h"
 #include "../src/uniter/control/configmanager.h"
 #include "../src/uniter/contract/unitermessage.h"
@@ -47,8 +46,10 @@ class MockNetwork : public QObject {
 public:
     MockNetwork() = default;
 
-    void emitConnected() { emit signalConnected(); }
-    void emitDisconnected() { emit signalDisconnected(); }
+    // ИЗМЕНЕНО: объединённые методы
+    void emitConnectionUpdated(bool state) {
+        emit signalConnectionUpdated(state);
+    }
 
     // Отправка crud сообщения
     void emitCrudMessage() {
@@ -129,8 +130,9 @@ public slots:
     };
 
 signals:
-    void signalConnected();
-    void signalDisconnected();
+    // ИЗМЕНЕНО: один объединённый сигнал
+    void signalConnectionUpdated(bool state);
+
     // Получение сообщения из сети
     void signalRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
 };
@@ -147,6 +149,10 @@ public slots:
     void onConfigProc(std::shared_ptr<contract::employees::Employee> User) {
         // Копируем User
         m_User = std::move(User);
+    }
+    void onClearResources() {
+        // Очистка ресурсов при logout
+        m_User.reset();
     }
 signals:
     void signalConfigured();
@@ -175,18 +181,6 @@ public:
         return appManager_;
     }
 
-    // Доступ к состоянию приложения через friend-функции или рефлексию
-    // Поскольку AState и NState protected, нужен альтернативный подход
-
-    // ВАРИАНТ 1: Использовать сигналы для проверки состояний
-    // ВАРИАНТ 2: Сделать AppManagerTesting friend-классом в appmanager.h
-    // ВАРИАНТ 3: Добавить публичные геттеры в AppManager для тестов
-
-    // Временное решение: проверяем состояния через сигналы и поведение
-    // Для полноценных тестов нужно либо:
-    // 1. Добавить в appmanager.h: friend class appmanagertest::AppManagerTesting;
-    // 2. Или добавить #ifdef UNIT_TESTS с публичными геттерами
-
     void start_run() {
         appManager_->start_run();
     }
@@ -207,6 +201,8 @@ public:
                          appManager_, &control::AppManager::onConfigured);
         QObject::connect(appManager_, &control::AppManager::signalConfigProc,
                          mock, &MockConfigManager::onConfigProc);
+        QObject::connect(appManager_, &control::AppManager::signalClearResources,
+                         mock, &MockConfigManager::onClearResources);
     }
 };
 
@@ -240,10 +236,10 @@ protected:
                          mockNetwork.get(), &MockNetwork::onMakeConnection);
         QObject::connect(mockNetwork.get(), &MockNetwork::signalRecvUniterMessage,
                          appManager->get(), &control::AppManager::onRecvUniterMessage);
-        QObject::connect(mockNetwork.get(), &MockNetwork::signalConnected,
-                         appManager->get(), &control::AppManager::onConnected);
-        QObject::connect(mockNetwork.get(), &MockNetwork::signalDisconnected,
-                         appManager->get(), &control::AppManager::onDisconnected);
+
+        // ИЗМЕНЕНО: один объединённый connect вместо двух
+        QObject::connect(mockNetwork.get(), &MockNetwork::signalConnectionUpdated,
+                         appManager->get(), &control::AppManager::onConnectionUpdated);
 
 
         // appmanager и виджет аутентификации
@@ -265,7 +261,7 @@ protected:
 };
 
 // ============================================================================
-// ТЕСТЫ: изменены проверки состояний (теперь через сигналы)
+// ТЕСТЫ: изменены вызовы с emitConnected/emitDisconnected на emitConnectionUpdated
 // ============================================================================
 
 // Базовый прогон FSM + подключение/отключение сети
@@ -284,46 +280,44 @@ TEST_F(AppManagerTest, BasicFSM) {
     // 4. Проверка STARTED состояния через сигнал подключения
     EXPECT_EQ(spyMakeConnection.count(), 1);
 
-    // 5. Шпион для проверки сигнала signalConnected (UI разблокировка)
-    QSignalSpy spyConnected(appManager->get(),
-                            &uniter::control::AppManager::signalConnected);
+    // 5. Шпион для проверки сигнала signalConnectionUpdated (UI разблокировка/блокировка)
+    QSignalSpy spyConnectionUpdated(appManager->get(),
+                                    &uniter::control::AppManager::signalConnectionUpdated);
     // 5.1. Шпион для проверки отправки сигнала signalFindAuthData
     QSignalSpy spyAuthRequest(appManager->get(),
                               &uniter::control::AppManager::signalFindAuthData);
 
     // 6. Симуляция успешного подключения сети
-    mockNetwork->emitConnected();
+    mockNetwork->emitConnectionUpdated(true);
 
     // 7. Проверка CONNECTED состояния через сигналы
-    EXPECT_EQ(spyConnected.count(), 1);
+    EXPECT_EQ(spyConnectionUpdated.count(), 1);
+    EXPECT_TRUE(spyConnectionUpdated.at(0).at(0).toBool()); // state == true
     EXPECT_EQ(spyAuthRequest.count(), 1);
 
-    // 8. Шпион для проверки сигнала signalDisconnected (UI блокировка)
-    QSignalSpy spyDisconnected(appManager->get(),
-                               &uniter::control::AppManager::signalDisconnected);
+    // 8. Симуляция разрыва соединения
+    mockNetwork->emitConnectionUpdated(false);
 
-    // 9. Симуляция разрыва соединения
-    mockNetwork->emitDisconnected();
+    // 9. Проверка через сигналы
+    EXPECT_EQ(spyConnectionUpdated.count(), 2);
+    EXPECT_FALSE(spyConnectionUpdated.at(1).at(0).toBool()); // state == false
 
-    // 10. Проверка через сигналы
-    EXPECT_EQ(spyDisconnected.count(), 1);
+    // 10. Повторное соединение
+    mockNetwork->emitConnectionUpdated(true);
 
-    // 11. Повторное соединение
-    mockNetwork->emitConnected();
-
-    // 12. Проверка: после установления соединения снова запрашиваются данные
+    // 11. Проверка: после установления соединения снова запрашиваются данные
     EXPECT_EQ(spyAuthRequest.count(), 2);
 
-    // 13. Разрываем соединение и отправляем authMessage
-    mockNetwork->emitDisconnected();
+    // 12. Разрываем соединение и отправляем authMessage
+    mockNetwork->emitConnectionUpdated(false);
     mockAuthWidget->emitUserData();
     QSignalSpy spySendMessage(appManager->get(),
                               &uniter::control::AppManager::signalSendUniterMessage);
 
-    // 14. Соединяем
-    mockNetwork->emitConnected();
+    // 13. Соединяем
+    mockNetwork->emitConnectionUpdated(true);
 
-    // 15. Проверка состояния и отправки сообщений
+    // 14. Проверка состояния и отправки сообщений
     EXPECT_EQ(spyAuthRequest.count(), 2);
     EXPECT_EQ(spySendMessage.count(), 1);
 }
@@ -337,7 +331,7 @@ TEST_F(AppManagerTest, badAuth) {
 
     // 1. Базовый FSM до запроса авторизации
     appManager->start_run();
-    mockNetwork->emitConnected();
+    mockNetwork->emitConnectionUpdated(true);
     mockAuthWidget->emitUserData();
 
     // 2. Проверка получения запроса
@@ -367,7 +361,7 @@ TEST_F(AppManagerTest, goodAuth) {
 
     // 1. Базовый FSM до запроса авторизации
     appManager->start_run();
-    mockNetwork->emitConnected();
+    mockNetwork->emitConnectionUpdated(true);
     mockAuthWidget->emitUserData();
 
     // 2. Проверка получения запроса сетевым классом
@@ -400,7 +394,7 @@ TEST_F(AppManagerTest, postAuthSettings) {
 
     // 1. BasicFSM → AUTHENTIFICATED
     appManager->start_run();
-    mockNetwork->emitConnected();
+    mockNetwork->emitConnectionUpdated(true);
     mockAuthWidget->emitUserData();
     mockNetwork->emitAuthSuccess();
 
