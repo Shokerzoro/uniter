@@ -9,24 +9,27 @@ target_include_directories(uniter_common
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
-target_link_libraries(uniter_common
-    PUBLIC
-        Qt6::Core
-)
+# Qt для uniter_common:
+#   Debug  → shared (DLL), Release / RelWithDebInfo → static
+if(DEVKIT_QT_DYNAMIC)
+    devkit_use_qt_shared(uniter_common Core)
+else()
+    devkit_use_qt_static(uniter_common Core)
+endif()
 
-# Логика вывода/макросов
+# devkit_finalize() нужен т.к. AUTOMOC установлен devkit_use_qt_*
+devkit_finalize(uniter_common)
+
+# Макросы отладки / релиза
 if(RELEASE AND NOT DEBUG_INFO)
-    # Чистый релиз: отключаем qDebug
     target_compile_definitions(uniter_common PRIVATE
         QT_NO_DEBUG_OUTPUT
         RELEASE_BUILD)
 elseif(RELEASE AND DEBUG_INFO)
-    # RelWithDebInfo: релизная сборка, но с дебаг-инфой и логами
     target_compile_definitions(uniter_common PRIVATE
         RELEASE_BUILD
         DEBUG_BUILD)
 else()
-    # Debug / Profile: всё дебажное включено
     target_compile_definitions(uniter_common PRIVATE
         DEBUG_BUILD)
 endif()
