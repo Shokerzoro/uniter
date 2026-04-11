@@ -33,9 +33,9 @@ target_include_directories(Uniter
 
 # Qt: Debug → shared, Release / RelWithDebInfo → static
 if(DEVKIT_QT_DYNAMIC)
-    devkit_use_qt_shared(Uniter Core Widgets Network)
+    devkit_use_qt_shared(Uniter Core Widgets Network Gui)
 else()
-    devkit_use_qt_static(Uniter Core Widgets Network)
+    devkit_use_qt_static(Uniter Core Widgets Network Gui)
 endif()
 
 # tinyxml2: Debug → shared, Release / RelWithDebInfo → static
