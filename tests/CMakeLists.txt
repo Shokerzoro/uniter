@@ -23,14 +23,17 @@ add_executable(UniterTests
 )
 
 # ─── Зависимости через DevKit ────────────────────────────────────────────────
-# Тесты всегда собираются вместе с основным проектом — режим линковки Qt
-# и tinyxml2 совпадает с таргетом Uniter.
+# ВАЖНО: все Qt-модули объединены в ОДИН вызов devkit_use_qt_*.
+# Повторный вызов devkit_use_qt_* для того же таргета порождает повторный
+# find_package(Qt6), который пытается создать уже существующий IMPORTED
+# таргет EntryPointMinGW32 — это приводит к CMake Error.
+# Qt6::Test включён сюда же, а не отдельным вызовом.
 
 if(DEVKIT_QT_DYNAMIC)
-    devkit_use_qt_shared(UniterTests Core Widgets Network)
+    devkit_use_qt_shared(UniterTests Core Widgets Network Test)
     devkit_use_tinyxml2_shared(UniterTests)
 else()
-    devkit_use_qt_static(UniterTests Core Widgets Network)
+    devkit_use_qt_static(UniterTests Core Widgets Network Test)
     devkit_use_tinyxml2_static(UniterTests)
 endif()
 
@@ -40,14 +43,6 @@ target_link_libraries(UniterTests
         GTest::gtest_main
         GTest::gmock_main
 )
-
-# Qt Test module (только shared/static, уже подключён через devkit выше,
-# но Qt6::Test нужен отдельно т.к. не входит в набор Uniter)
-if(DEVKIT_QT_DYNAMIC)
-    devkit_use_qt_shared(UniterTests Test)
-else()
-    devkit_use_qt_static(UniterTests Test)
-endif()
 
 devkit_finalize(UniterTests)
 
