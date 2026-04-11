@@ -1,27 +1,23 @@
 project(uniter_app LANGUAGES CXX)
 
-
 include(sources.cmake)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
-find_package(Qt6 REQUIRED COMPONENTS Core)
-find_package(Qt6 REQUIRED COMPONENTS Core)
-
-qt_add_executable(Uniter WIN32
+# WIN32 — скрываем консольное окно (эквивалент qt_add_executable WIN32)
+add_executable(Uniter WIN32
     main.cpp
 
-    #UI Layer
+    # UI Layer
     ${STATIC_WIDGETS_SOURCES}
     ${GENERATIVE_WIDGETS_SOURCES}
     ${DYNAMIC_WIDGETS_SOURCES}
 
-    #Data layer
+    # Data layer
     ${DATA_SOURCES}
-    #Control layer
+    # Control layer
     ${CONTROL_SOURCES}
-    #Net layer
+    # Net layer
     ${NETWORK_SOURCES}
-    #Contract (client/server)
+    # Contract (client/server)
     ${CONTRACT_SOURCES}
     contract/uniterprotocol.h
     data/idataobserver.h data/idataobserver.cpp
@@ -32,32 +28,42 @@ target_include_directories(Uniter
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
+# ─── Зависимости через DevKit ────────────────────────────────────────────────
+# uniter_common уже тянет Qt::Core через PUBLIC — здесь линкуем остальные модули.
+
+# Qt: Debug → shared, Release / RelWithDebInfo → static
+if(DEVKIT_QT_DYNAMIC)
+    devkit_use_qt_shared(Uniter Core Widgets Network)
+else()
+    devkit_use_qt_static(Uniter Core Widgets Network)
+endif()
+
+# tinyxml2: Debug → shared, Release / RelWithDebInfo → static
+if(DEVKIT_QT_DYNAMIC)
+    devkit_use_tinyxml2_shared(Uniter)
+else()
+    devkit_use_tinyxml2_static(Uniter)
+endif()
+
 target_link_libraries(Uniter
     PRIVATE
         uniter_common
-        Qt6::Core
-        Qt6::Widgets
-        Qt6::Network
-        tinyxml2
 )
 
-target_link_libraries(Uniter PRIVATE Qt6::Widgets)
-target_link_libraries(Uniter PRIVATE Qt6::Core)
-target_link_libraries(Uniter PRIVATE Qt6::Core)
+# ОБЯЗАТЕЛЬНО последним — добавляет HarfBuzz+FreeType если подключён MuPDF,
+# при наличии только Qt — просто финализирует AUTOMOC.
+devkit_finalize(Uniter)
 
-# Логика вывода/макросов
+# ─── Макросы отладки / релиза ─────────────────────────────────────────────
 if(RELEASE AND NOT DEBUG_INFO)
-    # Чистый релиз: отключаем qDebug
     target_compile_definitions(Uniter PRIVATE
         QT_NO_DEBUG_OUTPUT
         RELEASE_BUILD)
 elseif(RELEASE AND DEBUG_INFO)
-    # RelWithDebInfo: релизная сборка, но с дебаг-инфой и логами
     target_compile_definitions(Uniter PRIVATE
         RELEASE_BUILD
         DEBUG_BUILD)
 else()
-    # Debug / Profile: всё дебажное включено
     target_compile_definitions(Uniter PRIVATE
         DEBUG_BUILD)
 endif()
@@ -68,3 +74,13 @@ target_compile_definitions(Uniter PRIVATE
     PROJECT_VERSION="${PROJECT_VERSION}"
     BUILD_TIME="${BUILD_TIME}"
 )
+
+# ─── Статическая линковка runtime для Release ─────────────────────────────
+# -static-libgcc -static-libstdc++ добавляем только в Release,
+# чтобы exe не зависел от MinGW runtime DLL.
+if(NOT DEVKIT_QT_DYNAMIC)
+    target_link_options(Uniter PRIVATE
+        -static-libgcc
+        -static-libstdc++
+    )
+endif()
