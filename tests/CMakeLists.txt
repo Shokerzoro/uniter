@@ -1,42 +1,55 @@
-
-find_package(Qt6 REQUIRED COMPONENTS Core Test)
-
-set(TEST_SOURCES
-    test_main.cpp
-    appmanagertest.cpp
-)
+# Google Tests — остаётся через FetchContent (объявлен в корневом CMakeLists.txt).
+# Здесь только описываем таргет UniterTests.
 
 include(../src/uniter/sources.cmake)
 
 add_executable(UniterTests
-    ${TEST_SOURCES}
+    test_main.cpp
+    appmanagertest.cpp
 
-    #UI Layer
+    # UI Layer
     ${STATIC_WIDGETS_SOURCES}
     ${GENERATIVE_WIDGETS_SOURCES}
     ${DYNAMIC_WIDGETS_SOURCES}
 
-    #Data layer
+    # Data layer
     ${DATA_SOURCES}
-    #Control layer
+    # Control layer
     ${CONTROL_SOURCES}
-    #Net layer
+    # Net layer
     ${NETWORK_SOURCES}
-    #Contract (client/server)
+    # Contract (client/server)
     ${CONTRACT_SOURCES}
 )
 
+# ─── Зависимости через DevKit ────────────────────────────────────────────────
+# Тесты всегда собираются вместе с основным проектом — режим линковки Qt
+# и tinyxml2 совпадает с таргетом Uniter.
+
+if(DEVKIT_QT_DYNAMIC)
+    devkit_use_qt_shared(UniterTests Core Widgets Network)
+    devkit_use_tinyxml2_shared(UniterTests)
+else()
+    devkit_use_qt_static(UniterTests Core Widgets Network)
+    devkit_use_tinyxml2_static(UniterTests)
+endif()
+
 target_link_libraries(UniterTests
     PRIVATE
-    uniter_common
-    GTest::gtest_main
-    GTest::gmock_main
-    Qt6::Core
-    Qt6::Test
-    Qt6::Widgets
-    Qt6::Network
-    tinyxml2
+        uniter_common
+        GTest::gtest_main
+        GTest::gmock_main
 )
+
+# Qt Test module (только shared/static, уже подключён через devkit выше,
+# но Qt6::Test нужен отдельно т.к. не входит в набор Uniter)
+if(DEVKIT_QT_DYNAMIC)
+    devkit_use_qt_shared(UniterTests Test)
+else()
+    devkit_use_qt_static(UniterTests Test)
+endif()
+
+devkit_finalize(UniterTests)
 
 target_include_directories(UniterTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/common
