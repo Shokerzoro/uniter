@@ -163,9 +163,20 @@ void embed_main_exe_core_data()
 
     qDebug() << "Имя приложения: " << app_name;
 
-    QString version = get_reg_version();
-    QCoreApplication::setApplicationVersion(version);
+    QString version;
+    try {
+        version = get_reg_version();
+    } catch (const std::runtime_error &) {
+        // Первый запуск без установки — создаём ключ с версией по умолчанию
+        qDebug() << "Версия в реестре не найдена, создаём запись 0.0.0";
+        QString reg_key = R"(HKEY_CURRENT_USER\Software\)" + app_name;
+        QSettings reg(reg_key, QSettings::NativeFormat);
+        reg.setValue("Version", "0.0.0");
+        reg.sync();
+        version = "0.0.0";
+    }
 
+    QCoreApplication::setApplicationVersion(version);
     qDebug() << "Текущая версия: " << version;
 }
 
