@@ -60,24 +60,39 @@ enum class CrudAction : uint8_t {
     DELETE                 = 4
 };
 
-// Все протокольные действия находятся в домене Subsystem::PROTOCOL
+// Все протокольные действия находятся в домене Subsystem::PROTOCOL.
+// Полная спецификация ключей add_data для каждого действия: см. docs/add_data_convention.md
 enum class ProtocolAction : uint8_t {
     NOTPROTOCOL            = 0,
-    // Аутентификация
+    // Аутентификация.
+    // REQUEST: add_data["login", "password_hash"]; RESPONSE: resource = Employee
     AUTH                   = 1,
-    // Полная синхронизация (POLL): сервер присылает все CRUD-события подряд
+    // Полная синхронизация: сервер присылает поток CRUD CREATE через Kafka.
+    // REQUEST: нет параметров; SUCCESS: маркер завершения (нет ключей)
     FULL_SYNC              = 2,
-    // Запрос credentials для подключения к топику Kafka
+    // Запрос credentials для подключения к топику Kafka.
+    // RESPONSE: add_data["bootstrap_servers", "topic", "username", "password", "group_id"]
     GET_KAFKA_CREDENTIALS  = 3,
-    // Запрос presigned URL у основного сервера для доступа к объекту MinIO
+    // Запрос presigned URL у основного сервера для доступа к объекту MinIO.
+    // REQUEST:  add_data["object_key", "minio_operation"("GET"|"PUT")]
+    // RESPONSE: add_data["object_key", "presigned_url", "url_expires_at"]
     GET_MINIO_PRESIGNED_URL = 4,
-    // Запрос к MinIOConnector для получения (скачивания) файла по presigned URL
+    // Запрос MinIOConnector скачать файл по presigned URL.
+    // REQUEST:  add_data["presigned_url", "object_key"]; опц.: add_data["expected_sha256"]
+    // RESPONSE: add_data["object_key", "local_path"]
+    // ERROR:    add_data["object_key", "reason"]
     GET_MINIO_FILE         = 5,
-    // Поддержка обновлений: запрос наличия новой версии приложения
+    // Проверка наличия новой версии приложения.
+    // REQUEST: add_data["current_version"]; RESPONSE: add_data["update_available", "new_version", "release_notes"]
     UPDATE_CHECK           = 6,
-    // Поддержка обновлений: согласие/отказ от обновления (add_data: {"accepted": "true"|"false"})
+    // Согласие/отказ пользователя на установку. Чисто клиентское действие — на сервер не отправляется.
+    // add_data["accepted"] = "true"|"false"; UpdaterWorker при accepted=true инициирует UPDATE_DOWNLOAD
     UPDATE_CONSENT         = 7,
-    // Поддержка обновлений: получение файлов обновления (presigned URL от сервера)
+    // Получение файлов обновления.
+    // REQUEST:      add_data["version"]
+    // NOTIFICATION: каждый файл отдельным сообщением;
+    //              add_data["file_path", "presigned_url", "sha256", "file_index", "files_total", "file_size"]
+    // SUCCESS:      все файлы отправлены; add_data["version", "files_total"]
     UPDATE_DOWNLOAD        = 8,
 };
 
