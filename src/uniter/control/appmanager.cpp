@@ -291,21 +291,7 @@ namespace uniter::control {
             return;
         }
 
-        // Пересылка обычных CRUD в состоянии READY
-        if (m_appState == AppState::READY && Message->subsystem != contract::Subsystem::PROTOCOL) {
-            emit signalRecvUniterMessage(Message);
-            return;
-        }
-
-        // Протокольные сообщения в READY
-        if (m_appState == AppState::READY && Message->subsystem == contract::Subsystem::PROTOCOL) {
-            // TODO: обновление конфигурации user
-            // TODO: синхронизация
-            // TODO: удаление пользователя
-            return;
-        }
-
-        // Протокольные сообщения во время инициализации
+        // --- Сообщения подсистемы PROTOCOL во время инициализации ---
         if (m_appState != AppState::READY && Message->subsystem == contract::Subsystem::PROTOCOL) {
 
             // Ответ на аутентификацию
@@ -327,6 +313,51 @@ namespace uniter::control {
                 }
                 return;
             }
+
+            // Прочие протокольные ответы во время инициализации — игнорируем
+            return;
+        }
+
+        // --- Сообщения в состоянии READY ---
+        if (m_appState == AppState::READY) {
+
+            // Протокольные сообщения (Subsystem::PROTOCOL)
+            if (Message->subsystem == contract::Subsystem::PROTOCOL) {
+                switch (Message->protact) {
+                    case contract::ProtocolAction::GET_MINIO_PRESIGNED_URL:
+                    case contract::ProtocolAction::GET_MINIO_FILE:
+                        // TODO: маршрутизация в FileManager (реализуется в пункте 6)
+                        qDebug() << "AppManager::onRecvUniterMessage(): MinIO protocol response — routing to FileManager (not yet implemented)";
+                        break;
+
+                    case contract::ProtocolAction::GET_KAFKA_CREDENTIALS:
+                        // TODO: маршрутизация в KafkaConnector (реализуется в пункте 4/5)
+                        qDebug() << "AppManager::onRecvUniterMessage(): Kafka credentials response (not yet implemented)";
+                        break;
+
+                    case contract::ProtocolAction::FULL_SYNC:
+                        // TODO: инициировать FULL_SYNC в DataManager (реализуется в пункте 4)
+                        qDebug() << "AppManager::onRecvUniterMessage(): FULL_SYNC protocol message (not yet implemented)";
+                        break;
+
+                    case contract::ProtocolAction::UPDATE_CHECK:
+                    case contract::ProtocolAction::UPDATE_CONSENT:
+                    case contract::ProtocolAction::UPDATE_DOWNLOAD:
+                        // TODO: маршрутизация в UpdaterWorker (реализуется в пункте 5)
+                        qDebug() << "AppManager::onRecvUniterMessage(): Update protocol message (not yet implemented)";
+                        break;
+
+                    default:
+                        // TODO: обновление конфигурации user, удаление пользователя
+                        qDebug() << "AppManager::onRecvUniterMessage(): unhandled PROTOCOL action in READY state";
+                        break;
+                }
+                return;
+            }
+
+            // Все остальные подсистемы (CRUD) — пересылаем в DataManager
+            emit signalRecvUniterMessage(Message);
+            return;
         }
     }
 
@@ -345,14 +376,7 @@ namespace uniter::control {
             return;
         }
 
-        // Протокольные сообщения в READY
-        if (m_appState == AppState::READY && Message->subsystem == contract::Subsystem::PROTOCOL) {
-            // TODO: обработка изменения конфига
-            // TODO: обработка выхода
-            return;
-        }
-
-        // Обработка запроса аутентификации
+        // Обработка запроса аутентификации (до READY)
         if (Message->subsystem == contract::Subsystem::PROTOCOL &&
             Message->protact == contract::ProtocolAction::AUTH &&
             Message->status == contract::MessageStatus::REQUEST) {

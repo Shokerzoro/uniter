@@ -37,6 +37,12 @@ public:
     std::shared_ptr<contract::ResourceAbstract> resource;
     std::map<QString, QString> add_data;
 
+    // Поля для операций с MinIO (Subsystem::PROTOCOL + GET_MINIO_PRESIGNED_URL / GET_MINIO_FILE)
+    // minio_object_key  — ключ объекта в MinIO (путь внутри bucket-а)
+    // minio_presigned_url — временный presigned URL, полученный от основного сервера
+    std::optional<QString> minio_object_key;
+    std::optional<QString> minio_presigned_url;
+
     // Сериализация десериализция
     void to_xml(tinyxml2::XMLElement* xmlel) const;
     void form_xml(tinyxml2::XMLElement* xmlel);
