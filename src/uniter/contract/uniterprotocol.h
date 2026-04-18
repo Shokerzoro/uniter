@@ -23,55 +23,28 @@ enum class GenSubsystemType : uint8_t {
     INTERGATION             = 2,
 };
 
-// ResourceType описывает тип ресурса внутри UniterMessage.
-// Контекст использования зависит от подсистемы:
-//
-//  Subsystem::MANAGER    — EMPLOYEES, PRODUCTION, INTEGRATION
-//  Subsystem::DESIGN     — PROJECT, ASSEMBLY, PART
-//  Subsystem::PURCHASES  — PURCHASE_GROUP, PURCHASE
-//  Subsystem::PDM        — SNAPSHOT, DELTA
-//  Subsystem::INSTANCES  — MATERIAL_INSTANCE
-//  Subsystem::MATERIALS  — (используется resource напрямую, ResourceType::DEFAULT)
-//
-//  Subsystem::GENERATIVE + GenSubsystem::PRODUCTION:
-//    PRODUCTION_TASK     — производственное задание внутри конкретного производства
-//    MATERIAL_INSTANCE   — позиция виртуального склада производства
-//                          (CREATE/UPDATE/DELETE управляют запасами на складе)
-//
-//  Subsystem::GENERATIVE + GenSubsystem::INTERGATION:
-//    INTEGRATION_TASK    — задание интеграционной подсистемы
-//    MATERIAL_INSTANCE   — позиция склада интеграции (по аналогии с PRODUCTION)
 enum class ResourceType : uint8_t {
     DEFAULT                 = 0,
-
-    // --- Subsystem::MANAGER ---
-    // PRODUCTION и INTEGRATION — генеративные ресурсы: их создание порождает
-    // новую подсистему (GenSubsystem::PRODUCTION / INTERGATION) с уникальным GenSubsystemId
+    // --- MANAGER ---
     EMPLOYEES               = 10,
     PRODUCTION              = 11,
     INTEGRATION             = 12,
-
-    // --- Subsystem::DESIGN ---
+    // --- DESIGN ---
     PROJECT                 = 20,
     ASSEMBLY                = 21,
     PART                    = 22,
-
-    // --- Subsystem::PURCHASES ---
-    PURCHASE_GROUP          = 30,   // Комплексная заявка (ссылки на несколько PURCHASE)
-    PURCHASE                = 31,   // Закупочная заявка (ProcurementRequest)
-
-    // --- Subsystem::PDM ---
+    // --- PURCHASES ---
+    PURCHASE_GROUP          = 30,
+    PURCHASE                = 31,
+    // --- PDM ---
     SNAPSHOT                = 40,
     DELTA                   = 41,
-
-    // --- Subsystem::INSTANCES ---
-    // Также используется в GENERATIVE-подсистемах как позиция виртуального склада
+    // --- INSTANCES ---
     MATERIAL_INSTANCE       = 50,
 
-    // --- Subsystem::GENERATIVE + GenSubsystem::PRODUCTION ---
+    // --- PRODUCTION
     PRODUCTION_TASK         = 60,
-
-    // --- Subsystem::GENERATIVE + GenSubsystem::INTERGATION ---
+    // --- INTEGRATION
     INTEGRATION_TASK        = 70,
 };
 
@@ -203,8 +176,6 @@ inline QDebug operator<<(QDebug debug, ResourceType type) {
     case ResourceType::SNAPSHOT:          debug.nospace() << "SNAPSHOT"; break;
     case ResourceType::DELTA:             debug.nospace() << "DELTA"; break;
     case ResourceType::MATERIAL_INSTANCE: debug.nospace() << "MATERIAL_INSTANCE"; break;
-    case ResourceType::PRODUCTION_TASK:   debug.nospace() << "PRODUCTION_TASK"; break;
-    case ResourceType::INTEGRATION_TASK:  debug.nospace() << "INTEGRATION_TASK"; break;
     default: debug.nospace() << "Unknown(" << static_cast<int>(type) << ")";
     }
     return debug;
