@@ -7,49 +7,45 @@
 namespace uniter::contract {
 
 enum class Subsystem : uint8_t {
-    PROTOCOL               = 0,
-    MATERIALS              = 1,
-    DESIGN                 = 2,
-    PURCHASES              = 3,
-    MANAGER                = 4,
-    GENERATIVE             = 5,
-    INSTANCES              = 6,
-    PDM                    = 7
+    PROTOCOL                = 0,
+    MATERIALS               = 1,
+    DESIGN                  = 2,
+    PURCHASES               = 3,
+    MANAGER                 = 4,
+    GENERATIVE              = 5,
+    INSTANCES               = 6,
+    PDM                     = 7
 };
 
 enum class GenSubsystemType : uint8_t {
-    NOTGEN                 = 0,
-    PRODUCTION             = 1,
-    INTERGATION            = 2,
+    NOTGEN                  = 0,
+    PRODUCTION              = 1,
+    INTERGATION             = 2,
 };
 
 enum class ResourceType : uint8_t {
-    // --- Общие ---
-    DEFAULT,
-
+    DEFAULT                 = 0,
     // --- MANAGER ---
-    EMPLOYEES,
-
-    // --- GENERATIVE ---
-    PRODUCTION,
-    INTEGRATION,
-
-    // --- PURCHASES ---
-    PURCHASE_GROUP,    // Комплексная закупочная заявка (ссылки на несколько ProcurementRequest)
-
-    PURCHASE,
-
+    EMPLOYEES               = 10,
+    PRODUCTION              = 11,
+    INTEGRATION             = 12,
     // --- DESIGN ---
-    PROJECT,
-    ASSEMBLY,
-    PART,
-
+    PROJECT                 = 20,
+    ASSEMBLY                = 21,
+    PART                    = 22,
+    // --- PURCHASES ---
+    PURCHASE_GROUP          = 30,
+    PURCHASE                = 31,
     // --- PDM ---
-    SNAPSHOT,
-    DELTA,
-
+    SNAPSHOT                = 40,
+    DELTA                   = 41,
     // --- INSTANCES ---
-    MATERIAL_INSTANCE
+    MATERIAL_INSTANCE       = 50,
+
+    // --- PRODUCTION
+    PRODUCTION_TASK         = 60,
+    // --- INTEGRATION
+    INTEGRATION_TASK        = 70,
 };
 
 enum class CrudAction : uint8_t {
@@ -101,7 +97,6 @@ enum class MessageStatus : uint8_t {
     RESPONSE               = 1,
     ERROR                  = 2,
     NOTIFICATION           = 3,
-    // Подтверждение успешного выполнения собственной CUD-операции (из Kafka)
     SUCCESS                = 4
 };
 

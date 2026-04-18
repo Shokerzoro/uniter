@@ -32,6 +32,11 @@ set(DYNAMIC_WIDGETS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/widgets_dynamic/dynamicwidget.h
 )
 
+set(BLOGIC_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/blogic/pdmmanager.h
+    ${CMAKE_CURRENT_LIST_DIR}/blogic/erpmanager.h
+)
+
 
 set(DATA_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/data/datamanager.h

@@ -10,7 +10,8 @@ add_executable(Uniter WIN32
     ${STATIC_WIDGETS_SOURCES}
     ${GENERATIVE_WIDGETS_SOURCES}
     ${DYNAMIC_WIDGETS_SOURCES}
-
+    #BUSYNESS LOGIC LAYER
+    ${BLOGIC_SOURCES}
     # Data layer
     ${DATA_SOURCES}
     # Control layer
@@ -21,6 +22,8 @@ add_executable(Uniter WIN32
     ${CONTRACT_SOURCES}
     contract/uniterprotocol.h
     data/idataobserver.h data/idataobserver.cpp
+        blogic/pdmmanager.h
+        blogic/erpmanager.h
 )
 
 target_include_directories(Uniter
