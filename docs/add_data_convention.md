@@ -173,4 +173,58 @@ add_data:
 2. Значения — всегда `QString`. Числа сериализуются `QString::number(x)`,
    булевы — `"true"` / `"false"`.
 3. Отсутствующий необязательный ключ означает "не указано" — не ошибка.
-4. При получении сообщения — проверять наличие обязательных ключей перед `operator[]`.
+
+---
+
+## Subsystem::GENERATIVE — CRUD на ресурсах генеративных подсистем
+
+Контекст сообщения определяется тройкой: `subsystem=GENERATIVE`, `GenSubsystem`, `GenSubsystemId`.
+
+### Создание генеративной подсистемы (Subsystem::MANAGER)
+
+```
+subsystem=MANAGER, crudact=CREATE, resource_type=PRODUCTION | INTEGRATION
+```
+Сервер возвращает ресурс с заполненным `id`. Kafka рассылает NOTIFICATION всем участникам.
+DataManager регистрирует новую подсистему, ConfigManager генерирует вкладку UI.
+
+---
+
+### GenSubsystem::PRODUCTION
+
+**Производственное задание (`PRODUCTION_TASK`):**
+```
+subsystem=GENERATIVE, GenSubsystem=PRODUCTION, GenSubsystemId=<id>
+crudact=CREATE|UPDATE|DELETE, resource_type=PRODUCTION_TASK
+```
+Опциональные ключи `add_data` при CREATE:
+
+| Ключ | Значение |
+|------|---------|
+| `"snapshot_id"` | ID снимка PDM::Snapshot, из которого берётся состав |
+| `"snapshot_version"` | Версия снимка |
+
+**Позиция склада (`PRODUCTION_STOCK`):**
+
+`ProductionStock` — отдельный ресурс, содержащий ссылку на `MaterialInstance` по id и количество.
+Хранится в таблице `production_stock(id, production_id, material_instance_id, quantity)`.
+
+```
+subsystem=GENERATIVE, GenSubsystem=PRODUCTION, GenSubsystemId=<id>
+crudact=CREATE|UPDATE|DELETE, resource_type=PRODUCTION_STOCK
+resource = ProductionStock { id, material_instance_id, quantity }
+```
+`add_data = {}`
+
+---
+
+### GenSubsystem::INTERGATION
+
+Подсистема интеграции не содержит склада материалов.
+Единственный ресурс — `INTEGRATION_TASK`, описывающий что и с кем интегрируется.
+
+```
+subsystem=GENERATIVE, GenSubsystem=INTERGATION, GenSubsystemId=<id>
+crudact=CREATE|UPDATE|DELETE, resource_type=INTEGRATION_TASK
+```
+`add_data = {}`

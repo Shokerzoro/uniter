@@ -24,28 +24,39 @@ enum class GenSubsystemType : uint8_t {
 };
 
 enum class ResourceType : uint8_t {
-    DEFAULT                 = 0,
-    // --- MANAGER ---
-    EMPLOYEES               = 10,
-    PRODUCTION              = 11,
-    INTEGRATION             = 12,
-    // --- DESIGN ---
-    PROJECT                 = 20,
-    ASSEMBLY                = 21,
-    PART                    = 22,
-    // --- PURCHASES ---
-    PURCHASE_GROUP          = 30,
-    PURCHASE                = 31,
-    // --- PDM ---
-    SNAPSHOT                = 40,
-    DELTA                   = 41,
-    // --- INSTANCES ---
-    MATERIAL_INSTANCE       = 50,
+    DEFAULT                  = 0,
 
-    // --- PRODUCTION
-    PRODUCTION_TASK         = 60,
-    // --- INTEGRATION
-    INTEGRATION_TASK        = 70,
+    // --- Subsystem::MANAGER ---
+    EMPLOYEES                = 10,
+    PRODUCTION               = 11,   // Генеративный: создание порождает GenSubsystem::PRODUCTION
+    INTEGRATION              = 12,   // Генеративный: создание порождает GenSubsystem::INTERGATION
+
+    // --- Subsystem::MATERIALS ---
+    MATERIAL_TEMPLATE_SIMPLE    = 20,
+    MATERIAL_TEMPLATE_COMPOSITE = 21,
+
+    // --- Subsystem::DESIGN ---
+    PROJECT                  = 30,
+    ASSEMBLY                 = 31,
+    PART                     = 32,
+
+    // --- Subsystem::PURCHASES ---
+    PURCHASE_GROUP           = 40,   // Комплексная заявка
+    PURCHASE                 = 41,   // ProcurementRequest
+
+    // --- Subsystem::PDM ---
+    SNAPSHOT                 = 50,
+    DELTA                    = 51,
+
+    // --- Subsystem::INSTANCES ---
+    MATERIAL_INSTANCE        = 60,
+
+    // --- Subsystem::GENERATIVE + GenSubsystem::PRODUCTION ---
+    PRODUCTION_TASK          = 70,
+    PRODUCTION_STOCK         = 71,   // Позиция склада: ссылка на MaterialInstance + количество
+
+    // --- Subsystem::GENERATIVE + GenSubsystem::INTERGATION ---
+    INTEGRATION_TASK         = 80,
 };
 
 enum class CrudAction : uint8_t {
@@ -164,18 +175,23 @@ inline QDebug operator<<(QDebug debug, GenSubsystemType type) {
 inline QDebug operator<<(QDebug debug, ResourceType type) {
     QDebugStateSaver saver(debug);
     switch(type) {
-    case ResourceType::DEFAULT:           debug.nospace() << "DEFAULT"; break;
-    case ResourceType::EMPLOYEES:         debug.nospace() << "EMPLOYEES"; break;
-    case ResourceType::PRODUCTION:        debug.nospace() << "PRODUCTION"; break;
-    case ResourceType::INTEGRATION:       debug.nospace() << "INTEGRATION"; break;
-    case ResourceType::PURCHASE_GROUP:    debug.nospace() << "PURCHASE_GROUP"; break;
-    case ResourceType::PURCHASE:          debug.nospace() << "PURCHASE"; break;
-    case ResourceType::PROJECT:           debug.nospace() << "PROJECT"; break;
-    case ResourceType::ASSEMBLY:          debug.nospace() << "ASSEMBLY"; break;
-    case ResourceType::PART:              debug.nospace() << "PART"; break;
-    case ResourceType::SNAPSHOT:          debug.nospace() << "SNAPSHOT"; break;
-    case ResourceType::DELTA:             debug.nospace() << "DELTA"; break;
-    case ResourceType::MATERIAL_INSTANCE: debug.nospace() << "MATERIAL_INSTANCE"; break;
+    case ResourceType::DEFAULT:                      debug.nospace() << "DEFAULT"; break;
+    case ResourceType::EMPLOYEES:                    debug.nospace() << "EMPLOYEES"; break;
+    case ResourceType::PRODUCTION:                   debug.nospace() << "PRODUCTION"; break;
+    case ResourceType::INTEGRATION:                  debug.nospace() << "INTEGRATION"; break;
+    case ResourceType::MATERIAL_TEMPLATE_SIMPLE:     debug.nospace() << "MATERIAL_TEMPLATE_SIMPLE"; break;
+    case ResourceType::MATERIAL_TEMPLATE_COMPOSITE:  debug.nospace() << "MATERIAL_TEMPLATE_COMPOSITE"; break;
+    case ResourceType::PROJECT:                      debug.nospace() << "PROJECT"; break;
+    case ResourceType::ASSEMBLY:                     debug.nospace() << "ASSEMBLY"; break;
+    case ResourceType::PART:                         debug.nospace() << "PART"; break;
+    case ResourceType::PURCHASE_GROUP:               debug.nospace() << "PURCHASE_GROUP"; break;
+    case ResourceType::PURCHASE:                     debug.nospace() << "PURCHASE"; break;
+    case ResourceType::SNAPSHOT:                     debug.nospace() << "SNAPSHOT"; break;
+    case ResourceType::DELTA:                        debug.nospace() << "DELTA"; break;
+    case ResourceType::MATERIAL_INSTANCE:            debug.nospace() << "MATERIAL_INSTANCE"; break;
+    case ResourceType::PRODUCTION_TASK:              debug.nospace() << "PRODUCTION_TASK"; break;
+    case ResourceType::PRODUCTION_STOCK:             debug.nospace() << "PRODUCTION_STOCK"; break;
+    case ResourceType::INTEGRATION_TASK:             debug.nospace() << "INTEGRATION_TASK"; break;
     default: debug.nospace() << "Unknown(" << static_cast<int>(type) << ")";
     }
     return debug;
