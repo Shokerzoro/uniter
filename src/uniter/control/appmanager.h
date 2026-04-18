@@ -66,6 +66,19 @@
         // Основной метод перехода между состояниями
         void ProcessEvent(Events event);
 
+        // Маршрутизация входящих сообщений — внутренние обработчики
+        // Протокольные сообщения на этапе инициализации (до READY):
+        //   единственное допустимое действие — ответ на AUTH
+        void handleInitProtocolMessage(std::shared_ptr<contract::UniterMessage> message);
+
+        // Протокольные сообщения в рабочем состоянии (READY):
+        //   MinIO presigned URL, MinIO file download, Kafka credentials, FULL_SYNC, обновления
+        void handleReadyProtocolMessage(std::shared_ptr<contract::UniterMessage> message);
+
+        // CRUD-сообщения в рабочем состоянии (READY):
+        //   пересылка в DataManager (NOTIFICATION, SUCCESS, RESPONSE)
+        void handleReadyCrudMessage(std::shared_ptr<contract::UniterMessage> message);
+
     public:
         // Публичный статический метод получения экземпляра
         static AppManager* instance();

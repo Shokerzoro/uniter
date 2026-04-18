@@ -33,9 +33,10 @@ enum class ResourceType : uint8_t {
     // --- GENERATIVE ---
     PRODUCTION,
     INTEGRATION,
-    GROUP,
 
     // --- PURCHASES ---
+    PURCHASE_GROUP,    // Комплексная закупочная заявка (ссылки на несколько ProcurementRequest)
+
     PURCHASE,
 
     // --- DESIGN ---
@@ -157,7 +158,7 @@ inline QDebug operator<<(QDebug debug, ResourceType type) {
     case ResourceType::EMPLOYEES:         debug.nospace() << "EMPLOYEES"; break;
     case ResourceType::PRODUCTION:        debug.nospace() << "PRODUCTION"; break;
     case ResourceType::INTEGRATION:       debug.nospace() << "INTEGRATION"; break;
-    case ResourceType::GROUP:             debug.nospace() << "GROUP"; break;
+    case ResourceType::PURCHASE_GROUP:    debug.nospace() << "PURCHASE_GROUP"; break;
     case ResourceType::PURCHASE:          debug.nospace() << "PURCHASE"; break;
     case ResourceType::PROJECT:           debug.nospace() << "PROJECT"; break;
     case ResourceType::ASSEMBLY:          debug.nospace() << "ASSEMBLY"; break;

@@ -282,83 +282,100 @@ namespace uniter::control {
         ProcessEvent(Events::SHUTDOWN);
     }
 
-    // Маршрутизация входящих сообщений
+    // Маршрутизация входящих сообщений — публичный вход
     void AppManager::onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message)
     {
-        // Проверяем состояние сети
         if (m_netState == NetState::OFFLINE) {
             qDebug() << "AppManager::onRecvUniterMessage(): ignoring message in OFFLINE state";
             return;
         }
 
-        // --- Сообщения подсистемы PROTOCOL во время инициализации ---
         if (m_appState != AppState::READY && Message->subsystem == contract::Subsystem::PROTOCOL) {
-
-            // Ответ на аутентификацию
-            if (m_appState == AppState::CONNECTED &&
-                Message->protact == contract::ProtocolAction::AUTH &&
-                Message->status == contract::MessageStatus::RESPONSE) {
-
-                if (Message->error == contract::ErrorCode::SUCCESS && Message->resource) {
-                    m_user = std::dynamic_pointer_cast<contract::employees::Employee>(Message->resource);
-                    qDebug() << "AppManager::onRecvUniterMessage(): authentication successful";
-
-                    ProcessEvent(Events::AUTH_SUCCESS);
-                    return;
-
-                } else if (Message->error == contract::ErrorCode::BAD_REQUEST) {
-                    qDebug() << "AppManager::onRecvUniterMessage(): authentication failed";
-                    // Остаемся в CONNECTED, только уведомляем UI
-                    emit signalAuthed(false);
-                }
-                return;
-            }
-
-            // Прочие протокольные ответы во время инициализации — игнорируем
+            handleInitProtocolMessage(Message);
             return;
         }
 
-        // --- Сообщения в состоянии READY ---
         if (m_appState == AppState::READY) {
-
-            // Протокольные сообщения (Subsystem::PROTOCOL)
             if (Message->subsystem == contract::Subsystem::PROTOCOL) {
-                switch (Message->protact) {
-                    case contract::ProtocolAction::GET_MINIO_PRESIGNED_URL:
-                    case contract::ProtocolAction::GET_MINIO_FILE:
-                        // TODO: маршрутизация в FileManager (реализуется в пункте 6)
-                        qDebug() << "AppManager::onRecvUniterMessage(): MinIO protocol response — routing to FileManager (not yet implemented)";
-                        break;
-
-                    case contract::ProtocolAction::GET_KAFKA_CREDENTIALS:
-                        // TODO: маршрутизация в KafkaConnector (реализуется в пункте 4/5)
-                        qDebug() << "AppManager::onRecvUniterMessage(): Kafka credentials response (not yet implemented)";
-                        break;
-
-                    case contract::ProtocolAction::FULL_SYNC:
-                        // TODO: инициировать FULL_SYNC в DataManager (реализуется в пункте 4)
-                        qDebug() << "AppManager::onRecvUniterMessage(): FULL_SYNC protocol message (not yet implemented)";
-                        break;
-
-                    case contract::ProtocolAction::UPDATE_CHECK:
-                    case contract::ProtocolAction::UPDATE_CONSENT:
-                    case contract::ProtocolAction::UPDATE_DOWNLOAD:
-                        // TODO: маршрутизация в UpdaterWorker (реализуется в пункте 5)
-                        qDebug() << "AppManager::onRecvUniterMessage(): Update protocol message (not yet implemented)";
-                        break;
-
-                    default:
-                        // TODO: обновление конфигурации user, удаление пользователя
-                        qDebug() << "AppManager::onRecvUniterMessage(): unhandled PROTOCOL action in READY state";
-                        break;
-                }
-                return;
+                handleReadyProtocolMessage(Message);
+            } else {
+                handleReadyCrudMessage(Message);
             }
+        }
+    }
 
-            // Все остальные подсистемы (CRUD) — пересылаем в DataManager
-            emit signalRecvUniterMessage(Message);
+    // Протокольные сообщения на этапе инициализации (до READY).
+    // Единственное допустимое действие здесь — ответ на AUTH.
+    // Все прочие протокольные сообщения до READY игнорируются.
+    void AppManager::handleInitProtocolMessage(std::shared_ptr<contract::UniterMessage> message)
+    {
+        if (m_appState == AppState::CONNECTED &&
+            message->protact == contract::ProtocolAction::AUTH &&
+            message->status == contract::MessageStatus::RESPONSE) {
+
+            if (message->error == contract::ErrorCode::SUCCESS && message->resource) {
+                m_user = std::dynamic_pointer_cast<contract::employees::Employee>(message->resource);
+                qDebug() << "AppManager::handleInitProtocolMessage(): authentication successful";
+                ProcessEvent(Events::AUTH_SUCCESS);
+            } else if (message->error == contract::ErrorCode::BAD_REQUEST) {
+                qDebug() << "AppManager::handleInitProtocolMessage(): authentication failed";
+                emit signalAuthed(false);
+            }
             return;
         }
+
+        qDebug() << "AppManager::handleInitProtocolMessage(): unexpected protocol message before READY, ignoring"
+                 << "protact=" << message->protact;
+    }
+
+    // Протокольные сообщения в рабочем состоянии (READY):
+    // MinIO presigned URL, MinIO file download, Kafka credentials, FULL_SYNC, обновления.
+    void AppManager::handleReadyProtocolMessage(std::shared_ptr<contract::UniterMessage> message)
+    {
+        switch (message->protact) {
+            case contract::ProtocolAction::GET_MINIO_PRESIGNED_URL:
+                // Ответ от ServerConnector: add_data["presigned_url"] содержит временный URL.
+                // TODO: маршрутизация в FileManager (реализуется в пункте 6)
+                qDebug() << "AppManager::handleReadyProtocolMessage(): GET_MINIO_PRESIGNED_URL response — routing to FileManager (not yet implemented)";
+                break;
+
+            case contract::ProtocolAction::GET_MINIO_FILE:
+                // Ответ/подтверждение от MinIOConnector: файл скачан (status=RESPONSE) или ошибка (status=ERROR).
+                // TODO: маршрутизация в FileManager (реализуется в пункте 6)
+                qDebug() << "AppManager::handleReadyProtocolMessage(): GET_MINIO_FILE response — routing to FileManager (not yet implemented)";
+                break;
+
+            case contract::ProtocolAction::GET_KAFKA_CREDENTIALS:
+                // Ответ от ServerConnector: add_data содержит bootstrap_servers, topic, username, password.
+                // TODO: маршрутизация в KafkaConnector (реализуется в пункте 4/5)
+                qDebug() << "AppManager::handleReadyProtocolMessage(): GET_KAFKA_CREDENTIALS response (not yet implemented)";
+                break;
+
+            case contract::ProtocolAction::FULL_SYNC:
+                // Сигнал от ServerConnector, что FULL_SYNC завершён — DataManager переходит в LOADED.
+                // TODO: инициировать переход DB_LOADED в FSM (реализуется в пункте 4)
+                qDebug() << "AppManager::handleReadyProtocolMessage(): FULL_SYNC complete (not yet implemented)";
+                break;
+
+            case contract::ProtocolAction::UPDATE_CHECK:
+            case contract::ProtocolAction::UPDATE_CONSENT:
+            case contract::ProtocolAction::UPDATE_DOWNLOAD:
+                // TODO: маршрутизация в UpdaterWorker (реализуется в пункте 5)
+                qDebug() << "AppManager::handleReadyProtocolMessage(): Update protocol message (not yet implemented)";
+                break;
+
+            default:
+                qDebug() << "AppManager::handleReadyProtocolMessage(): unhandled PROTOCOL action"
+                         << "protact=" << message->protact;
+                break;
+        }
+    }
+
+    // CRUD-сообщения в рабочем состоянии (READY):
+    // Пересылка в DataManager: входящие NOTIFICATION (Kafka), SUCCESS (Kafka), RESPONSE (ServerConnector).
+    void AppManager::handleReadyCrudMessage(std::shared_ptr<contract::UniterMessage> message)
+    {
+        emit signalRecvUniterMessage(message);
     }
 
     // Маршрутизация исходящих сообщений

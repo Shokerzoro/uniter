@@ -16,6 +16,7 @@ namespace uniter::contract {
 class UniterMessage {
 public:
     UniterMessage() = default;
+
     // Метаданные
     uint32_t version;
     QDateTime timestamp;
@@ -35,15 +36,17 @@ public:
 
     // Ресурсы и данные
     std::shared_ptr<contract::ResourceAbstract> resource;
+
+    // Произвольные данные в виде key-value пар.
+    // Используется для передачи параметров протокольных операций, например:
+    //   GET_MINIO_PRESIGNED_URL (request):  add_data["object_key"] = "<MinIO object key>"
+    //   GET_MINIO_PRESIGNED_URL (response): add_data["presigned_url"] = "<временный URL>"
+    //   GET_MINIO_FILE (request):           add_data["presigned_url"] = "<URL для скачивания>"
+    //   GET_KAFKA_CREDENTIALS (response):   add_data["bootstrap_servers"], add_data["topic"], add_data["username"], add_data["password"]
+    //   UPDATE_CONSENT:                     add_data["accepted"] = "true" | "false"
     std::map<QString, QString> add_data;
 
-    // Поля для операций с MinIO (Subsystem::PROTOCOL + GET_MINIO_PRESIGNED_URL / GET_MINIO_FILE)
-    // minio_object_key  — ключ объекта в MinIO (путь внутри bucket-а)
-    // minio_presigned_url — временный presigned URL, полученный от основного сервера
-    std::optional<QString> minio_object_key;
-    std::optional<QString> minio_presigned_url;
-
-    // Сериализация десериализция
+    // Сериализация / десериализация
     void to_xml(tinyxml2::XMLElement* xmlel) const;
     void form_xml(tinyxml2::XMLElement* xmlel);
 };
