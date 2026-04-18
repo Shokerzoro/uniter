@@ -1,26 +1,31 @@
 #ifndef PURCHASE_H
 #define PURCHASE_H
 
-#include "../materialinstance/materialinstancebase.h"
 #include "../resourceabstract.h"
 #include <tinyxml2.h>
 #include <QString>
 #include <cstdint>
+#include <optional>
 
 namespace uniter::contract::supply {
 
 enum class PurchStatus : uint8_t {
-    DRAFT = 0,                  // Черновик (редактируется)
-    PLACED = 1,                 // Заказано (отправлено поставщику)
-    CANCELLED = 2               // Отменено
+    DRAFT     = 0, // Черновик (редактируется)
+    PLACED    = 1, // Заказано (отправлено поставщику)
+    CANCELLED = 2  // Отменено
 };
 
+/**
+ * @brief Закупочная заявка (простая).
+ *
+ * По принципу реляционной БД связь с MaterialInstance хранится через
+ * `material_instance_id` (FK), а не raw pointer — это исключает висячие
+ * ссылки и упрощает маппинг на таблицу `purchases`.
+ */
 class Purchase : public ResourceAbstract {
 public:
-    // Default конструктор
     Purchase() = default;
 
-    // Полный конструктор - точно соответствует базовому классу
     Purchase(
         uint64_t s_id,
         bool actual,
@@ -28,29 +33,29 @@ public:
         const QDateTime& s_updated_at,
         uint64_t s_created_by,
         uint64_t s_updated_by,
-        const QString& name,
-        const QString& description,
-        PurchStatus status,
-        const MaterialInstanceBase* material
-        ) : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),  // ✅ 6 параметров!
-        name(name),
-        description(description),
-        status(status),
-        material(material)
+        QString name_,
+        QString description_,
+        PurchStatus status_,
+        std::optional<uint64_t> material_instance_id_)
+        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
+          name(std::move(name_)),
+          description(std::move(description_)),
+          status(status_),
+          material_instance_id(material_instance_id_)
     {}
 
-    QString name;
-    QString description;
-    PurchStatus status;
-    const MaterialInstanceBase* material;
+    QString                  name;
+    QString                  description;
+    PurchStatus              status = PurchStatus::DRAFT;
+    std::optional<uint64_t>  material_instance_id;   // FK → material_instances.id
 
-    // Сериализация
+    // Каскадная сериализация
     void from_xml(tinyxml2::XMLElement* source) override;
     void to_xml(tinyxml2::XMLElement* dest) override;
 };
 
 
-} // supply
+} // namespace uniter::contract::supply
 
 
 #endif // PURCHASE_H

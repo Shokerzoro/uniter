@@ -1,28 +1,55 @@
 #ifndef ASSEMBLY_H
 #define ASSEMBLY_H
 
-#include "../materialinstance/materialinstancebase.h"
 #include "../resourceabstract.h"
-#include "fileversion.h"
-#include "part.h"
+#include "designtypes.h"
 
 #include <tinyxml2.h>
 #include <QString>
+#include <cstdint>
 #include <optional>
 #include <vector>
-#include <map>
 
 namespace uniter::contract::design {
 
-class AssemblyReference;
-
-enum class AssemblyType : uint8_t {
-    REAL    = 0,      // Реальная сборка (найдена спецификация)
-    VIRTUAL = 1    // Виртуальная сборка (спецификация не обнаружена)
+/**
+ * @brief Ссылка на дочернюю сборку (связь N:M parent Assembly → child Assembly).
+ *
+ * Соответствует таблице `assembly_children` (см. docs/pdm_design_architecture.md §1.3).
+ * Одна запись = одно вхождение дочерней сборки в родительскую с указанием
+ * количества и исполнения (config).
+ */
+struct AssemblyChildRef {
+    uint64_t child_assembly_id = 0;  // FK → assemblies.id
+    uint32_t quantity          = 1;  // Количество вхождений
+    QString  config;                 // Идентификатор исполнения ("01", "02", ... или пусто)
 };
 
+/**
+ * @brief Ссылка на деталь в сборке (вхождение Part в Assembly).
+ *
+ * Хранится отдельной таблицей (планируется `assembly_parts` по тому же
+ * принципу, что и `assembly_children`), но с FK на `parts.id`.
+ */
+struct AssemblyPartRef {
+    uint64_t part_id  = 0;   // FK → parts.id
+    uint32_t quantity = 1;
+    QString  config;
+};
+
+/**
+ * @brief Ресурс подсистемы DESIGN — сборка (узел дерева).
+ *
+ * Хранит актуальные object_key всех файлов сборки — состояние «сейчас».
+ * История версий файлов ведётся в Delta (см. docs/pdm_design_architecture.md §2).
+ *
+ * Соответствует таблице `assemblies` (§1.3). Дочерние связи (сборка→сборка,
+ * сборка→деталь) — в отдельных таблицах-ссылках, которые десериализуются в
+ * `child_assemblies` / `parts`.
+ */
 class Assembly : public ResourceAbstract {
 public:
+    Assembly() = default;
     Assembly(
         uint64_t s_id,
         bool actual,
@@ -31,82 +58,50 @@ public:
         uint64_t s_created_by,
         uint64_t s_updated_by,
         uint64_t project_id_,
-        uint64_t assembly_id_,
-        uint64_t part_id_ctr_,
-        QString name_,
-        QString description_,
-        AssemblyType type_,
         std::optional<uint64_t> parent_assembly_id_,
-        std::map<uint64_t, AssemblyReference> child_assemblies_,
-        std::map<uint64_t, PartReference> parts_,
-        std::vector<MaterialInstanceBase> auxiliary_materials_,
-        std::shared_ptr<FileVersion> assembly_drawings_,
-        std::shared_ptr<FileVersion> mounting_drawings_,
-        std::shared_ptr<FileVersion> models_3d_,
-        std::shared_ptr<FileVersion> specifications_
-        ) : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
-        project_id(std::move(project_id_)),
-        assembly_id(std::move(assembly_id_)),
-        part_id_ctr(std::move(part_id_ctr_)),
-        name(std::move(name_)),
-        description(std::move(description_)),
-        type(std::move(type_)),
-        parent_assembly_id(std::move(parent_assembly_id_)),
-        child_assemblies(std::move(child_assemblies_)),
-        parts(std::move(parts_)),
-        auxiliary_materials(std::move(auxiliary_materials_)),
-        assembly_drawings(std::move(assembly_drawings_)),
-        mounting_drawings(std::move(mounting_drawings_)),
-        models_3d(std::move(models_3d_)),
-        specifications(std::move(specifications_)) {}
+        QString  designation_,
+        QString  name_,
+        QString  description_,
+        AssemblyType type_ = AssemblyType::VIRTUAL)
+        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
+        , project_id         (project_id_)
+        , parent_assembly_id (std::move(parent_assembly_id_))
+        , designation        (std::move(designation_))
+        , name               (std::move(name_))
+        , description        (std::move(description_))
+        , type               (type_) {}
 
-    uint64_t project_id;
-    uint64_t assembly_id;
-    uint64_t part_id_ctr;
-    QString name;
-    QString description;
+    // Идентификация и иерархия
+    uint64_t project_id = 0;                        // FK → projects.id
+    std::optional<uint64_t> parent_assembly_id;     // FK → assemblies.id (NULL для корневой)
 
-    // Тип сборки (реальная/виртуальная)
-    AssemblyType type = AssemblyType::VIRTUAL;
-    std::optional<uint64_t> parent_assembly_id;
+    // Атрибуты ЕСКД
+    QString      designation;                       // Обозначение ЕСКД (например "СБ-001")
+    QString      name;                              // Наименование
+    QString      description;
+    AssemblyType type = AssemblyType::VIRTUAL;      // REAL / VIRTUAL
 
-    // Локальные дочерние сборки (map: local_id -> reference)
-    std::map<uint64_t, AssemblyReference> child_assemblies;
-    std::map<uint64_t, PartReference> parts;
-    // Вспомогательные материалы
-    std::vector<MaterialInstanceBase> auxiliary_materials;
+    // Актуальные ссылки на файлы в MinIO (object_key + sha256).
+    // Пустая строка означает отсутствие файла.
+    QString drawing_object_key;            // Сборочный чертёж
+    QString drawing_sha256;
+    QString spec_object_key;               // Спецификация
+    QString spec_sha256;
+    QString mounting_drawing_object_key;   // Монтажный чертёж (если есть)
+    QString mounting_drawing_sha256;
+    QString model_3d_object_key;           // 3D-модель (если есть)
+    QString model_3d_sha256;
 
-    // Документы
-    std::shared_ptr<FileVersion> assembly_drawings;
-    std::shared_ptr<FileVersion> mounting_drawings;
-    std::shared_ptr<FileVersion> models_3d;
-    std::shared_ptr<FileVersion> specifications;
+    // Дочерние связи (десериализуются из таблиц-ссылок).
+    std::vector<AssemblyChildRef> child_assemblies;
+    std::vector<AssemblyPartRef>  parts;
 
-    // Сериализация десериализация
+    // Каскадная сериализация (базовые поля — через ResourceAbstract::to_xml)
     void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml(tinyxml2::XMLElement* dest) override;
+    void to_xml  (tinyxml2::XMLElement* dest)   override;
 };
 
 
-class AssemblyReference {
-    AssemblyReference(
-        uint64_t source_project_id_,
-        uint64_t assembly_id_,
-        std::shared_ptr<Assembly> assembly_,
-        uint64_t quantity_)
-        : source_project_id(source_project_id_),
-        assembly_id(assembly_id_),
-        assembly(assembly_),
-        quantity(quantity_) {}
-
-    uint64_t source_project_id;
-    uint64_t assembly_id;     // local_id в источнике
-    std::shared_ptr<Assembly> assembly;
-    uint64_t quantity;
-};
-
-
-
-} // design
+} // namespace uniter::contract::design
 
 #endif // ASSEMBLY_H

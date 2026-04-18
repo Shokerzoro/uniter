@@ -86,6 +86,7 @@ set(MESSAGES_SOURCES
 set(RESOUCES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/material/segment.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatebase.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatebase.cpp
 
     ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatecomposite.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatesimple.h
@@ -105,13 +106,19 @@ set(RESOUCES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/materialinstance/materialinstancebase.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/resourceabstract.cpp
 
+    ${CMAKE_CURRENT_LIST_DIR}/contract/design/designtypes.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/assembly.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/assembly.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/part.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/part.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/contract/design/fileversion.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/project.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/project.cpp
+
+    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/pdmtypes.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/snapshot.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/snapshot.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/delta.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/delta.cpp
 
     ${CMAKE_CURRENT_LIST_DIR}/contract/employee/permissions.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/employee/employee.h
@@ -120,6 +127,9 @@ set(RESOUCES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/plant/plant.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/plant/task.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/plant/task.cpp
+
+    ${CMAKE_CURRENT_LIST_DIR}/contract/production/productionstock.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/production/productionstock.cpp
 )
 
 set(CONTRACT_SOURCES
