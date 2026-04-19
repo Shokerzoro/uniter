@@ -47,6 +47,7 @@
 #include <gtest/gtest.h>
 #include <QDateTime>
 #include <QString>
+#include <QTimeZone>
 #include <memory>
 #include <optional>
 
@@ -61,7 +62,7 @@ namespace resourcestests {
 // Фиксированное время для детерминизма (UTC ISO 8601).
 static QDateTime fixedDateTime(const QString& iso) {
     QDateTime dt = QDateTime::fromString(iso, Qt::ISODate);
-    dt.setTimeSpec(Qt::UTC);
+    dt.setTimeZone(QTimeZone::UTC);
     return dt;
 }
 

@@ -18,6 +18,8 @@ enum class PlantType : uint8_t {
 class Plant : public ResourceAbstract
 {
 public:
+    Plant() = default;
+
     Plant(
         uint64_t s_id,
         bool actual,

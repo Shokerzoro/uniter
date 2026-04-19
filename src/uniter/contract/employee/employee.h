@@ -30,6 +30,8 @@ struct EmployeeAssignment {
 
 class Employee : public ResourceAbstract {
 public:
+    Employee() = default;
+
     Employee(
         uint64_t s_id,
         bool actual,
