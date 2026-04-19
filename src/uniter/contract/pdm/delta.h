@@ -2,7 +2,7 @@
 #define DELTA_H
 
 #include "../resourceabstract.h"
-#include "../design/designtypes.h"   // DocumentType
+#include "../documents/doctypes.h"   // DocumentType
 #include "pdmtypes.h"
 
 #include <tinyxml2.h>
@@ -20,8 +20,8 @@ namespace uniter::contract::pdm {
  * old_* пусто при ADD, new_* пусто при DELETE.
  */
 struct DeltaFileChange {
-    uint64_t              id = 0;             // PK в delta_file_changes (server-side)
-    design::DocumentType  file_type = design::DocumentType::UNKNOWN;
+    uint64_t                id = 0;           // PK в delta_file_changes (server-side)
+    documents::DocumentType file_type = documents::DocumentType::UNKNOWN;
     QString               old_object_key;
     QString               old_sha256;
     QString               new_object_key;

@@ -5,8 +5,6 @@
 #include <QDateTime>
 #include <cstdint>
 
-// TODO: изменить название файла на doctypes.h
-
 namespace uniter::contract::design {
 
 /**
@@ -18,30 +16,6 @@ namespace uniter::contract::design {
 enum class AssemblyType : uint8_t {
     REAL    = 0,
     VIRTUAL = 1
-};
-
-/**
- * @brief Тип конструкторского документа.
- *
- * Используется в delta_file_changes для описания того, какой именно файл
- * изменился в конкретном изменении Delta. Перенесено из (упразднённого)
- * fileversion.h — история версий файлов теперь ведётся в Delta.
- */
-enum class DocumentType : uint8_t {
-    ASSEMBLY_DRAWING    = 0,   // Сборочный чертёж
-    MOUNTING_DRAWING    = 1,   // Монтажный чертёж
-    MODEL_3D            = 2,   // 3D-модель
-    PART_DRAWING        = 3,   // Чертёж детали
-    SPECIFICATION       = 4,   // Спецификация
-    UNKNOWN             = 5
-};
-
-struct DocRef { // TODO: public ResourceAbstract, вынести в отдельную п подсистему
-    // тип документа
-    // object_key
-    // sha256
-
-    // id? Если будет хранится в отдельной таблице? И тогда еще новая подиситема. Мне это нравится. Лучше дробить, чем копить все вместе
 };
 
 /**

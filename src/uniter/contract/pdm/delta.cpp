@@ -71,8 +71,8 @@ void Delta::from_xml(tinyxml2::XMLElement* source) {
                      f; f = f->NextSiblingElement("FileChange")) {
                     DeltaFileChange fc;
                     fc.id             = getUInt64(f, "id");
-                    fc.file_type      = static_cast<design::DocumentType>(
-                        getInt(f, "file_type", static_cast<int>(design::DocumentType::UNKNOWN)));
+                    fc.file_type      = static_cast<documents::DocumentType>(
+                        getInt(f, "file_type", static_cast<int>(documents::DocumentType::UNKNOWN)));
                     fc.old_object_key = getString(f, "old_object_key");
                     fc.old_sha256     = getString(f, "old_sha256");
                     fc.new_object_key = getString(f, "new_object_key");

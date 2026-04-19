@@ -2,10 +2,13 @@
 #define MATERIALTEMPLATEBASE_H
 
 #include "../resourceabstract.h"
+#include "../documents/doclink.h"
+
 #include <tinyxml2.h>
 #include <QString>
 #include <QDateTime>
 #include <cstdint>
+#include <vector>
 
 namespace uniter {
 namespace contract {
@@ -45,6 +48,11 @@ enum class GostSource : uint8_t {
  * Каскадная сериализация: реализации наследников обязаны первой строкой
  * вызывать MaterialTemplateBase::to_xml / from_xml, которые в свою очередь
  * первой строкой вызывают ResourceAbstract::to_xml / from_xml.
+ *
+ * Документы стандарта (PDF ГОСТа, выдержка из ТУ и т.п.) — ресурсы
+ * подсистемы DOCUMENTS (Doc), привязанные через DocLink. Денормализованный
+ * список привязок хранится в `linked_documents`; источник истины — таблица
+ * `doc_links`.
  */
 class MaterialTemplateBase : public ResourceAbstract {
 public:
@@ -81,6 +89,10 @@ public:
     // Метаданные шаблона
     GostSource source  = GostSource::BUILT_IN; // Источник: встроенный или компании-специфичный
     uint32_t   version = 1;                    // Версия шаблона (не SQL-ревизия, а семантическая)
+
+    // Привязанные документы стандарта (PDF ГОСТа и т.п.)
+    // Денормализация таблицы doc_links с target_type=MATERIAL_TEMPLATE_*.
+    std::vector<documents::DocLink> linked_documents;
 
     // Различение типов
     virtual bool isComposite() const = 0;

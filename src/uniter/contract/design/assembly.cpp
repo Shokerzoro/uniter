@@ -17,15 +17,6 @@ void Assembly::to_xml(tinyxml2::XMLElement* dest) {
     putString   (dest, "description",        description);
     putInt      (dest, "type",               static_cast<int>(type));
 
-    putString   (dest, "drawing_object_key",          drawing_object_key);
-    putString   (dest, "drawing_sha256",              drawing_sha256);
-    putString   (dest, "spec_object_key",             spec_object_key);
-    putString   (dest, "spec_sha256",                 spec_sha256);
-    putString   (dest, "mounting_drawing_object_key", mounting_drawing_object_key);
-    putString   (dest, "mounting_drawing_sha256",     mounting_drawing_sha256);
-    putString   (dest, "model_3d_object_key",         model_3d_object_key);
-    putString   (dest, "model_3d_sha256",             model_3d_sha256);
-
     // Дочерние связи — вложенными элементами
     auto* doc = dest->GetDocument();
     if (!doc) return;
@@ -49,6 +40,15 @@ void Assembly::to_xml(tinyxml2::XMLElement* dest) {
         partsEl->InsertEndChild(r);
     }
     dest->InsertEndChild(partsEl);
+
+    // Привязанные документы — каскадная сериализация DocLink как вложенных ресурсов
+    tinyxml2::XMLElement* linkedEl = doc->NewElement("LinkedDocuments");
+    for (auto& link : linked_documents) {
+        tinyxml2::XMLElement* l = doc->NewElement("DocLink");
+        link.to_xml(l);
+        linkedEl->InsertEndChild(l);
+    }
+    dest->InsertEndChild(linkedEl);
 }
 
 void Assembly::from_xml(tinyxml2::XMLElement* source) {
@@ -62,15 +62,6 @@ void Assembly::from_xml(tinyxml2::XMLElement* source) {
     description        = getString   (source, "description");
     type               = static_cast<AssemblyType>(getInt(source, "type",
                                                           static_cast<int>(AssemblyType::VIRTUAL)));
-
-    drawing_object_key          = getString(source, "drawing_object_key");
-    drawing_sha256              = getString(source, "drawing_sha256");
-    spec_object_key             = getString(source, "spec_object_key");
-    spec_sha256                 = getString(source, "spec_sha256");
-    mounting_drawing_object_key = getString(source, "mounting_drawing_object_key");
-    mounting_drawing_sha256     = getString(source, "mounting_drawing_sha256");
-    model_3d_object_key         = getString(source, "model_3d_object_key");
-    model_3d_sha256             = getString(source, "model_3d_sha256");
 
     child_assemblies.clear();
     if (auto* childrenEl = source->FirstChildElement("ChildAssemblies")) {
@@ -93,6 +84,16 @@ void Assembly::from_xml(tinyxml2::XMLElement* source) {
             ref.quantity = getUInt32(r, "quantity", 1);
             ref.config   = getString(r, "config");
             parts.push_back(std::move(ref));
+        }
+    }
+
+    linked_documents.clear();
+    if (auto* linkedEl = source->FirstChildElement("LinkedDocuments")) {
+        for (auto* l = linkedEl->FirstChildElement("DocLink");
+             l; l = l->NextSiblingElement("DocLink")) {
+            documents::DocLink link;
+            link.from_xml(l);
+            linked_documents.push_back(std::move(link));
         }
     }
 }

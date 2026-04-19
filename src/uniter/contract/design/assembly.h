@@ -2,6 +2,7 @@
 #define ASSEMBLY_H
 
 #include "../resourceabstract.h"
+#include "../documents/doclink.h"
 #include "designtypes.h"
 
 #include <tinyxml2.h>
@@ -40,12 +41,14 @@ struct AssemblyPartRef {
 /**
  * @brief Ресурс подсистемы DESIGN — сборка (узел дерева).
  *
- * Хранит актуальные object_key всех файлов сборки — состояние «сейчас».
- * История версий файлов ведётся в Delta (см. docs/pdm_design_architecture.md §2).
- *
  * Соответствует таблице `assemblies` (§1.3). Дочерние связи (сборка→сборка,
  * сборка→деталь) — в отдельных таблицах-ссылках, которые десериализуются в
  * `child_assemblies` / `parts`.
+ *
+ * Файлы (сборочный чертёж, спецификация, 3D-модель и т.п.) хранятся как
+ * ресурсы подсистемы DOCUMENTS (Doc) и привязываются через DocLink.
+ * Денормализованный список привязок копируется в `linked_documents` для
+ * удобства UI; источник истины — таблица `doc_links`.
  */
 class Assembly : public ResourceAbstract {
 public:
@@ -81,22 +84,14 @@ public:
     QString      description;
     AssemblyType type = AssemblyType::VIRTUAL;      // REAL / VIRTUAL
 
-    // Актуальные ссылки на файлы в MinIO (object_key + sha256).
-    // Пустая строка означает отсутствие файла.
-    QString drawing_object_key;            // Сборочный чертёж
-    QString drawing_sha256;
-    QString spec_object_key;               // Спецификация
-    QString spec_sha256;
-    QString mounting_drawing_object_key;   // Монтажный чертёж (если есть)
-    QString mounting_drawing_sha256;
-    QString model_3d_object_key;           // 3D-модель (если есть)
-    QString model_3d_sha256;
-
-    // TODO: Все свеху заменить на std::vector<DocRef>, см. DocRef в designtypes.h
-
     // Дочерние связи (десериализуются из таблиц-ссылок).
     std::vector<AssemblyChildRef> child_assemblies;
     std::vector<AssemblyPartRef>  parts;
+
+    // Привязанные документы (денормализация таблицы doc_links по target_type=ASSEMBLY).
+    // Сам DocLink — полноценный ресурс подсистемы DOCUMENTS; здесь хранится
+    // копия для удобства сериализации и UI.
+    std::vector<documents::DocLink> linked_documents;
 
     // Каскадная сериализация (базовые поля — через ResourceAbstract::to_xml)
     void from_xml(tinyxml2::XMLElement* source) override;

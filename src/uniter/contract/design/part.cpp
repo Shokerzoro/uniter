@@ -19,12 +19,6 @@ void Part::to_xml(tinyxml2::XMLElement* dest) {
     putString   (dest, "organization",         organization);
     putOptUInt64(dest, "material_instance_id", material_instance_id);
 
-    putString   (dest, "drawing_object_key",   drawing_object_key);
-    putString   (dest, "drawing_sha256",       drawing_sha256);
-    putDateTime (dest, "drawing_modified_at",  drawing_modified_at);
-    putString   (dest, "model_3d_object_key",  model_3d_object_key);
-    putString   (dest, "model_3d_sha256",      model_3d_sha256);
-
     auto* doc = dest->GetDocument();
     if (!doc) return;
 
@@ -51,6 +45,15 @@ void Part::to_xml(tinyxml2::XMLElement* dest) {
         sigEl->InsertEndChild(se);
     }
     dest->InsertEndChild(sigEl);
+
+    // Привязанные документы — каскадная сериализация DocLink
+    tinyxml2::XMLElement* linkedEl = doc->NewElement("LinkedDocuments");
+    for (auto& link : linked_documents) {
+        tinyxml2::XMLElement* l = doc->NewElement("DocLink");
+        link.to_xml(l);
+        linkedEl->InsertEndChild(l);
+    }
+    dest->InsertEndChild(linkedEl);
 }
 
 void Part::from_xml(tinyxml2::XMLElement* source) {
@@ -65,12 +68,6 @@ void Part::from_xml(tinyxml2::XMLElement* source) {
     litera               = getString   (source, "litera");
     organization         = getString   (source, "organization");
     material_instance_id = getOptUInt64(source, "material_instance_id");
-
-    drawing_object_key  = getString  (source, "drawing_object_key");
-    drawing_sha256      = getString  (source, "drawing_sha256");
-    drawing_modified_at = getDateTime(source, "drawing_modified_at");
-    model_3d_object_key = getString  (source, "model_3d_object_key");
-    model_3d_sha256     = getString  (source, "model_3d_sha256");
 
     configs.clear();
     if (auto* configsEl = source->FirstChildElement("Configs")) {
@@ -95,6 +92,16 @@ void Part::from_xml(tinyxml2::XMLElement* source) {
             ps.name = getString  (s, "name");
             ps.date = getDateTime(s, "date");
             signatures.push_back(std::move(ps));
+        }
+    }
+
+    linked_documents.clear();
+    if (auto* linkedEl = source->FirstChildElement("LinkedDocuments")) {
+        for (auto* l = linkedEl->FirstChildElement("DocLink");
+             l; l = l->NextSiblingElement("DocLink")) {
+            documents::DocLink link;
+            link.from_xml(l);
+            linked_documents.push_back(std::move(link));
         }
     }
 }

@@ -16,6 +16,18 @@ void MaterialTemplateBase::to_xml(tinyxml2::XMLElement* dest) {
     putBool  (dest, "is_standalone",  is_standalone);
     putInt   (dest, "source",         static_cast<int>(source));
     putUInt32(dest, "version",        version);
+
+    // Привязанные документы стандарта (PDF ГОСТа и т.п.) — каскадная
+    // сериализация DocLink как вложенных ресурсов.
+    auto* doc = dest->GetDocument();
+    if (!doc) return;
+    tinyxml2::XMLElement* linkedEl = doc->NewElement("LinkedDocuments");
+    for (auto& link : linked_documents) {
+        tinyxml2::XMLElement* l = doc->NewElement("DocLink");
+        link.to_xml(l);
+        linkedEl->InsertEndChild(l);
+    }
+    dest->InsertEndChild(linkedEl);
 }
 
 void MaterialTemplateBase::from_xml(tinyxml2::XMLElement* source) {
@@ -32,6 +44,16 @@ void MaterialTemplateBase::from_xml(tinyxml2::XMLElement* source) {
                         getInt(source, "source",
                                static_cast<int>(GostSource::BUILT_IN)));
     version        = getUInt32(source, "version", 1);
+
+    linked_documents.clear();
+    if (auto* linkedEl = source->FirstChildElement("LinkedDocuments")) {
+        for (auto* l = linkedEl->FirstChildElement("DocLink");
+             l; l = l->NextSiblingElement("DocLink")) {
+            documents::DocLink link;
+            link.from_xml(l);
+            linked_documents.push_back(std::move(link));
+        }
+    }
 }
 
 

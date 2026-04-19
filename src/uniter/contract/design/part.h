@@ -2,6 +2,7 @@
 #define PART_H
 
 #include "../resourceabstract.h"
+#include "../documents/doclink.h"
 #include "designtypes.h"
 
 #include <tinyxml2.h>
@@ -17,13 +18,16 @@ namespace uniter::contract::design {
  * @brief Ресурс подсистемы DESIGN — деталь (листовой узел дерева).
  *
  * Соответствует таблице `parts` (см. docs/pdm_design_architecture.md §1.4).
- * Хранит актуальные object_key файлов чертежа и 3D-модели; исполнения и
- * подписи — в отдельных таблицах `part_configs` / `part_signatures`, которые
+ * Исполнения и подписи — в отдельных таблицах `part_configs` / `part_signatures`,
  * десериализуются в `configs` / `signatures`.
  *
  * Связь с материалом — через FK `material_instance_id` → material_instances.id.
  * Внутри Part НЕ хранится сам MaterialInstance (никаких shared_ptr — только id),
  * это соответствует принципу ориентации на реляционную БД.
+ *
+ * Файлы (чертёж детали, 3D-модель) — ресурсы подсистемы DOCUMENTS (Doc);
+ * привязки к Part живут в таблице `doc_links` и десериализуются в
+ * `linked_documents` для удобства UI.
  */
 class Part : public ResourceAbstract {
 public:
@@ -62,18 +66,14 @@ public:
     // nullopt для сборок, не имеющих материала как таковых (напр. изделия в сборе).
     std::optional<uint64_t> material_instance_id;
 
-    // Актуальные ссылки на файлы в MinIO
-    QString   drawing_object_key;      // Чертёж детали
-    QString   drawing_sha256;
-    QDateTime drawing_modified_at;
-    QString   model_3d_object_key;     // 3D-модель (опционально)
-    QString   model_3d_sha256;
-
     // Исполнения детали (таблица `part_configs`)
     std::vector<PartConfig> configs;
 
     // Подписи на чертеже (таблица `part_signatures`)
     std::vector<PartSignature> signatures;
+
+    // Привязанные документы (денормализация таблицы doc_links по target_type=PART).
+    std::vector<documents::DocLink> linked_documents;
 
     // Каскадная сериализация
     void from_xml(tinyxml2::XMLElement* source) override;

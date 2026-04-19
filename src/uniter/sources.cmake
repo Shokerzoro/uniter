@@ -123,6 +123,12 @@ set(RESOUCES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/delta.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/delta.cpp
 
+    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doctypes.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doc.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doc.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doclink.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doclink.cpp
+
     ${CMAKE_CURRENT_LIST_DIR}/contract/employee/permissions.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/employee/employee.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/employee/employee.cpp
