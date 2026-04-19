@@ -92,6 +92,8 @@ public:
     QString model_3d_object_key;           // 3D-модель (если есть)
     QString model_3d_sha256;
 
+    // TODO: Все свеху заменить на std::vector<DocRef>, см. DocRef в designtypes.h
+
     // Дочерние связи (десериализуются из таблиц-ссылок).
     std::vector<AssemblyChildRef> child_assemblies;
     std::vector<AssemblyPartRef>  parts;

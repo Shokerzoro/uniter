@@ -5,6 +5,8 @@
 #include <QDateTime>
 #include <cstdint>
 
+// TODO: изменить название файла на doctypes.h
+
 namespace uniter::contract::design {
 
 /**
@@ -32,6 +34,14 @@ enum class DocumentType : uint8_t {
     PART_DRAWING        = 3,   // Чертёж детали
     SPECIFICATION       = 4,   // Спецификация
     UNKNOWN             = 5
+};
+
+struct DocRef { // TODO: public ResourceAbstract, вынести в отдельную п подсистему
+    // тип документа
+    // object_key
+    // sha256
+
+    // id? Если будет хранится в отдельной таблице? И тогда еще новая подиситема. Мне это нравится. Лучше дробить, чем копить все вместе
 };
 
 /**

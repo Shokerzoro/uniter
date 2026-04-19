@@ -41,6 +41,8 @@ set(BLOGIC_SOURCES
 set(DATA_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/data/datamanager.h
     ${CMAKE_CURRENT_LIST_DIR}/data/datamanager.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/data/idataobserver.h
+    ${CMAKE_CURRENT_LIST_DIR}/data/idataobserver.cpp
 )
 
 
@@ -80,6 +82,7 @@ set(MESSAGES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/unitermessage.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/unitermessage.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/resourceabstract.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/uniterprotocol.h
 )
 
 

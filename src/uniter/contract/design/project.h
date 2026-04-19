@@ -30,14 +30,14 @@ public:
         uint64_t s_updated_by,
         QString  name_,
         QString  description_,
-        QString  projectcode_,
+        QString  projectdesignation_,
         QString  rootdirectory_,
         uint64_t root_assembly_id_,
         std::optional<uint64_t> active_snapshot_id_ = std::nullopt)
         : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
         , name           (std::move(name_))
         , description    (std::move(description_))
-        , projectcode    (std::move(projectcode_))
+        , projectdesignation    (std::move(projectdesignation_))
         , rootdirectory  (std::move(rootdirectory_))
         , root_assembly_id(root_assembly_id_)
         , active_snapshot_id(std::move(active_snapshot_id_)) {}
@@ -45,8 +45,8 @@ public:
     // Основные поля проекта
     QString name;             // Название проекта
     QString description;      // Описание
-    QString projectcode;      // Код проекта (ЕСКД-обозначение верхнего уровня)
-    QString rootdirectory;    // Корневая папка КД (локальный путь или URI)
+    QString projectdesignation;      // Код проекта (ЕСКД-обозначение верхнего уровня)
+    //QString rootdirectory;    // Корневая папка КД (локальный путь или URI)? Возможно некорректно это тут хранить
 
     // FK на корневую сборку проекта (ровно одна на проект).
     // Хранится как id, а не shared_ptr<Assembly>: Assembly загружается отдельно.

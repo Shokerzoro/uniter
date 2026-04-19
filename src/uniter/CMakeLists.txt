@@ -20,10 +20,6 @@ add_executable(Uniter WIN32
     ${NETWORK_SOURCES}
     # Contract (client/server)
     ${CONTRACT_SOURCES}
-    contract/uniterprotocol.h
-    data/idataobserver.h data/idataobserver.cpp
-        blogic/pdmmanager.h
-        blogic/erpmanager.h
 )
 
 target_include_directories(Uniter
