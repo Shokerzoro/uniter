@@ -49,6 +49,9 @@ public slots:
     // От менеджера приложения
     void onStartLoadResources(QByteArray userhash);
     void onClearResources();
+    // Полная очистка БД (DBCLEAR): дропнуть/опустошить все таблицы ресурсов,
+    // оставить структуру. По завершении — сигнал signalDatabaseCleared.
+    void onClearDatabase();
     void onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> message);
     void onSubsystemGenerate(contract::Subsystem subsystem,
                              contract::GenSubsystemType genType,
@@ -79,7 +82,8 @@ public slots:
                        QObject* observer);
 
 signals:
-    void signalResourcesLoaded(); // Менеджеру приложения
+    void signalResourcesLoaded();  // Менеджеру приложения: БД загружена
+    void signalDatabaseCleared();  // Менеджеру приложения: БД полностью очищена (DBCLEAR)
 };
 
 } // namespace uniter::data

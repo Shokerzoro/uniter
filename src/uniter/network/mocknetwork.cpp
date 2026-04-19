@@ -152,6 +152,25 @@ makeKafkaOffsetCheckResponse(const std::shared_ptr<uniter::contract::UniterMessa
     return response;
 }
 
+// Ответ на FULL_SYNC REQUEST: сразу подтверждаем завершение (SUCCESS)
+// без фактической трансляции данных. Реальный сервер прислал бы сначала
+// поток CRUD CREATE через Kafka, затем FULL_SYNC (SUCCESS) в PROTOCOL.
+std::shared_ptr<uniter::contract::UniterMessage>
+makeFullSyncDoneResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request)
+{
+    using namespace uniter::contract;
+
+    auto response = std::make_shared<UniterMessage>(*request);
+    response->status    = MessageStatus::SUCCESS;
+    response->protact   = ProtocolAction::FULL_SYNC;
+    response->subsystem = Subsystem::PROTOCOL;
+    response->error     = ErrorCode::SUCCESS;
+    response->add_data.clear();
+
+    qDebug() << "MockNetManager: FULL_SYNC done (stub, no CRUD stream)";
+    return response;
+}
+
 } // anonymous namespace
 
 namespace uniter::net {
@@ -224,6 +243,17 @@ void MockNetManager::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
         message->protact  == ProtocolAction::GET_KAFKA_CREDENTIALS)
     {
         auto response = makeKafkaOffsetCheckResponse(message);
+        ++seq_id_received_;
+        emit signalRecvMessage(response);
+        return;
+    }
+
+    // PROTOCOL: запрос полной синхронизации с сервера
+    if (message->subsystem == Subsystem::PROTOCOL &&
+        message->protact  == ProtocolAction::FULL_SYNC &&
+        message->status   == MessageStatus::REQUEST)
+    {
+        auto response = makeFullSyncDoneResponse(message);
         ++seq_id_received_;
         emit signalRecvMessage(response);
         return;

@@ -4,7 +4,7 @@
 #include "control/appmanager.h"
 #include "control/configmanager.h"
 #include "network/mocknetwork.h"
-#include "network/minioconnector.h"
+#include "network/kafkaconnector.h"
 #include "../common/appfuncs.h"
 
 #include <QApplication>
@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
     auto* appManager = control::AppManager::instance();
     auto* configManager = control::ConfigManager::instance();
     auto* netManager = net::MockNetManager::instance();
-    auto* minioConnector = net::MinIOConnector::instance();
+    auto* kafkaConnector = net::KafkaConnector::instance();
 
     // ========== СОЗДАНИЕ UI ==========
     staticwdg::MainWidget MWindow;
@@ -78,19 +78,19 @@ int main(int argc, char *argv[])
                      &MWindow, &staticwdg::MainWidget::onConnectionUpdated);
 
 
-    // === 2.1 MinIOConnector (KAFKA / offset / подписка) ===
+    // === 2.1 KafkaConnector (KCONNECTOR / offset / подписка) ===
 
-    // AppManager → MinIOConnector: инициализация (войдя в KAFKA)
-    QObject::connect(appManager, &control::AppManager::signalInitMinIO,
-                     minioConnector, &net::MinIOConnector::onInitConnection);
+    // AppManager → KafkaConnector: инициализация под пользователя (войдя в KCONNECTOR)
+    QObject::connect(appManager, &control::AppManager::signalInitKafkaConnector,
+                     kafkaConnector, &net::KafkaConnector::onInitConnection);
 
-    // MinIOConnector → AppManager: offset получен
-    QObject::connect(minioConnector, &net::MinIOConnector::signalOffsetReady,
+    // KafkaConnector → AppManager: offset получен → переход KCONNECTOR → KAFKA
+    QObject::connect(kafkaConnector, &net::KafkaConnector::signalOffsetReady,
                      appManager, &control::AppManager::onKafkaOffsetReceived);
 
-    // AppManager → MinIOConnector: подписка на Kafka (войдя в READY)
+    // AppManager → KafkaConnector: подписка на broadcast-топик (войдя в READY)
     QObject::connect(appManager, &control::AppManager::signalSubscribeKafka,
-                     minioConnector, &net::MinIOConnector::onSubscribeKafka);
+                     kafkaConnector, &net::KafkaConnector::onSubscribeKafka);
 
 
     // === 3. Управление ресурсами и БД ===
@@ -105,6 +105,13 @@ int main(int argc, char *argv[])
 
     QObject::connect(appManager, &control::AppManager::signalClearResources,
                      dataManager, &data::DataManager::onClearResources);
+
+    // DBCLEAR: AppManager → DataManager и обратно
+    QObject::connect(appManager, &control::AppManager::signalClearDatabase,
+                     dataManager, &data::DataManager::onClearDatabase);
+
+    QObject::connect(dataManager, &data::DataManager::signalDatabaseCleared,
+                     appManager, &control::AppManager::onDatabaseCleared);
 
 
     // === 4. Конфигурация ===

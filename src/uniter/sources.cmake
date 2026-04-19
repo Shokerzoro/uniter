@@ -71,8 +71,8 @@ set(NETWORK_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/network/mocknetwork.h
     ${CMAKE_CURRENT_LIST_DIR}/network/mocknetwork.cpp
 
-    ${CMAKE_CURRENT_LIST_DIR}/network/minioconnector.h
-    ${CMAKE_CURRENT_LIST_DIR}/network/minioconnector.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/network/kafkaconnector.h
+    ${CMAKE_CURRENT_LIST_DIR}/network/kafkaconnector.cpp
 )
 
 # = = = = = = = = common sources = = = = = = = = #

@@ -2,6 +2,7 @@
 #include "datamanager.h"
 #include "../contract/unitermessage.h"
 #include <QByteArray>
+#include <QDebug>
 #include <optional>
 #include <algorithm>
 
@@ -42,6 +43,16 @@ void DataManager::onStartLoadResources(QByteArray userhash)
 
 void DataManager::onClearResources() {
     // TODO
+}
+
+void DataManager::onClearDatabase()
+{
+    // TODO: полная очистка ТБЛИЦ ресурсов в БД с сохранением структуры.
+    // Применяется перед FULL_SYNC, когда сервер сообщил что Kafka-offset
+    // устарел (см. AppManager состояние DBCLEAR).
+    // Заглушка: сразу подтверждаем завершение.
+    qDebug() << "DataManager::onClearDatabase() - stub, emitting signalDatabaseCleared";
+    emit signalDatabaseCleared();
 }
 
 void DataManager::onSubsystemGenerate(contract::Subsystem subsystem,

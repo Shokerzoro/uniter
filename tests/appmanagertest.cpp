@@ -48,18 +48,20 @@ signals:
 };
 
 // ============================================================================
-// Mock Network — имитирует и MockNetManager, и MinIOConnector.
-// Это даёт тесту полный контроль над сценарием KAFKA/SYNC/READY.
+// Mock Network — имитирует и MockNetManager, и KafkaConnector.
+// Это даёт тесту полный контроль над сценарием KCONNECTOR/KAFKA/DBCLEAR/SYNC/READY.
 // ============================================================================
 class MockNetwork : public QObject {
     Q_OBJECT
 public:
     MockNetwork() = default;
 
-    int subscribeKafkaCount = 0;
-    int initMinIOCount      = 0;
-    int makeConnectionCount = 0;
-    int pollMessagesCount   = 0;
+    int subscribeKafkaCount    = 0;
+    int initKafkaConnectorCount = 0;
+    int makeConnectionCount    = 0;
+
+    QByteArray lastUserHash;
+    std::vector<std::shared_ptr<contract::UniterMessage>> sentMessages;
 
     void emitConnectionUpdated(bool state) {
         emit signalConnectionUpdated(state);
@@ -137,15 +139,29 @@ public:
         emit signalRecvUniterMessage(m);
     }
 
+    // Подсчёт исходящих UniterMessage определённого вида.
+    int countSent(contract::ProtocolAction action, contract::MessageStatus status) const {
+        int n = 0;
+        for (auto& m : sentMessages) {
+            if (!m) continue;
+            if (m->protact == action && m->status == status) ++n;
+        }
+        return n;
+    }
+
 public slots:
     // Слоты от AppManager
     void onMakeConnection() { ++makeConnectionCount; }
-    void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> /*Message*/) {}
-    void onPollMessages() { ++pollMessagesCount; }
+    void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message) {
+        sentMessages.push_back(std::move(Message));
+    }
 
-    // Слоты MinIOConnector
-    void onInitMinIO()       { ++initMinIOCount; }
-    void onSubscribeKafka()  { ++subscribeKafkaCount; }
+    // Слоты KafkaConnector
+    void onInitKafkaConnector(QByteArray userhash) {
+        ++initKafkaConnectorCount;
+        lastUserHash = std::move(userhash);
+    }
+    void onSubscribeKafka() { ++subscribeKafkaCount; }
 
 signals:
     void signalConnectionUpdated(bool state);
@@ -173,6 +189,29 @@ signals:
 };
 
 // ============================================================================
+// Mock DataManager — под DBCLEAR / DBLOADING.
+// ============================================================================
+class MockDataManager : public QObject {
+    Q_OBJECT
+public:
+    MockDataManager() = default;
+    int clearDatabaseCount = 0;
+    int loadResourcesCount = 0;
+
+    void emitResourcesLoaded() { emit signalResourcesLoaded(); }
+    void emitDatabaseCleared() { emit signalDatabaseCleared(); }
+
+public slots:
+    void onStartLoadResources(QByteArray /*userhash*/) { ++loadResourcesCount; }
+    void onClearResources() {}
+    void onClearDatabase() { ++clearDatabaseCount; }
+
+signals:
+    void signalResourcesLoaded();
+    void signalDatabaseCleared();
+};
+
+// ============================================================================
 // Wrapper для AppManager: подмена внутренних связей на mock'и
 // ============================================================================
 class AppManagerTesting {
@@ -187,7 +226,6 @@ public:
     control::AppManager* get() { return appManager_; }
 
     void start_run() { appManager_->start_run(); }
-    void onResourcesLoaded() { appManager_->onResourcesLoaded(); }
     void injectKafkaOffset(const QString& offset) {
         appManager_->onKafkaOffsetReceived(offset);
     }
@@ -208,7 +246,7 @@ public:
 
 
 // ============================================================================
-// Test fixture — переделан под новую FSM (KAFKA/SYNC + entry-actions)
+// Test fixture — переделан под новую FSM (KCONNECTOR/DBCLEAR + entry-actions)
 // ============================================================================
 class AppManagerTest : public ::testing::Test {
 public:
@@ -216,6 +254,7 @@ public:
     std::unique_ptr<MockAuthWidget>    mockAuthWidget;
     std::unique_ptr<MockNetwork>       mockNetwork;
     std::unique_ptr<MockConfigManager> mockConfigManager;
+    std::unique_ptr<MockDataManager>   mockDataManager;
 
 protected:
     void SetUp() override {
@@ -223,6 +262,9 @@ protected:
         mockAuthWidget    = std::make_unique<MockAuthWidget>();
         mockNetwork       = std::make_unique<MockNetwork>();
         mockConfigManager = std::make_unique<MockConfigManager>();
+        mockDataManager   = std::make_unique<MockDataManager>();
+
+        appManager->get()->resetForTest();
 
         appManager->replaceMockConfigManager(mockConfigManager.get());
 
@@ -231,16 +273,14 @@ protected:
                          mockNetwork.get(), &MockNetwork::onSendUniterMessage);
         QObject::connect(appManager->get(), &control::AppManager::signalMakeConnection,
                          mockNetwork.get(), &MockNetwork::onMakeConnection);
-        QObject::connect(appManager->get(), &control::AppManager::signalPollMessages,
-                         mockNetwork.get(), &MockNetwork::onPollMessages);
         QObject::connect(mockNetwork.get(), &MockNetwork::signalRecvUniterMessage,
                          appManager->get(), &control::AppManager::onRecvUniterMessage);
         QObject::connect(mockNetwork.get(), &MockNetwork::signalConnectionUpdated,
                          appManager->get(), &control::AppManager::onConnectionUpdated);
 
-        // === AppManager ↔ MockNetwork (MinIOConnector-роль) ===
-        QObject::connect(appManager->get(), &control::AppManager::signalInitMinIO,
-                         mockNetwork.get(), &MockNetwork::onInitMinIO);
+        // === AppManager ↔ MockNetwork (KafkaConnector-роль) ===
+        QObject::connect(appManager->get(), &control::AppManager::signalInitKafkaConnector,
+                         mockNetwork.get(), &MockNetwork::onInitKafkaConnector);
         QObject::connect(appManager->get(), &control::AppManager::signalSubscribeKafka,
                          mockNetwork.get(), &MockNetwork::onSubscribeKafka);
 
@@ -251,6 +291,18 @@ protected:
                          mockAuthWidget.get(), &MockAuthWidget::onFindAuthData);
         QObject::connect(appManager->get(), &control::AppManager::signalAuthed,
                          mockAuthWidget.get(), &MockAuthWidget::onAuthed);
+
+        // === AppManager ↔ MockDataManager (DBLOADING / DBCLEAR) ===
+        QObject::connect(appManager->get(), &control::AppManager::signalLoadResources,
+                         mockDataManager.get(), &MockDataManager::onStartLoadResources);
+        QObject::connect(mockDataManager.get(), &MockDataManager::signalResourcesLoaded,
+                         appManager->get(), &control::AppManager::onResourcesLoaded);
+        QObject::connect(appManager->get(), &control::AppManager::signalClearResources,
+                         mockDataManager.get(), &MockDataManager::onClearResources);
+        QObject::connect(appManager->get(), &control::AppManager::signalClearDatabase,
+                         mockDataManager.get(), &MockDataManager::onClearDatabase);
+        QObject::connect(mockDataManager.get(), &MockDataManager::signalDatabaseCleared,
+                         appManager->get(), &control::AppManager::onDatabaseCleared);
     }
 
     void TearDown() override {
@@ -258,17 +310,19 @@ protected:
         QObject::disconnect(mockNetwork.get(), nullptr, nullptr, nullptr);
         QObject::disconnect(mockAuthWidget.get(), nullptr, nullptr, nullptr);
         QObject::disconnect(mockConfigManager.get(), nullptr, nullptr, nullptr);
+        QObject::disconnect(mockDataManager.get(), nullptr, nullptr, nullptr);
     }
 
     // Утилита: довести FSM до состояния READY по «золотому пути».
+    // KafkaConnector сигналит offset (имитация через injectKafkaOffset).
     void driveToReady() {
         appManager->start_run();
         mockNetwork->emitConnectionUpdated(true);     // STARTED → AUTHENIFICATION
         mockAuthWidget->emitUserData();               // AUTHENIFICATION → IDLE_AUTHENIFICATION
         mockNetwork->emitAuthSuccess();               // IDLE_AUTHENIFICATION → DBLOADING
-        appManager->onResourcesLoaded();              // DBLOADING → CONFIGURATING
-        mockConfigManager->emitConfigured();          // CONFIGURATING → KAFKA
-        appManager->injectKafkaOffset("offset-12345");// KAFKA: OFFSET_RECEIVED → запрос серверу
+        mockDataManager->emitResourcesLoaded();       // DBLOADING → CONFIGURATING
+        mockConfigManager->emitConfigured();          // CONFIGURATING → KCONNECTOR
+        appManager->injectKafkaOffset("offset-12345");// KCONNECTOR → KAFKA
         mockNetwork->emitOffsetCheckResponse(true);   // KAFKA → READY (offset актуален)
     }
 };
@@ -299,11 +353,11 @@ TEST_F(AppManagerTest, BasicFSM_StartedAndAuthenification) {
     EXPECT_EQ(spyConnectionUpdated.count(), 2);
     EXPECT_FALSE(spyConnectionUpdated.at(1).at(0).toBool());
 
-    // 4. Возврат сети — signalFindAuthData повторно не дёргается
-    //    (логическое состояние не менялось)
+    // 4. Возврат сети: AUTHENIFICATION — сетевое состояние, entry повторяется →
+    //    signalFindAuthData дёрнется ещё раз.
     mockNetwork->emitConnectionUpdated(true);
     EXPECT_EQ(spyConnectionUpdated.count(), 3);
-    EXPECT_EQ(spyFindAuthData.count(), 1);
+    EXPECT_EQ(spyFindAuthData.count(), 2);
 }
 
 // ============================================================================
@@ -347,56 +401,81 @@ TEST_F(AppManagerTest, GoodAuth_TransitionsToDbLoading) {
     EXPECT_TRUE(spyAuthed.at(0).at(0).toBool());
     EXPECT_TRUE(mockAuthWidget->authed);
     EXPECT_EQ(spyLoadResources.count(), 1);
+    EXPECT_EQ(mockDataManager->loadResourcesCount, 1);
 }
 
 // ============================================================================
-// 4. KAFKA: offset → OFFSET_ACTUAL → READY (по «золотому пути»)
+// 4. KCONNECTOR: инициализация KafkaConnector с userhash
 // ============================================================================
-TEST_F(AppManagerTest, KafkaFlow_OffsetActual_GoesToReady) {
-    QSignalSpy spyInitMinIO (appManager->get(), &control::AppManager::signalInitMinIO);
-    QSignalSpy spySend      (appManager->get(), &control::AppManager::signalSendUniterMessage);
-    QSignalSpy spySubscribe (appManager->get(), &control::AppManager::signalSubscribeKafka);
-    QSignalSpy spyPoll      (appManager->get(), &control::AppManager::signalPollMessages);
+TEST_F(AppManagerTest, KconnectorFlow_InitKafkaWithUserHash) {
+    QSignalSpy spyInitKafka(appManager->get(),
+                            &control::AppManager::signalInitKafkaConnector);
 
     appManager->start_run();
     mockNetwork->emitConnectionUpdated(true);
     mockAuthWidget->emitUserData();
     mockNetwork->emitAuthSuccess();
-    appManager->onResourcesLoaded();
-    mockConfigManager->emitConfigured();
+    mockDataManager->emitResourcesLoaded();
+    mockConfigManager->emitConfigured();          // CONFIGURATING → KCONNECTOR
 
-    // Вход в KAFKA: signalInitMinIO → MinIOConnector инициализируется
-    EXPECT_EQ(spyInitMinIO.count(), 1);
+    // Вход в KCONNECTOR: signalInitKafkaConnector(hash) к KafkaConnector.
+    EXPECT_EQ(spyInitKafka.count(), 1);
+    EXPECT_EQ(mockNetwork->initKafkaConnectorCount, 1);
+    // Hash не пустой (для реального user с id=12345 это "12345").
+    EXPECT_FALSE(mockNetwork->lastUserHash.isEmpty());
+    EXPECT_EQ(mockNetwork->lastUserHash, QByteArray("12345"));
+}
 
-    // OFFSET получен от MinIOConnector → AppManager шлёт запрос серверу
-    const int sendCountBefore = spySend.count();
-    appManager->injectKafkaOffset("offset-12345");
-    EXPECT_EQ(spySend.count(), sendCountBefore + 1);
+// ============================================================================
+// 5. KAFKA: offset → OFFSET_ACTUAL → READY (по «золотому пути»)
+// ============================================================================
+TEST_F(AppManagerTest, KafkaFlow_OffsetActual_GoesToReady) {
+    QSignalSpy spySubscribe (appManager->get(), &control::AppManager::signalSubscribeKafka);
+
+    appManager->start_run();
+    mockNetwork->emitConnectionUpdated(true);
+    mockAuthWidget->emitUserData();
+    mockNetwork->emitAuthSuccess();
+    mockDataManager->emitResourcesLoaded();
+    mockConfigManager->emitConfigured();     // → KCONNECTOR
+
+    const int sendBefore = mockNetwork->sentMessages.size();
+    appManager->injectKafkaOffset("offset-12345"); // KCONNECTOR → KAFKA
+    // В KAFKA entry: отправляется UniterMessage GET_KAFKA_CREDENTIALS REQUEST
+    EXPECT_EQ(static_cast<int>(mockNetwork->sentMessages.size()), sendBefore + 1);
+    EXPECT_EQ(mockNetwork->countSent(contract::ProtocolAction::GET_KAFKA_CREDENTIALS,
+                                     contract::MessageStatus::REQUEST), 1);
 
     // Сервер подтверждает актуальность → READY, подписка на Kafka
     mockNetwork->emitOffsetCheckResponse(true);
     EXPECT_EQ(spySubscribe.count(), 1);
-    EXPECT_EQ(spyPoll.count(), 0);
+    EXPECT_EQ(mockNetwork->subscribeKafkaCount, 1);
 }
 
 // ============================================================================
-// 5. KAFKA: offset stale → SYNC → READY
+// 6. KAFKA: offset stale → DBCLEAR → SYNC → READY
 // ============================================================================
-TEST_F(AppManagerTest, KafkaFlow_OffsetStale_GoesToSyncThenReady) {
-    QSignalSpy spyPoll     (appManager->get(), &control::AppManager::signalPollMessages);
-    QSignalSpy spySubscribe(appManager->get(), &control::AppManager::signalSubscribeKafka);
+TEST_F(AppManagerTest, KafkaFlow_OffsetStale_GoesToDbClearSyncReady) {
+    QSignalSpy spyClearDb   (appManager->get(), &control::AppManager::signalClearDatabase);
+    QSignalSpy spySubscribe (appManager->get(), &control::AppManager::signalSubscribeKafka);
 
     appManager->start_run();
     mockNetwork->emitConnectionUpdated(true);
     mockAuthWidget->emitUserData();
     mockNetwork->emitAuthSuccess();
-    appManager->onResourcesLoaded();
+    mockDataManager->emitResourcesLoaded();
     mockConfigManager->emitConfigured();
-    appManager->injectKafkaOffset("offset-outdated");
+    appManager->injectKafkaOffset("offset-outdated");   // → KAFKA
 
-    // Сервер: offset устарел → SYNC (signalPollMessages при входе)
+    // Сервер: offset устарел → DBCLEAR (signalClearDatabase при входе)
     mockNetwork->emitOffsetCheckResponse(false);
-    EXPECT_EQ(spyPoll.count(), 1);
+    EXPECT_EQ(spyClearDb.count(), 1);
+    EXPECT_EQ(mockDataManager->clearDatabaseCount, 1);
+
+    // DataManager подтверждает очистку БД → SYNC: отправляется FULL_SYNC REQUEST
+    mockDataManager->emitDatabaseCleared();
+    EXPECT_EQ(mockNetwork->countSent(contract::ProtocolAction::FULL_SYNC,
+                                     contract::MessageStatus::REQUEST), 1);
     EXPECT_EQ(spySubscribe.count(), 0);
 
     // Завершаем SYNC → READY
@@ -405,7 +484,7 @@ TEST_F(AppManagerTest, KafkaFlow_OffsetStale_GoesToSyncThenReady) {
 }
 
 // ============================================================================
-// 6. READY: CRUD-сообщения из Kafka пересылаются в DataManager
+// 7. READY: CRUD-сообщения из Kafka пересылаются в DataManager
 // ============================================================================
 TEST_F(AppManagerTest, ReadyFlow_CrudForwardedDownstream) {
     QSignalSpy spyRecv(appManager->get(), &control::AppManager::signalRecvUniterMessage);
@@ -424,7 +503,7 @@ TEST_F(AppManagerTest, ReadyFlow_CrudForwardedDownstream) {
 }
 
 // ============================================================================
-// 7. READY → LOGOUT → IDLE_AUTHENIFICATION (signalLoggedOut + очистка)
+// 8. READY → LOGOUT → IDLE_AUTHENIFICATION (signalLoggedOut + очистка)
 // ============================================================================
 TEST_F(AppManagerTest, ReadyFlow_LogoutReturnsToIdleAuth) {
     QSignalSpy spyLogout(appManager->get(), &control::AppManager::signalLoggedOut);
@@ -435,6 +514,68 @@ TEST_F(AppManagerTest, ReadyFlow_LogoutReturnsToIdleAuth) {
     appManager->get()->onLogout();
     EXPECT_EQ(spyLogout.count(), 1);
     EXPECT_EQ(spyClear.count(), 1);
+    EXPECT_EQ(appManager->get()->currentState(),
+              control::AppManager::AppState::IDLE_AUTHENIFICATION);
+}
+
+// ============================================================================
+// 9. KCONNECTOR — локальное состояние: потеря/возврат сети НЕ повторяет entry.
+// ============================================================================
+TEST_F(AppManagerTest, KconnectorFlow_NetReconnect_DoesNotReinit) {
+    QSignalSpy spyInitKafka(appManager->get(),
+                            &control::AppManager::signalInitKafkaConnector);
+
+    appManager->start_run();
+    mockNetwork->emitConnectionUpdated(true);
+    mockAuthWidget->emitUserData();
+    mockNetwork->emitAuthSuccess();
+    mockDataManager->emitResourcesLoaded();
+    mockConfigManager->emitConfigured();     // → KCONNECTOR
+    EXPECT_EQ(spyInitKafka.count(), 1);
+    EXPECT_EQ(appManager->get()->currentState(),
+              control::AppManager::AppState::KCONNECTOR);
+
+    // Потеря сети в KCONNECTOR (локальное состояние)
+    mockNetwork->emitConnectionUpdated(false);
+    EXPECT_EQ(appManager->get()->currentState(),
+              control::AppManager::AppState::KCONNECTOR);
+    EXPECT_EQ(appManager->get()->currentNetState(),
+              control::AppManager::NetState::OFFLINE);
+
+    // Возврат сети — entry НЕ повторяется для KCONNECTOR.
+    mockNetwork->emitConnectionUpdated(true);
+    EXPECT_EQ(spyInitKafka.count(), 1); // по-прежнему 1
+}
+
+// ============================================================================
+// 10. KAFKA — сетевое состояние: при потере сети entry не стартует,
+//     при возврате online — повторяется.
+// ============================================================================
+TEST_F(AppManagerTest, KafkaFlow_DeferredWhenOffline_RepeatsOnReconnect) {
+    appManager->start_run();
+    mockNetwork->emitConnectionUpdated(true);
+    mockAuthWidget->emitUserData();
+    mockNetwork->emitAuthSuccess();
+    mockDataManager->emitResourcesLoaded();
+    mockConfigManager->emitConfigured();     // → KCONNECTOR
+
+    // Имитируем потерю сети ДО того как KafkaConnector прислал offset.
+    mockNetwork->emitConnectionUpdated(false);
+    EXPECT_EQ(appManager->get()->currentNetState(),
+              control::AppManager::NetState::OFFLINE);
+
+    // KafkaConnector (локально!) инициализировался и прислал offset в OFFLINE —
+    // FSM перейдёт в KAFKA, но entry (сетевой запрос) отложится.
+    const int sendBefore = mockNetwork->sentMessages.size();
+    appManager->injectKafkaOffset("offset-xyz");
+    EXPECT_EQ(appManager->get()->currentState(),
+              control::AppManager::AppState::KAFKA);
+    EXPECT_EQ(static_cast<int>(mockNetwork->sentMessages.size()), sendBefore); // запрос не ушёл
+
+    // Возврат сети — entry KAFKA повторяется: запрос GET_KAFKA_CREDENTIALS уходит.
+    mockNetwork->emitConnectionUpdated(true);
+    EXPECT_EQ(mockNetwork->countSent(contract::ProtocolAction::GET_KAFKA_CREDENTIALS,
+                                     contract::MessageStatus::REQUEST), 1);
 }
 
 
