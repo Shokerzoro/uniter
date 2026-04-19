@@ -43,6 +43,15 @@ public:
     // Сериализация десериализация
     void from_xml(tinyxml2::XMLElement* source) override;
     void to_xml(tinyxml2::XMLElement* dest) override;
+
+    friend bool operator==(const Plant& a, const Plant& b) {
+        return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
+            && a.name        == b.name
+            && a.description == b.description
+            && a.type        == b.type
+            && a.location    == b.location;
+    }
+    friend bool operator!=(const Plant& a, const Plant& b) { return !(a == b); }
 };
 
 

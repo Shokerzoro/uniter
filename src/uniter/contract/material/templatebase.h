@@ -103,6 +103,17 @@ public:
     // и первой строкой вызывают TemplateBase::to_xml / from_xml.
     void from_xml(tinyxml2::XMLElement* source) override;
     void to_xml(tinyxml2::XMLElement* dest) override;
+
+    friend bool operator==(const TemplateBase& a, const TemplateBase& b) {
+        return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
+            && a.name             == b.name
+            && a.description      == b.description
+            && a.dimension_type   == b.dimension_type
+            && a.source           == b.source
+            && a.version          == b.version
+            && a.linked_documents == b.linked_documents;
+    }
+    friend bool operator!=(const TemplateBase& a, const TemplateBase& b) { return !(a == b); }
 };
 
 

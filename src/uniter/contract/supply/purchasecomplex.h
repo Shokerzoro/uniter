@@ -47,6 +47,15 @@ public:
     // Каскадная сериализация
     void from_xml(tinyxml2::XMLElement* source) override;
     void to_xml(tinyxml2::XMLElement* dest) override;
+
+    friend bool operator==(const PurchaseComplex& a, const PurchaseComplex& b) {
+        return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
+            && a.name        == b.name
+            && a.description == b.description
+            && a.status      == b.status
+            && a.purchases   == b.purchases;
+    }
+    friend bool operator!=(const PurchaseComplex& a, const PurchaseComplex& b) { return !(a == b); }
 };
 
 

@@ -24,6 +24,13 @@ struct AssemblyChildRef {
     uint64_t child_assembly_id = 0;  // FK → assemblies.id
     uint32_t quantity          = 1;  // Количество вхождений
     QString  config;                 // Идентификатор исполнения ("01", "02", ... или пусто)
+
+    friend bool operator==(const AssemblyChildRef& a, const AssemblyChildRef& b) {
+        return a.child_assembly_id == b.child_assembly_id
+            && a.quantity          == b.quantity
+            && a.config            == b.config;
+    }
+    friend bool operator!=(const AssemblyChildRef& a, const AssemblyChildRef& b) { return !(a == b); }
 };
 
 /**
@@ -36,6 +43,13 @@ struct AssemblyPartRef {
     uint64_t part_id  = 0;   // FK → parts.id
     uint32_t quantity = 1;
     QString  config;
+
+    friend bool operator==(const AssemblyPartRef& a, const AssemblyPartRef& b) {
+        return a.part_id  == b.part_id
+            && a.quantity == b.quantity
+            && a.config   == b.config;
+    }
+    friend bool operator!=(const AssemblyPartRef& a, const AssemblyPartRef& b) { return !(a == b); }
 };
 
 /**
@@ -96,6 +110,20 @@ public:
     // Каскадная сериализация (базовые поля — через ResourceAbstract::to_xml)
     void from_xml(tinyxml2::XMLElement* source) override;
     void to_xml  (tinyxml2::XMLElement* dest)   override;
+
+    friend bool operator==(const Assembly& a, const Assembly& b) {
+        return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
+            && a.project_id         == b.project_id
+            && a.parent_assembly_id == b.parent_assembly_id
+            && a.designation        == b.designation
+            && a.name               == b.name
+            && a.description        == b.description
+            && a.type               == b.type
+            && a.child_assemblies   == b.child_assemblies
+            && a.parts              == b.parts
+            && a.linked_documents   == b.linked_documents;
+    }
+    friend bool operator!=(const Assembly& a, const Assembly& b) { return !(a == b); }
 };
 
 

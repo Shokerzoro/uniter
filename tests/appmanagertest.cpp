@@ -68,7 +68,7 @@ public:
             QString("Закупка стали 10т"),            // name
             QString("Нужна сталь для проекта #47"),  // description
             contract::supply::PurchStatus::DRAFT,   // status
-            nullptr                                  // material (пока null)
+            std::nullopt                             // material_instance_id (пока не назначен)
             );
         crudMessage->resource = std::move(newPurch);
 

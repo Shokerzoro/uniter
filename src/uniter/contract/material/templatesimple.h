@@ -107,6 +107,20 @@ public:
     // Каскадная сериализация
     virtual void from_xml(tinyxml2::XMLElement* source) override;
     virtual void to_xml(tinyxml2::XMLElement* dest) override;
+
+    friend bool operator==(const TemplateSimple& a, const TemplateSimple& b) {
+        return static_cast<const TemplateBase&>(a) == static_cast<const TemplateBase&>(b)
+            && a.standart_type            == b.standart_type
+            && a.standard_type            == b.standard_type
+            && a.standard_number          == b.standard_number
+            && a.year                     == b.year
+            && a.prefix_segments          == b.prefix_segments
+            && a.prefix_order             == b.prefix_order
+            && a.suffix_segments          == b.suffix_segments
+            && a.suffix_order             == b.suffix_order
+            && a.compatible_template_ids  == b.compatible_template_ids;
+    }
+    friend bool operator!=(const TemplateSimple& a, const TemplateSimple& b) { return !(a == b); }
 };
 
 } // materials

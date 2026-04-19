@@ -28,6 +28,13 @@ public:
 
     void from_xml(tinyxml2::XMLElement* source) override;
     void to_xml(tinyxml2::XMLElement* dest) override;
+
+    friend bool operator==(const InstanceComposite& a, const InstanceComposite& b) {
+        return static_cast<const InstanceBase&>(a) == static_cast<const InstanceBase&>(b)
+            && a.top_values    == b.top_values
+            && a.bottom_values == b.bottom_values;
+    }
+    friend bool operator!=(const InstanceComposite& a, const InstanceComposite& b) { return !(a == b); }
 };
 
 

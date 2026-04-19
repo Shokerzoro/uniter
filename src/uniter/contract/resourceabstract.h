@@ -88,6 +88,19 @@ public:
     static QDateTime getDateTime(const tinyxml2::XMLElement* el, const char* name);
     static std::optional<uint64_t>  getOptUInt64  (const tinyxml2::XMLElement* el, const char* name);
     static std::optional<QDateTime> getOptDateTime(const tinyxml2::XMLElement* el, const char* name);
+
+    // Пополевное сравнение базовых полей ресурса. Наследники
+    // вызывают этот оператор в своём operator==, чтобы не дублировать
+    // перечисление id/is_actual/created_at/updated_at/created_by/updated_by.
+    friend bool operator==(const ResourceAbstract& a, const ResourceAbstract& b) {
+        return a.id         == b.id
+            && a.is_actual  == b.is_actual
+            && a.created_at == b.created_at
+            && a.updated_at == b.updated_at
+            && a.created_by == b.created_by
+            && a.updated_by == b.updated_by;
+    }
+    friend bool operator!=(const ResourceAbstract& a, const ResourceAbstract& b) { return !(a == b); }
 };
 
 

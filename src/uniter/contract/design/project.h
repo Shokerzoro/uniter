@@ -56,6 +56,16 @@ public:
     // Каскадная сериализация (базовые поля пишутся через ResourceAbstract::to_xml)
     void from_xml(tinyxml2::XMLElement* source) override;
     void to_xml  (tinyxml2::XMLElement* dest)   override;
+
+    friend bool operator==(const Project& a, const Project& b) {
+        return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
+            && a.name                == b.name
+            && a.description         == b.description
+            && a.projectdesignation  == b.projectdesignation
+            && a.root_assembly_id    == b.root_assembly_id
+            && a.active_snapshot_id  == b.active_snapshot_id;
+    }
+    friend bool operator!=(const Project& a, const Project& b) { return !(a == b); }
 };
 
 

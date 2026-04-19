@@ -18,6 +18,14 @@ struct EmployeeAssignment {
     contract::GenSubsystemType genSubsystem = contract::GenSubsystemType::NOTGEN;
     std::optional<uint64_t> genId = std::nullopt;
     std::vector<uint8_t> permissions;
+
+    friend bool operator==(const EmployeeAssignment& a, const EmployeeAssignment& b) {
+        return a.subsystem    == b.subsystem
+            && a.genSubsystem == b.genSubsystem
+            && a.genId        == b.genId
+            && a.permissions  == b.permissions;
+    }
+    friend bool operator!=(const EmployeeAssignment& a, const EmployeeAssignment& b) { return !(a == b); }
 };
 
 class Employee : public ResourceAbstract {
@@ -51,6 +59,16 @@ public:
     // Сериалиализация десериализация
     void from_xml(tinyxml2::XMLElement* source) override;
     void to_xml(tinyxml2::XMLElement* dest) override;
+
+    friend bool operator==(const Employee& a, const Employee& b) {
+        return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
+            && a.name        == b.name
+            && a.surname     == b.surname
+            && a.patronymic  == b.patronymic
+            && a.email       == b.email
+            && a.assignments == b.assignments;
+    }
+    friend bool operator!=(const Employee& a, const Employee& b) { return !(a == b); }
 };
 
 

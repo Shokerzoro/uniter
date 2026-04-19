@@ -22,6 +22,11 @@ namespace contract {
 struct figure
 {
     double area = 0;   // Площадь, м²
+
+    friend bool operator==(const figure& a, const figure& b) {
+        return a.area == b.area;
+    }
+    friend bool operator!=(const figure& a, const figure& b) { return !(a == b); }
 };
 
 /**
@@ -37,6 +42,13 @@ struct Quantity {
     std::optional<int>     items;
     std::optional<double>  length;
     std::optional<figure>  fig;
+
+    friend bool operator==(const Quantity& a, const Quantity& b) {
+        return a.items  == b.items
+            && a.length == b.length
+            && a.fig    == b.fig;
+    }
+    friend bool operator!=(const Quantity& a, const Quantity& b) { return !(a == b); }
 };
 
 /**
@@ -94,6 +106,16 @@ public:
     // ПЕРВОЙ строкой своих реализаций.
     virtual void from_xml(tinyxml2::XMLElement* source) override;
     virtual void to_xml(tinyxml2::XMLElement* dest) override;
+
+    friend bool operator==(const InstanceBase& a, const InstanceBase& b) {
+        return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
+            && a.template_id    == b.template_id
+            && a.name           == b.name
+            && a.description    == b.description
+            && a.dimension_type == b.dimension_type
+            && a.quantity       == b.quantity;
+    }
+    friend bool operator!=(const InstanceBase& a, const InstanceBase& b) { return !(a == b); }
 };
 
 

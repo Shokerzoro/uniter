@@ -78,6 +78,22 @@ public:
     // Каскадная сериализация
     void from_xml(tinyxml2::XMLElement* source) override;
     void to_xml  (tinyxml2::XMLElement* dest)   override;
+
+    friend bool operator==(const Part& a, const Part& b) {
+        return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
+            && a.project_id           == b.project_id
+            && a.assembly_id          == b.assembly_id
+            && a.designation          == b.designation
+            && a.name                 == b.name
+            && a.description          == b.description
+            && a.litera               == b.litera
+            && a.organization         == b.organization
+            && a.material_instance_id == b.material_instance_id
+            && a.configs              == b.configs
+            && a.signatures           == b.signatures
+            && a.linked_documents     == b.linked_documents;
+    }
+    friend bool operator!=(const Part& a, const Part& b) { return !(a == b); }
 };
 
 

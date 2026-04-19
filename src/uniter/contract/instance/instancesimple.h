@@ -34,6 +34,13 @@ public:
     // Каскадная сериализация
     void from_xml(tinyxml2::XMLElement* source) override;
     void to_xml(tinyxml2::XMLElement* dest) override;
+
+    friend bool operator==(const InstanceSimple& a, const InstanceSimple& b) {
+        return static_cast<const InstanceBase&>(a) == static_cast<const InstanceBase&>(b)
+            && a.prefix_values == b.prefix_values
+            && a.suffix_values == b.suffix_values;
+    }
+    friend bool operator!=(const InstanceSimple& a, const InstanceSimple& b) { return !(a == b); }
 };
 
 

@@ -52,6 +52,14 @@ public:
     // Каскадная сериализация
     virtual void from_xml(tinyxml2::XMLElement* source) override;
     virtual void to_xml(tinyxml2::XMLElement* dest) override;
+
+    friend bool operator==(const TemplateComposite& a, const TemplateComposite& b) {
+        return static_cast<const TemplateBase&>(a) == static_cast<const TemplateBase&>(b)
+            && a.PrefName           == b.PrefName
+            && a.top_template_id    == b.top_template_id
+            && a.bottom_template_id == b.bottom_template_id;
+    }
+    friend bool operator!=(const TemplateComposite& a, const TemplateComposite& b) { return !(a == b); }
 };
 
 } // namespace uniter::contract::materials

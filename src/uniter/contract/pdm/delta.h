@@ -26,6 +26,16 @@ struct DeltaFileChange {
     QString               old_sha256;
     QString               new_object_key;
     QString               new_sha256;
+
+    friend bool operator==(const DeltaFileChange& a, const DeltaFileChange& b) {
+        return a.id             == b.id
+            && a.file_type      == b.file_type
+            && a.old_object_key == b.old_object_key
+            && a.old_sha256     == b.old_sha256
+            && a.new_object_key == b.new_object_key
+            && a.new_sha256     == b.new_sha256;
+    }
+    friend bool operator!=(const DeltaFileChange& a, const DeltaFileChange& b) { return !(a == b); }
 };
 
 /**
@@ -42,6 +52,16 @@ struct DeltaChange {
     DeltaChangeType              change_type  = DeltaChangeType::MODIFY;
     QStringList                  changed_fields;    // напр. ["drawing","litera"]
     std::vector<DeltaFileChange> file_changes;
+
+    friend bool operator==(const DeltaChange& a, const DeltaChange& b) {
+        return a.id             == b.id
+            && a.designation    == b.designation
+            && a.element_type   == b.element_type
+            && a.change_type    == b.change_type
+            && a.changed_fields == b.changed_fields
+            && a.file_changes   == b.file_changes;
+    }
+    friend bool operator!=(const DeltaChange& a, const DeltaChange& b) { return !(a == b); }
 };
 
 /**
@@ -84,6 +104,15 @@ public:
     // Каскадная сериализация
     void from_xml(tinyxml2::XMLElement* source) override;
     void to_xml  (tinyxml2::XMLElement* dest)   override;
+
+    friend bool operator==(const Delta& a, const Delta& b) {
+        return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
+            && a.snapshot_id      == b.snapshot_id
+            && a.next_snapshot_id == b.next_snapshot_id
+            && a.changes          == b.changes
+            && a.changes_count    == b.changes_count;
+    }
+    friend bool operator!=(const Delta& a, const Delta& b) { return !(a == b); }
 };
 
 
