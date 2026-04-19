@@ -3,9 +3,7 @@
 
 #include "templatebase.h"
 
-namespace uniter {
-namespace contract {
-namespace materials {
+namespace uniter::contract::materials {
 
 /**
  * @brief Составной шаблон материала — два простых стандарта через дробь.
@@ -56,9 +54,6 @@ public:
     virtual void to_xml(tinyxml2::XMLElement* dest) override;
 };
 
-} // materials
-} // contract
-} // uniter
-
+} // namespace uniter::contract::materials
 
 #endif // TEMPLATECOMPOSITE_H

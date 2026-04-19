@@ -85,10 +85,6 @@ public:
         , compatible_template_ids(std::move(compatible_template_ids_))
     {}
 
-    // Роль стандарта в составе TemplateComposite.
-    // Для STANDALONE поле compatible_template_ids не имеет смысла и
-    // должно быть пустым (инвариант контролируется на сервере).
-    StandartType standart_type = StandartType::NONE;
 
     GostStandardType standard_type = GostStandardType::GOST; // Тип стандарта
     QString standard_number; // Номер стандарта
@@ -102,13 +98,8 @@ public:
     std::map<uint8_t, SegmentDefinition> suffix_segments;
     std::vector<uint8_t> suffix_order; // Порядок следования суффиксов
 
-    // N:M-связь совместимости ASSORTMENT ↔ MATERIAL.
-    // ASSORTMENT перечисляет здесь id совместимых MATERIAL-стандартов,
-    // MATERIAL — id совместимых ASSORTMENT-стандартов. Для STANDALONE /
-    // NONE поле пустое. Источник истины — серверная таблица
-    // `template_compatibilities(template_a_id, template_b_id)`;
-    // в клиентском ресурсе — денормализованная копия по аналогии с
-    // TemplateBase::linked_documents.
+    // Тип стандарта и связь между сортаментами и материалами
+    StandartType standart_type = StandartType::NONE;
     std::vector<uint64_t> compatible_template_ids;
 
     bool isComposite() const override { return false; }
