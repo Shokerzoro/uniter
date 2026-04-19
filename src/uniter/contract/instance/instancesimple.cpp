@@ -1,40 +1,40 @@
 
 
-#include "materialinstancesimple.h"
+#include "instancesimple.h"
 #include <tinyxml2.h>
 
 namespace uniter {
 namespace contract {
 
-void MaterialInstanceSimple::setPrefixValue(uint8_t segment_id, const std::string& value) {
+void InstanceSimple::setPrefixValue(uint8_t segment_id, const std::string& value) {
     prefix_values[segment_id] = value;
 }
 
-void MaterialInstanceSimple::setSuffixValue(uint8_t segment_id, const std::string& value) {
+void InstanceSimple::setSuffixValue(uint8_t segment_id, const std::string& value) {
     suffix_values[segment_id] = value;
 }
 
 std::optional<std::string>
-MaterialInstanceSimple::getPrefixValue(uint8_t segment_id) const {
+InstanceSimple::getPrefixValue(uint8_t segment_id) const {
     auto it = prefix_values.find(segment_id);
     if (it == prefix_values.end()) return std::nullopt;
     return it->second;
 }
 
 std::optional<std::string>
-MaterialInstanceSimple::getSuffixValue(uint8_t segment_id) const {
+InstanceSimple::getSuffixValue(uint8_t segment_id) const {
     auto it = suffix_values.find(segment_id);
     if (it == suffix_values.end()) return std::nullopt;
     return it->second;
 }
 
 // ---------------- Каскадная сериализация ----------------
-// Сначала записываются поля базового класса (MaterialInstanceBase + его
+// Сначала записываются поля базового класса (InstanceBase + его
 // ResourceAbstract), затем вложенные элементы <PrefixValues> и
 // <SuffixValues> с парами <Value segment_id="" value=""/>. Такая структура
 // напрямую ложится в реляционные таблицы:
-//   material_instance_prefix_values(instance_id, segment_id, value)
-//   material_instance_suffix_values(instance_id, segment_id, value)
+//   instance_prefix_values(instance_id, segment_id, value)
+//   instance_suffix_values(instance_id, segment_id, value)
 
 namespace {
 
@@ -67,16 +67,16 @@ void readMap(const tinyxml2::XMLElement* parent, const char* container,
 
 } // anonymous
 
-void MaterialInstanceSimple::to_xml(tinyxml2::XMLElement* dest) {
+void InstanceSimple::to_xml(tinyxml2::XMLElement* dest) {
     if (!dest) return;
-    MaterialInstanceBase::to_xml(dest);
+    InstanceBase::to_xml(dest);
     writeMap(dest, "PrefixValues", prefix_values);
     writeMap(dest, "SuffixValues", suffix_values);
 }
 
-void MaterialInstanceSimple::from_xml(tinyxml2::XMLElement* source) {
+void InstanceSimple::from_xml(tinyxml2::XMLElement* source) {
     if (!source) return;
-    MaterialInstanceBase::from_xml(source);
+    InstanceBase::from_xml(source);
     readMap(source, "PrefixValues", prefix_values);
     readMap(source, "SuffixValues", suffix_values);
 }

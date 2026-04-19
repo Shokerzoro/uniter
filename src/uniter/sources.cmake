@@ -88,25 +88,25 @@ set(MESSAGES_SOURCES
 
 set(RESOUCES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/material/segment.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatebase.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatebase.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatebase.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatebase.cpp
 
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatecomposite.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatesimple.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatesimple.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatecomposite.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatesimple.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatesimple.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatecomposite.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatecomposite.cpp
 
     ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchase.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchase.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchasecomplex.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchasecomplex.cpp
 
-    ${CMAKE_CURRENT_LIST_DIR}/contract/materialinstance/materialinstancebase.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/materialinstance/materialinstancesimple.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/materialinstance/materialinstancesimple.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/contract/materialinstance/materialinstancecomposite.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/materialinstance/materialinstancecomposite.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/contract/materialinstance/materialinstancebase.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancebase.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancebase.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancesimple.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancesimple.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancecomposite.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancecomposite.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/resourceabstract.cpp
 
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/designtypes.h

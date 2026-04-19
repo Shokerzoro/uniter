@@ -1,5 +1,5 @@
 
-#include "materialtemplatesimple.h"
+#include "templatesimple.h"
 #include <tinyxml2.h>
 
 namespace uniter {
@@ -97,38 +97,75 @@ void readOrder(const tinyxml2::XMLElement* parent, const char* container,
     }
 }
 
+// Денормализованный список совместимых шаблонов (ASSORTMENT ↔ MATERIAL).
+// XML-структура:
+//   <Compatibilities>
+//     <Compatibility template_id="..."/>
+//     ...
+//   </Compatibilities>
+// В реляционной БД на сервере — таблица template_compatibilities.
+void writeCompatibilities(tinyxml2::XMLElement* parent, const char* container,
+                          const std::vector<uint64_t>& ids) {
+    auto* doc = parent->GetDocument();
+    if (!doc) return;
+    auto* el = doc->NewElement(container);
+    for (uint64_t id : ids) {
+        auto* item = doc->NewElement("Compatibility");
+        ResourceAbstract::putUInt64(item, "template_id", id);
+        el->InsertEndChild(item);
+    }
+    parent->InsertEndChild(el);
+}
+
+void readCompatibilities(const tinyxml2::XMLElement* parent, const char* container,
+                         std::vector<uint64_t>& ids) {
+    ids.clear();
+    auto* el = parent->FirstChildElement(container);
+    if (!el) return;
+    for (auto* item = el->FirstChildElement("Compatibility");
+         item; item = item->NextSiblingElement("Compatibility")) {
+        ids.push_back(ResourceAbstract::getUInt64(item, "template_id"));
+    }
+}
+
 } // anonymous
 
-// ---------------- Каскадная сериализация MaterialTemplateSimple ----------------
+// ---------------- Каскадная сериализация TemplateSimple ----------------
 
-void MaterialTemplateSimple::to_xml(tinyxml2::XMLElement* dest) {
+void TemplateSimple::to_xml(tinyxml2::XMLElement* dest) {
     if (!dest) return;
-    MaterialTemplateBase::to_xml(dest);
+    TemplateBase::to_xml(dest);
 
+    putInt   (dest, "standart_type",   static_cast<int>(standart_type));
     putInt   (dest, "standard_type",   static_cast<int>(standard_type));
     putString(dest, "standard_number", standard_number);
     putString(dest, "year",            year);
 
-    writeSegments(dest, "PrefixSegments", prefix_segments);
-    writeOrder   (dest, "PrefixOrder",    prefix_order);
-    writeSegments(dest, "SuffixSegments", suffix_segments);
-    writeOrder   (dest, "SuffixOrder",    suffix_order);
+    writeSegments      (dest, "PrefixSegments",  prefix_segments);
+    writeOrder         (dest, "PrefixOrder",     prefix_order);
+    writeSegments      (dest, "SuffixSegments",  suffix_segments);
+    writeOrder         (dest, "SuffixOrder",     suffix_order);
+    writeCompatibilities(dest, "Compatibilities", compatible_template_ids);
 }
 
-void MaterialTemplateSimple::from_xml(tinyxml2::XMLElement* source) {
+void TemplateSimple::from_xml(tinyxml2::XMLElement* source) {
     if (!source) return;
-    MaterialTemplateBase::from_xml(source);
+    TemplateBase::from_xml(source);
 
+    standart_type   = static_cast<StandartType>(
+                        getInt(source, "standart_type",
+                               static_cast<int>(StandartType::NONE)));
     standard_type   = static_cast<GostStandardType>(
                         getInt(source, "standard_type",
                                static_cast<int>(GostStandardType::GOST)));
     standard_number = getString(source, "standard_number");
     year            = getString(source, "year");
 
-    readSegments(source, "PrefixSegments", prefix_segments);
-    readOrder   (source, "PrefixOrder",    prefix_order);
-    readSegments(source, "SuffixSegments", suffix_segments);
-    readOrder   (source, "SuffixOrder",    suffix_order);
+    readSegments      (source, "PrefixSegments",  prefix_segments);
+    readOrder         (source, "PrefixOrder",     prefix_order);
+    readSegments      (source, "SuffixSegments",  suffix_segments);
+    readOrder         (source, "SuffixOrder",     suffix_order);
+    readCompatibilities(source, "Compatibilities", compatible_template_ids);
 }
 
 } // materials

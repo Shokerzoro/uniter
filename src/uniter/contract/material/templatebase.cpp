@@ -1,19 +1,18 @@
 
-#include "materialtemplatebase.h"
+#include "templatebase.h"
 #include <tinyxml2.h>
 
 namespace uniter::contract::materials {
 
-// ---------------- MaterialTemplateBase: каскадная сериализация ----------------
+// ---------------- TemplateBase: каскадная сериализация ----------------
 
-void MaterialTemplateBase::to_xml(tinyxml2::XMLElement* dest) {
+void TemplateBase::to_xml(tinyxml2::XMLElement* dest) {
     if (!dest) return;
     ResourceAbstract::to_xml(dest);
 
     putString(dest, "name",           name);
     putString(dest, "description",    description);
     putInt   (dest, "dimension_type", static_cast<int>(dimension_type));
-    putBool  (dest, "is_standalone",  is_standalone);
     putInt   (dest, "source",         static_cast<int>(source));
     putUInt32(dest, "version",        version);
 
@@ -30,7 +29,7 @@ void MaterialTemplateBase::to_xml(tinyxml2::XMLElement* dest) {
     dest->InsertEndChild(linkedEl);
 }
 
-void MaterialTemplateBase::from_xml(tinyxml2::XMLElement* source) {
+void TemplateBase::from_xml(tinyxml2::XMLElement* source) {
     if (!source) return;
     ResourceAbstract::from_xml(source);
 
@@ -39,7 +38,6 @@ void MaterialTemplateBase::from_xml(tinyxml2::XMLElement* source) {
     dimension_type = static_cast<DimensionType>(
                         getInt(source, "dimension_type",
                                static_cast<int>(DimensionType::PIECE)));
-    is_standalone  = getBool (source, "is_standalone", true);
     this->source   = static_cast<GostSource>(
                         getInt(source, "source",
                                static_cast<int>(GostSource::BUILT_IN)));

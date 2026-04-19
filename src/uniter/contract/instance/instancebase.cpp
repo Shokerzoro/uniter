@@ -1,10 +1,10 @@
 
-#include "materialinstancebase.h"
+#include "instancebase.h"
 #include <tinyxml2.h>
 
 namespace uniter::contract {
 
-// ---------------- MaterialInstanceBase: каскадная сериализация ----------------
+// ---------------- InstanceBase: каскадная сериализация ----------------
 //
 // Сначала пишутся поля ResourceAbstract (id/actual/created_at/...), затем
 // общие поля экземпляра ссылки: template_id, name, description,
@@ -12,7 +12,7 @@ namespace uniter::contract {
 // Наследники (Simple, Composite) вызывают этот метод ПЕРВОЙ строкой своих
 // реализаций, чтобы сериализация была каскадной.
 
-void MaterialInstanceBase::to_xml(tinyxml2::XMLElement* dest) {
+void InstanceBase::to_xml(tinyxml2::XMLElement* dest) {
     if (!dest) return;
     ResourceAbstract::to_xml(dest);
 
@@ -30,7 +30,7 @@ void MaterialInstanceBase::to_xml(tinyxml2::XMLElement* dest) {
         putDouble(dest, "quantity_area", quantity.fig->area);
 }
 
-void MaterialInstanceBase::from_xml(tinyxml2::XMLElement* source) {
+void InstanceBase::from_xml(tinyxml2::XMLElement* source) {
     if (!source) return;
     ResourceAbstract::from_xml(source);
 

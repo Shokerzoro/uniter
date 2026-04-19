@@ -1,7 +1,7 @@
-#ifndef MATERIALINSTANCECOMPOSITE_H
-#define MATERIALINSTANCECOMPOSITE_H
+#ifndef INSTANCECOMPOSITE_H
+#define INSTANCECOMPOSITE_H
 
-#include "materialinstancebase.h"
+#include "instancebase.h"
 #include <tinyxml2.h>
 #include <map>
 #include <string>
@@ -13,12 +13,12 @@ namespace contract {
 /**
  * @brief Экземпляр ссылки на составной материал.
  *
- * Специализирует MaterialTemplateComposite (двухчастный шаблон через дробь)
+ * Специализирует TemplateComposite (двухчастный шаблон через дробь)
  * отдельно для верхней и нижней частей.
  */
-class MaterialInstanceComposite : public MaterialInstanceBase {
+class InstanceComposite : public InstanceBase {
 public:
-    MaterialInstanceComposite() = default;
+    InstanceComposite() = default;
 
     // Заполненные значения сегментов для составного материала
     std::map<uint8_t, std::string> top_values;    // Значения верхней части
@@ -35,4 +35,4 @@ public:
 } // uniter
 
 
-#endif // MATERIALINSTANCECOMPOSITE_H
+#endif // INSTANCECOMPOSITE_H

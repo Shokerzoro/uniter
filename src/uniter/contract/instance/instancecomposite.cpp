@@ -1,4 +1,4 @@
-#include "materialinstancecomposite.h"
+#include "instancecomposite.h"
 #include <tinyxml2.h>
 
 namespace uniter {
@@ -7,7 +7,7 @@ namespace contract {
 namespace {
 
 // Локальные хелперы для сериализации map<uint8_t, std::string>.
-// Структура XML такая же, как в Simple — см. materialinstancesimple.cpp.
+// Структура XML такая же, как в Simple — см. instancesimple.cpp.
 
 void writeMap(tinyxml2::XMLElement* parent, const char* container,
               const std::map<uint8_t, std::string>& m) {
@@ -38,16 +38,16 @@ void readMap(const tinyxml2::XMLElement* parent, const char* container,
 
 } // anonymous
 
-void MaterialInstanceComposite::to_xml(tinyxml2::XMLElement* dest) {
+void InstanceComposite::to_xml(tinyxml2::XMLElement* dest) {
     if (!dest) return;
-    MaterialInstanceBase::to_xml(dest);
+    InstanceBase::to_xml(dest);
     writeMap(dest, "TopValues",    top_values);
     writeMap(dest, "BottomValues", bottom_values);
 }
 
-void MaterialInstanceComposite::from_xml(tinyxml2::XMLElement* source) {
+void InstanceComposite::from_xml(tinyxml2::XMLElement* source) {
     if (!source) return;
-    MaterialInstanceBase::from_xml(source);
+    InstanceBase::from_xml(source);
     readMap(source, "TopValues",    top_values);
     readMap(source, "BottomValues", bottom_values);
 }

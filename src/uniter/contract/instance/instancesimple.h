@@ -1,7 +1,7 @@
-#ifndef MATERIALINSTANCESIMPLE_H
-#define MATERIALINSTANCESIMPLE_H
+#ifndef INSTANCESIMPLE_H
+#define INSTANCESIMPLE_H
 
-#include "materialinstancebase.h"
+#include "instancebase.h"
 #include <tinyxml2.h>
 #include <map>
 #include <string>
@@ -13,13 +13,13 @@ namespace contract {
 /**
  * @brief Экземпляр ссылки на простой материал.
  *
- * Специализирует MaterialTemplateSimple конкретными значениями префиксов
+ * Специализирует TemplateSimple конкретными значениями префиксов
  * и суффиксов. Ключ в map — id сегмента из шаблона, значение — выбранное
  * значение этого сегмента (строка).
  */
-class MaterialInstanceSimple : public MaterialInstanceBase {
+class InstanceSimple : public InstanceBase {
 public:
-    MaterialInstanceSimple() = default;
+    InstanceSimple() = default;
 
     std::map<uint8_t, std::string> prefix_values; // Значения префиксов
     std::map<uint8_t, std::string> suffix_values; // Значения суффиксов
@@ -40,4 +40,4 @@ public:
 } // contract
 } // uniter
 
-#endif // MATERIALINSTANCESIMPLE_H
+#endif // INSTANCESIMPLE_H

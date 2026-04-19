@@ -1,8 +1,8 @@
-#ifndef MATERIALINSTANCEBASE_H
-#define MATERIALINSTANCEBASE_H
+#ifndef INSTANCEBASE_H
+#define INSTANCEBASE_H
 
 #include "../resourceabstract.h"
-#include "../material/materialtemplatebase.h"
+#include "../material/templatebase.h"
 #include <tinyxml2.h>
 #include <QString>
 #include <QDateTime>
@@ -46,12 +46,12 @@ struct Quantity {
  * ресурсом, унаследованным от ResourceAbstract (иначе CRUD через
  * UniterMessage не сработает). DimensionType берётся из
  * `materials::DimensionType` (`PIECE`/`LINEAR`/`AREA`) — см.
- * material/materialtemplatebase.h.
+ * material/templatebase.h.
  */
-class MaterialInstanceBase : public ResourceAbstract {
+class InstanceBase : public ResourceAbstract {
 public:
-    MaterialInstanceBase() = default;
-    MaterialInstanceBase(
+    InstanceBase() = default;
+    InstanceBase(
         uint64_t id_,
         bool actual_,
         const QDateTime& created_at_,
@@ -70,9 +70,9 @@ public:
           dimension_type(dimension_type_),
           quantity(std::move(quantity_))
     {}
-    virtual ~MaterialInstanceBase() = default;
+    virtual ~InstanceBase() = default;
 
-    // Связь с шаблоном материала (FK → material_templates.id)
+    // Связь с шаблоном материала (FK → templates.id)
     uint64_t template_id = 0;
 
     // Человекочитаемые поля
@@ -89,8 +89,8 @@ public:
     virtual bool isComposite() const = 0;
 
     // Каскадная сериализация — наследники вызывают
-    //   MaterialInstanceBase::to_xml(dest);
-    //   MaterialInstanceBase::from_xml(source);
+    //   InstanceBase::to_xml(dest);
+    //   InstanceBase::from_xml(source);
     // ПЕРВОЙ строкой своих реализаций.
     virtual void from_xml(tinyxml2::XMLElement* source) override;
     virtual void to_xml(tinyxml2::XMLElement* dest) override;
@@ -102,4 +102,4 @@ public:
 } // uniter
 
 
-#endif // MATERIALINSTANCEBASE_H
+#endif // INSTANCEBASE_H
