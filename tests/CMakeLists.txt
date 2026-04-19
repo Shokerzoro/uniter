@@ -6,12 +6,14 @@ include(../src/uniter/sources.cmake)
 add_executable(UniterTests
     test_main.cpp
     appmanagertest.cpp
+    resourcestests.cpp
 
     # UI Layer
     ${STATIC_WIDGETS_SOURCES}
     ${GENERATIVE_WIDGETS_SOURCES}
     ${DYNAMIC_WIDGETS_SOURCES}
-
+    #BUSYNESS LOGIC LAYER
+    ${BLOGIC_SOURCES}
     # Data layer
     ${DATA_SOURCES}
     # Control layer

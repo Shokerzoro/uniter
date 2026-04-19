@@ -6,13 +6,21 @@
 #include <tinyxml2.h>
 #include <vector>
 #include <cstdint>
+#include <QString>
 
 namespace uniter::contract::supply {
 
 
+/**
+ * @brief Комплексная закупочная заявка.
+ *
+ * Группирует несколько простых Purchase по id. В БД маппится на таблицу
+ * `purchase_groups` + перекрёстная `purchase_group_items`.
+ */
 class PurchaseComplex : public ResourceAbstract
 {
 public:
+    PurchaseComplex() = default;
     PurchaseComplex(
         uint64_t s_id,
         bool actual,
@@ -23,26 +31,35 @@ public:
         QString name_,
         QString description_,
         PurchStatus status_,
-        std::vector<uint64_t> purchases_) :
-        ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
-        name(name_),
-        description(description_),
-        status(status_),
-        purchases(purchases_) {}
+        std::vector<uint64_t> purchases_)
+        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
+          name(std::move(name_)),
+          description(std::move(description_)),
+          status(status_),
+          purchases(std::move(purchases_)) {}
 
 
-    QString name;
-    QString description;
-    PurchStatus status;
-    std::vector<uint64_t> purchases;
+    QString               name;
+    QString               description;
+    PurchStatus           status = PurchStatus::DRAFT;
+    std::vector<uint64_t> purchases;   // FK → purchases.id
 
-    // Сериализация десериализация
-    virtual void from_xml(tinyxml2::XMLElement* source) override;
-    virtual void to_xml(tinyxml2::XMLElement* dest) override;
+    // Каскадная сериализация
+    void from_xml(tinyxml2::XMLElement* source) override;
+    void to_xml(tinyxml2::XMLElement* dest) override;
+
+    friend bool operator==(const PurchaseComplex& a, const PurchaseComplex& b) {
+        return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
+            && a.name        == b.name
+            && a.description == b.description
+            && a.status      == b.status
+            && a.purchases   == b.purchases;
+    }
+    friend bool operator!=(const PurchaseComplex& a, const PurchaseComplex& b) { return !(a == b); }
 };
 
 
-} // supply
+} // namespace uniter::contract::supply
 
 
 #endif // PURCHASECOMPLEX_H

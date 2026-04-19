@@ -14,7 +14,8 @@ enum class Subsystem : uint8_t {
     MANAGER                 = 4,
     GENERATIVE              = 5,
     INSTANCES               = 6,
-    PDM                     = 7
+    PDM                     = 7,
+    DOCUMENTS               = 8
 };
 
 enum class GenSubsystemType : uint8_t {
@@ -57,6 +58,10 @@ enum class ResourceType : uint8_t {
 
     // --- Subsystem::GENERATIVE + GenSubsystem::INTERGATION ---
     INTEGRATION_TASK         = 80,
+
+    // --- Subsystem::DOCUMENTS ---
+    DOC                      = 90,   // Внешний документ (файл в MinIO: чертёж/PDF ГОСТ/3D-модель)
+    DOC_LINK                 = 91,   // N:M связь Doc ↔ целевой ресурс (Assembly/Part/Project/MaterialTemplate)
 };
 
 enum class CrudAction : uint8_t {
@@ -131,6 +136,7 @@ inline QString subsystemToString(Subsystem subsystem) {
     case Subsystem::GENERATIVE:  return "GENERATIVE";
     case Subsystem::INSTANCES:   return "INSTANCES";
     case Subsystem::PDM:         return "PDM";
+    case Subsystem::DOCUMENTS:   return "DOCUMENTS";
     default: return QString("Unknown(%1)").arg(static_cast<int>(subsystem));
     }
 }
@@ -156,6 +162,7 @@ inline QDebug operator<<(QDebug debug, Subsystem subsystem) {
     case Subsystem::GENERATIVE:  debug.nospace() << "GENERATIVE"; break;
     case Subsystem::INSTANCES:   debug.nospace() << "INSTANCES"; break;
     case Subsystem::PDM:         debug.nospace() << "PDM"; break;
+    case Subsystem::DOCUMENTS:   debug.nospace() << "DOCUMENTS"; break;
     default: debug.nospace() << "Unknown(" << static_cast<int>(subsystem) << ")";
     }
     return debug;
@@ -192,6 +199,8 @@ inline QDebug operator<<(QDebug debug, ResourceType type) {
     case ResourceType::PRODUCTION_TASK:              debug.nospace() << "PRODUCTION_TASK"; break;
     case ResourceType::PRODUCTION_STOCK:             debug.nospace() << "PRODUCTION_STOCK"; break;
     case ResourceType::INTEGRATION_TASK:             debug.nospace() << "INTEGRATION_TASK"; break;
+    case ResourceType::DOC:                          debug.nospace() << "DOC"; break;
+    case ResourceType::DOC_LINK:                     debug.nospace() << "DOC_LINK"; break;
     default: debug.nospace() << "Unknown(" << static_cast<int>(type) << ")";
     }
     return debug;

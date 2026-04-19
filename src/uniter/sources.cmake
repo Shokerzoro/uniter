@@ -41,6 +41,8 @@ set(BLOGIC_SOURCES
 set(DATA_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/data/datamanager.h
     ${CMAKE_CURRENT_LIST_DIR}/data/datamanager.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/data/idataobserver.h
+    ${CMAKE_CURRENT_LIST_DIR}/data/idataobserver.cpp
 )
 
 
@@ -80,38 +82,52 @@ set(MESSAGES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/unitermessage.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/unitermessage.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/resourceabstract.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/uniterprotocol.h
 )
 
 
 set(RESOUCES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/material/segment.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatebase.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatebase.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatebase.cpp
 
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatecomposite.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatesimple.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatesimple.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/materialtemplatecomposite.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatesimple.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatesimple.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatecomposite.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatecomposite.cpp
 
     ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchase.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchase.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchasecomplex.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchasecomplex.cpp
 
-    ${CMAKE_CURRENT_LIST_DIR}/contract/materialinstance/materialinstancebase.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/materialinstance/materialinstancesimple.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/materialinstance/materialinstancesimple.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/contract/materialinstance/materialinstancecomposite.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/materialinstance/materialinstancecomposite.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/contract/materialinstance/materialinstancebase.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancebase.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancebase.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancesimple.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancesimple.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancecomposite.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancecomposite.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/resourceabstract.cpp
 
+    ${CMAKE_CURRENT_LIST_DIR}/contract/design/designtypes.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/assembly.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/assembly.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/part.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/part.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/contract/design/fileversion.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/project.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/project.cpp
+
+    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/pdmtypes.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/snapshot.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/snapshot.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/delta.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/delta.cpp
+
+    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doctypes.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doc.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doc.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doclink.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doclink.cpp
 
     ${CMAKE_CURRENT_LIST_DIR}/contract/employee/permissions.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/employee/employee.h
@@ -120,6 +136,9 @@ set(RESOUCES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/plant/plant.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/plant/task.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/plant/task.cpp
+
+    ${CMAKE_CURRENT_LIST_DIR}/contract/production/productionstock.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/production/productionstock.cpp
 )
 
 set(CONTRACT_SOURCES

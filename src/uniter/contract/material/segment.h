@@ -24,6 +24,17 @@ struct SegmentDefinition {
     SegmentValueType value_type;// Тип значения
     std::map<uint8_t, std::string> allowed_values; // Статус сегмента
     bool is_active = true; // true = активен, false = удалён (deprecated)
+
+    friend bool operator==(const SegmentDefinition& a, const SegmentDefinition& b) {
+        return a.id             == b.id
+            && a.code           == b.code
+            && a.name           == b.name
+            && a.description    == b.description
+            && a.value_type     == b.value_type
+            && a.allowed_values == b.allowed_values
+            && a.is_active      == b.is_active;
+    }
+    friend bool operator!=(const SegmentDefinition& a, const SegmentDefinition& b) { return !(a == b); }
 };
 
 
