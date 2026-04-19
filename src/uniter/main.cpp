@@ -4,6 +4,7 @@
 #include "control/appmanager.h"
 #include "control/configmanager.h"
 #include "network/mocknetwork.h"
+#include "network/minioconnector.h"
 #include "../common/appfuncs.h"
 
 #include <QApplication>
@@ -31,6 +32,7 @@ int main(int argc, char *argv[])
     auto* appManager = control::AppManager::instance();
     auto* configManager = control::ConfigManager::instance();
     auto* netManager = net::MockNetManager::instance();
+    auto* minioConnector = net::MinIOConnector::instance();
 
     // ========== СОЗДАНИЕ UI ==========
     staticwdg::MainWidget MWindow;
@@ -74,6 +76,21 @@ int main(int argc, char *argv[])
     // AppManager → UI (отражение состояния)
     QObject::connect(appManager, &control::AppManager::signalConnectionUpdated,
                      &MWindow, &staticwdg::MainWidget::onConnectionUpdated);
+
+
+    // === 2.1 MinIOConnector (KAFKA / offset / подписка) ===
+
+    // AppManager → MinIOConnector: инициализация (войдя в KAFKA)
+    QObject::connect(appManager, &control::AppManager::signalInitMinIO,
+                     minioConnector, &net::MinIOConnector::onInitConnection);
+
+    // MinIOConnector → AppManager: offset получен
+    QObject::connect(minioConnector, &net::MinIOConnector::signalOffsetReady,
+                     appManager, &control::AppManager::onKafkaOffsetReceived);
+
+    // AppManager → MinIOConnector: подписка на Kafka (войдя в READY)
+    QObject::connect(appManager, &control::AppManager::signalSubscribeKafka,
+                     minioConnector, &net::MinIOConnector::onSubscribeKafka);
 
 
     // === 3. Управление ресурсами и БД ===

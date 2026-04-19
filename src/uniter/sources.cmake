@@ -70,6 +70,9 @@ set(NETWORK_SOURCES
 
     ${CMAKE_CURRENT_LIST_DIR}/network/mocknetwork.h
     ${CMAKE_CURRENT_LIST_DIR}/network/mocknetwork.cpp
+
+    ${CMAKE_CURRENT_LIST_DIR}/network/minioconnector.h
+    ${CMAKE_CURRENT_LIST_DIR}/network/minioconnector.cpp
 )
 
 # = = = = = = = = common sources = = = = = = = = #

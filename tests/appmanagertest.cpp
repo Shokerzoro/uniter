@@ -9,162 +9,171 @@
 #include <QObject>
 #include <QSignalSpy>
 #include <QCryptographicHash>
+#include <QString>
 #include <memory>
 
 using namespace uniter;
 
 namespace appmanagertest {
 
-
+// ============================================================================
+// Mock AuthWidget — имитирует пользовательский виджет входа.
+// ============================================================================
 class MockAuthWidget : public QObject {
     Q_OBJECT
 public:
     MockAuthWidget() = default;
     bool authed = false;
+    int  authedFalseCount = 0;
+
     void emitUserData() {
         auto authReqMessage = std::make_shared<contract::UniterMessage>();
         authReqMessage->subsystem = contract::Subsystem::PROTOCOL;
-        authReqMessage->protact = contract::ProtocolAction::AUTH;
+        authReqMessage->protact   = contract::ProtocolAction::AUTH;
+        authReqMessage->status    = contract::MessageStatus::REQUEST;
         authReqMessage->add_data.emplace("login", "niger");
         authReqMessage->add_data.emplace("password", "12345");
         emit signalSendUniterMessage(authReqMessage);
     }
 public slots:
     void onFindAuthData() {
-
+        // В реальности — показать экран логина. Для теста ничего не делаем.
     }
     void onAuthed(bool result) {
-        // Как-то реагируем
         authed = result;
+        if (!result) ++authedFalseCount;
     }
 signals:
     void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
 };
 
+// ============================================================================
+// Mock Network — имитирует и MockNetManager, и MinIOConnector.
+// Это даёт тесту полный контроль над сценарием KAFKA/SYNC/READY.
+// ============================================================================
 class MockNetwork : public QObject {
     Q_OBJECT
 public:
     MockNetwork() = default;
 
-    // ИЗМЕНЕНО: объединённые методы
+    int subscribeKafkaCount = 0;
+    int initMinIOCount      = 0;
+    int makeConnectionCount = 0;
+    int pollMessagesCount   = 0;
+
     void emitConnectionUpdated(bool state) {
         emit signalConnectionUpdated(state);
     }
 
-    // Отправка crud сообщения
+    // CRUD NOTIFICATION из "Kafka"
     void emitCrudMessage() {
         auto crudMessage = std::make_shared<contract::UniterMessage>();
         crudMessage->subsystem = contract::Subsystem::PURCHASES;
-        crudMessage->crudact = contract::CrudAction::CREATE;
-        crudMessage->status = contract::MessageStatus::NOTIFICATION;
+        crudMessage->crudact   = contract::CrudAction::CREATE;
+        crudMessage->status    = contract::MessageStatus::NOTIFICATION;
 
         auto newPurch = std::make_shared<contract::supply::Purchase>(
-            1001,                                    // id
-            true,                                    // actual
-            QDateTime::currentDateTime(),            // created_at
-            QDateTime::currentDateTime(),            // updated_at
-            12345,                                   // created_by (User ID)
-            12345,                                   // updated_by
-            QString("Закупка стали 10т"),            // name
-            QString("Нужна сталь для проекта #47"),  // description
-            contract::supply::PurchStatus::DRAFT,   // status
-            std::nullopt                             // material_instance_id (пока не назначен)
-            );
+            1001, true,
+            QDateTime::currentDateTime(), QDateTime::currentDateTime(),
+            12345, 12345,
+            QString("Закупка стали 10т"),
+            QString("Нужна сталь для проекта #47"),
+            contract::supply::PurchStatus::DRAFT,
+            std::nullopt);
         crudMessage->resource = std::move(newPurch);
 
         emit signalRecvUniterMessage(std::move(crudMessage));
     }
 
-    // Отправляем ответы на запрос об авторизации
+    // AUTH RESPONSE success (с Employee)
     void emitAuthSuccess() {
-
         auto authMessageSuccess = std::make_shared<contract::UniterMessage>();
-        // Настройка успешного ответа аутентификации
         authMessageSuccess->subsystem = contract::Subsystem::PROTOCOL;
-        authMessageSuccess->protact = contract::ProtocolAction::AUTH;
-        authMessageSuccess->status = contract::MessageStatus::RESPONSE;
-        // Создаем тестового пользователя
-        std::vector<contract::employees::EmployeeAssignment> assignments;
+        authMessageSuccess->protact   = contract::ProtocolAction::AUTH;
+        authMessageSuccess->status    = contract::MessageStatus::RESPONSE;
+        authMessageSuccess->error     = contract::ErrorCode::SUCCESS;
 
-        // Employee: 10 аргументов
+        std::vector<contract::employees::EmployeeAssignment> assignments;
         auto employee = std::make_shared<contract::employees::Employee>(
-            12345,                                   // id
-            true,                                    // is_actual
-            QDateTime::currentDateTime(),            // created_at
-            QDateTime::currentDateTime(),            // updated_at
-            0,                                       // created_by
-            0,                                       // updated_by
-            QString("Иван"),                         // name
-            QString("Иванов"),                       // surname
-            QString("Иванович"),                     // patronymic
-            QString("ivan@company.ru"),              // email
-            std::move(assignments)                   // assignments
-            );
+            12345, true,
+            QDateTime::currentDateTime(), QDateTime::currentDateTime(),
+            0, 0,
+            QString("Иван"), QString("Иванов"), QString("Иванович"),
+            QString("ivan@company.ru"),
+            std::move(assignments));
         authMessageSuccess->resource = std::move(employee);
 
         emit signalRecvUniterMessage(std::move(authMessageSuccess));
     }
 
     void emitAuthError() {
-
         auto errorMessage = std::make_shared<contract::UniterMessage>();
-        // Настройка сообщения об ошибке аутентификации
-        errorMessage->version = 1;
+        errorMessage->version   = 1;
         errorMessage->subsystem = contract::Subsystem::PROTOCOL;
-        errorMessage->protact = contract::ProtocolAction::AUTH;
-        errorMessage->status = contract::MessageStatus::RESPONSE;
-        errorMessage->error = contract::ErrorCode::BAD_REQUEST;
+        errorMessage->protact   = contract::ProtocolAction::AUTH;
+        errorMessage->status    = contract::MessageStatus::RESPONSE;
+        errorMessage->error     = contract::ErrorCode::BAD_REQUEST;
 
         emit signalRecvUniterMessage(errorMessage);
     }
 
-public slots:
-    // Запрос на подключение
-    void onMakeConnection(void) {
-
+    // Ответ сервера на GET_KAFKA_CREDENTIALS: actual = true/false
+    void emitOffsetCheckResponse(bool actual) {
+        auto m = std::make_shared<contract::UniterMessage>();
+        m->subsystem = contract::Subsystem::PROTOCOL;
+        m->protact   = contract::ProtocolAction::GET_KAFKA_CREDENTIALS;
+        m->status    = contract::MessageStatus::RESPONSE;
+        m->error     = contract::ErrorCode::SUCCESS;
+        m->add_data.emplace("offset_actual", actual ? "true" : "false");
+        emit signalRecvUniterMessage(m);
     }
-    // Получение сообщения от AppManager
-    void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message) {
-        // Логируем или обрабатываем
 
-    };
+    // Ответ сервера о завершении FULL_SYNC
+    void emitFullSyncDone() {
+        auto m = std::make_shared<contract::UniterMessage>();
+        m->subsystem = contract::Subsystem::PROTOCOL;
+        m->protact   = contract::ProtocolAction::FULL_SYNC;
+        m->status    = contract::MessageStatus::SUCCESS;
+        emit signalRecvUniterMessage(m);
+    }
+
+public slots:
+    // Слоты от AppManager
+    void onMakeConnection() { ++makeConnectionCount; }
+    void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> /*Message*/) {}
+    void onPollMessages() { ++pollMessagesCount; }
+
+    // Слоты MinIOConnector
+    void onInitMinIO()       { ++initMinIOCount; }
+    void onSubscribeKafka()  { ++subscribeKafkaCount; }
 
 signals:
-    // ИЗМЕНЕНО: один объединённый сигнал
     void signalConnectionUpdated(bool state);
-
-    // Получение сообщения из сети
     void signalRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
 };
 
+// ============================================================================
+// Mock ConfigManager
+// ============================================================================
 class MockConfigManager : public QObject {
-    Q_OBJECT;
+    Q_OBJECT
 public:
     MockConfigManager() = default;
     std::shared_ptr<contract::employees::Employee> m_User;
-    void emitConfigured() {
-        emit signalConfigured();
-    }
+    void emitConfigured() { emit signalConfigured(); }
 public slots:
     void onConfigProc(std::shared_ptr<contract::employees::Employee> User) {
-        // Копируем User
         m_User = std::move(User);
     }
     void onClearResources() {
-        // Очистка ресурсов при logout
         m_User.reset();
     }
 signals:
     void signalConfigured();
-    void signalSubsystemAdded(contract::Subsystem subsystem,
-                              contract::GenSubsystemType genType,
-                              std::optional<uint64_t> genId,
-                              bool created);
 };
 
 // ============================================================================
-// ИЗМЕНЕНИЕ: AppManagerTesting теперь НЕ наследует AppManager,
-// а использует композицию с указателем на синглтон
+// Wrapper для AppManager: подмена внутренних связей на mock'и
 // ============================================================================
 class AppManagerTesting {
 private:
@@ -172,31 +181,22 @@ private:
 
 public:
     AppManagerTesting() {
-        // Получаем указатель на синглтон
         appManager_ = control::AppManager::instance();
     }
 
-    // Получить указатель для подключения сигналов/слотов
-    control::AppManager* get() {
-        return appManager_;
+    control::AppManager* get() { return appManager_; }
+
+    void start_run() { appManager_->start_run(); }
+    void onResourcesLoaded() { appManager_->onResourcesLoaded(); }
+    void injectKafkaOffset(const QString& offset) {
+        appManager_->onKafkaOffsetReceived(offset);
     }
 
-    void start_run() {
-        appManager_->start_run();
-    }
-
-    void onResourcesLoaded() {
-        appManager_->onResourcesLoaded();
-    }
-
-    // Для replaceMockConfigManager нужно отключить синглтон ConfigManager
     void replaceMockConfigManager(MockConfigManager* mock) {
-        // Отключаем старые подписки внутреннего ConfigManager
         auto ConfigMgr = control::ConfigManager::instance();
         QObject::disconnect(ConfigMgr, nullptr, appManager_, nullptr);
         QObject::disconnect(appManager_, nullptr, ConfigMgr, nullptr);
 
-        // Подписываем mock напрямую
         QObject::connect(mock, &MockConfigManager::signalConfigured,
                          appManager_, &control::AppManager::onConfigured);
         QObject::connect(appManager_, &control::AppManager::signalConfigProc,
@@ -208,41 +208,43 @@ public:
 
 
 // ============================================================================
-// AppManagerTest: SetUp теперь работает с синглтоном через AppManagerTesting
+// Test fixture — переделан под новую FSM (KAFKA/SYNC + entry-actions)
 // ============================================================================
 class AppManagerTest : public ::testing::Test {
 public:
     std::unique_ptr<AppManagerTesting> appManager;
-    std::unique_ptr<MockAuthWidget> mockAuthWidget;
-    std::unique_ptr<MockNetwork> mockNetwork;
+    std::unique_ptr<MockAuthWidget>    mockAuthWidget;
+    std::unique_ptr<MockNetwork>       mockNetwork;
     std::unique_ptr<MockConfigManager> mockConfigManager;
 
 protected:
     void SetUp() override {
-        // Создаем wrapper для AppManager (получает синглтон внутри)
-        appManager = std::make_unique<AppManagerTesting>();
-        mockAuthWidget = std::make_unique<MockAuthWidget>();
-        mockNetwork = std::make_unique<MockNetwork>();
+        appManager        = std::make_unique<AppManagerTesting>();
+        mockAuthWidget    = std::make_unique<MockAuthWidget>();
+        mockNetwork       = std::make_unique<MockNetwork>();
         mockConfigManager = std::make_unique<MockConfigManager>();
 
-        // Заменяем внутренний ConfigManager на mock
         appManager->replaceMockConfigManager(mockConfigManager.get());
 
-        // Теперь линкуем сигналы и слоты (connect)
-        // appmanager и сетевой класс
+        // === AppManager ↔ MockNetwork (сеть) ===
         QObject::connect(appManager->get(), &control::AppManager::signalSendUniterMessage,
                          mockNetwork.get(), &MockNetwork::onSendUniterMessage);
         QObject::connect(appManager->get(), &control::AppManager::signalMakeConnection,
                          mockNetwork.get(), &MockNetwork::onMakeConnection);
+        QObject::connect(appManager->get(), &control::AppManager::signalPollMessages,
+                         mockNetwork.get(), &MockNetwork::onPollMessages);
         QObject::connect(mockNetwork.get(), &MockNetwork::signalRecvUniterMessage,
                          appManager->get(), &control::AppManager::onRecvUniterMessage);
-
-        // ИЗМЕНЕНО: один объединённый connect вместо двух
         QObject::connect(mockNetwork.get(), &MockNetwork::signalConnectionUpdated,
                          appManager->get(), &control::AppManager::onConnectionUpdated);
 
+        // === AppManager ↔ MockNetwork (MinIOConnector-роль) ===
+        QObject::connect(appManager->get(), &control::AppManager::signalInitMinIO,
+                         mockNetwork.get(), &MockNetwork::onInitMinIO);
+        QObject::connect(appManager->get(), &control::AppManager::signalSubscribeKafka,
+                         mockNetwork.get(), &MockNetwork::onSubscribeKafka);
 
-        // appmanager и виджет аутентификации
+        // === AppManager ↔ AuthWidget ===
         QObject::connect(mockAuthWidget.get(), &MockAuthWidget::signalSendUniterMessage,
                          appManager->get(), &control::AppManager::onSendUniterMessage);
         QObject::connect(appManager->get(), &control::AppManager::signalFindAuthData,
@@ -252,178 +254,190 @@ protected:
     }
 
     void TearDown() override {
-        // Отключаем все связи после теста
         QObject::disconnect(appManager->get(), nullptr, nullptr, nullptr);
         QObject::disconnect(mockNetwork.get(), nullptr, nullptr, nullptr);
         QObject::disconnect(mockAuthWidget.get(), nullptr, nullptr, nullptr);
         QObject::disconnect(mockConfigManager.get(), nullptr, nullptr, nullptr);
     }
+
+    // Утилита: довести FSM до состояния READY по «золотому пути».
+    void driveToReady() {
+        appManager->start_run();
+        mockNetwork->emitConnectionUpdated(true);     // STARTED → AUTHENIFICATION
+        mockAuthWidget->emitUserData();               // AUTHENIFICATION → IDLE_AUTHENIFICATION
+        mockNetwork->emitAuthSuccess();               // IDLE_AUTHENIFICATION → DBLOADING
+        appManager->onResourcesLoaded();              // DBLOADING → CONFIGURATING
+        mockConfigManager->emitConfigured();          // CONFIGURATING → KAFKA
+        appManager->injectKafkaOffset("offset-12345");// KAFKA: OFFSET_RECEIVED → запрос серверу
+        mockNetwork->emitOffsetCheckResponse(true);   // KAFKA → READY (offset актуален)
+    }
 };
 
 // ============================================================================
-// ТЕСТЫ: изменены вызовы с emitConnected/emitDisconnected на emitConnectionUpdated
+// 1. Базовая FSM: IDLE → STARTED → AUTHENIFICATION (online/offline)
 // ============================================================================
-
-// Базовый прогон FSM + подключение/отключение сети
-TEST_F(AppManagerTest, BasicFSM) {
-    // 1. Проверка начального IDLE состояния - убираем прямую проверку
-    // БЫЛО: EXPECT_TRUE(appManager->isIdle());
-    // Проверяем через отсутствие сигналов
-
-    // 2. Шпион для проверки сигнала signalMakeConnection
+TEST_F(AppManagerTest, BasicFSM_StartedAndAuthenification) {
     QSignalSpy spyMakeConnection(appManager->get(),
-                                 &uniter::control::AppManager::signalMakeConnection);
+                                 &control::AppManager::signalMakeConnection);
+    QSignalSpy spyConnectionUpdated(appManager->get(),
+                                    &control::AppManager::signalConnectionUpdated);
+    QSignalSpy spyFindAuthData(appManager->get(),
+                               &control::AppManager::signalFindAuthData);
 
-    // 3. Запуск AppManager - переход в STARTED
+    // 1. START
     appManager->start_run();
-
-    // 4. Проверка STARTED состояния через сигнал подключения
     EXPECT_EQ(spyMakeConnection.count(), 1);
 
-    // 5. Шпион для проверки сигнала signalConnectionUpdated (UI разблокировка/блокировка)
-    QSignalSpy spyConnectionUpdated(appManager->get(),
-                                    &uniter::control::AppManager::signalConnectionUpdated);
-    // 5.1. Шпион для проверки отправки сигнала signalFindAuthData
-    QSignalSpy spyAuthRequest(appManager->get(),
-                              &uniter::control::AppManager::signalFindAuthData);
-
-    // 6. Симуляция успешного подключения сети
+    // 2. Подключение сети — AUTHENIFICATION: запрошены auth-данные
     mockNetwork->emitConnectionUpdated(true);
-
-    // 7. Проверка CONNECTED состояния через сигналы
     EXPECT_EQ(spyConnectionUpdated.count(), 1);
-    EXPECT_TRUE(spyConnectionUpdated.at(0).at(0).toBool()); // state == true
-    EXPECT_EQ(spyAuthRequest.count(), 1);
+    EXPECT_TRUE(spyConnectionUpdated.at(0).at(0).toBool());
+    EXPECT_EQ(spyFindAuthData.count(), 1);
 
-    // 8. Симуляция разрыва соединения
+    // 3. Потеря сети → NetState меняется, логическое состояние сохраняется
     mockNetwork->emitConnectionUpdated(false);
-
-    // 9. Проверка через сигналы
     EXPECT_EQ(spyConnectionUpdated.count(), 2);
-    EXPECT_FALSE(spyConnectionUpdated.at(1).at(0).toBool()); // state == false
+    EXPECT_FALSE(spyConnectionUpdated.at(1).at(0).toBool());
 
-    // 10. Повторное соединение
+    // 4. Возврат сети — signalFindAuthData повторно не дёргается
+    //    (логическое состояние не менялось)
     mockNetwork->emitConnectionUpdated(true);
-
-    // 11. Проверка: после установления соединения снова запрашиваются данные
-    EXPECT_EQ(spyAuthRequest.count(), 2);
-
-    // 12. Разрываем соединение и отправляем authMessage
-    mockNetwork->emitConnectionUpdated(false);
-    mockAuthWidget->emitUserData();
-    QSignalSpy spySendMessage(appManager->get(),
-                              &uniter::control::AppManager::signalSendUniterMessage);
-
-    // 13. Соединяем
-    mockNetwork->emitConnectionUpdated(true);
-
-    // 14. Проверка состояния и отправки сообщений
-    EXPECT_EQ(spyAuthRequest.count(), 2);
-    EXPECT_EQ(spySendMessage.count(), 1);
+    EXPECT_EQ(spyConnectionUpdated.count(), 3);
+    EXPECT_EQ(spyFindAuthData.count(), 1);
 }
 
-// Сценарии неудачной аутентификации
-TEST_F(AppManagerTest, badAuth) {
-    // 0. Шпион передачи сообщений в сеть
-    QSignalSpy spyMessagesSend(appManager->get(), &control::AppManager::signalSendUniterMessage);
-    // Шпион получения аутентификации
-    QSignalSpy spyAuthProc(appManager->get(), &control::AppManager::signalAuthed);
+// ============================================================================
+// 2. Плохой AUTH: IDLE_AUTHENIFICATION → AUTHENIFICATION (signalAuthed(false))
+// ============================================================================
+TEST_F(AppManagerTest, BadAuth_ReturnsToAuthenification) {
+    QSignalSpy spyAuthed(appManager->get(), &control::AppManager::signalAuthed);
+    QSignalSpy spySend  (appManager->get(), &control::AppManager::signalSendUniterMessage);
+    QSignalSpy spyFindAuthData(appManager->get(), &control::AppManager::signalFindAuthData);
 
-    // 1. Базовый FSM до запроса авторизации
     appManager->start_run();
     mockNetwork->emitConnectionUpdated(true);
-    mockAuthWidget->emitUserData();
+    mockAuthWidget->emitUserData();   // → IDLE_AUTHENIFICATION
+    EXPECT_EQ(spySend.count(), 1);
 
-    // 2. Проверка получения запроса
-    EXPECT_EQ(spyMessagesSend.count(), 1);
-
-    // 3. Генерируем ответ
+    // Плохой ответ → возврат в AUTHENIFICATION, запрос auth-данных снова
     mockNetwork->emitAuthError();
-
-    // 4. Проверяем что обработка произошла
-    EXPECT_EQ(spyAuthProc.count(), 1);
+    EXPECT_EQ(spyAuthed.count(), 1);
+    EXPECT_FALSE(spyAuthed.at(0).at(0).toBool());
     EXPECT_FALSE(mockAuthWidget->authed);
-
-    // 5. Генерируем повторный сценарий
-    mockAuthWidget->emitUserData();
-    mockNetwork->emitAuthError();
-
-    // 6. Повторные проверки
-    EXPECT_EQ(spyMessagesSend.count(), 2);
-    EXPECT_EQ(spyAuthProc.count(), 2);
-    EXPECT_FALSE(mockAuthWidget->authed);
+    // AUTHENIFICATION entry: либо signalFindAuthData, либо send сохранённого
+    // authMessage. После AUTH_FAIL буфер сброшен, поэтому должен быть
+    // signalFindAuthData.
+    EXPECT_EQ(spyFindAuthData.count(), 2); // первый — после connect, второй — после fail
 }
 
-// Сценарий удачной аутентификации
-TEST_F(AppManagerTest, goodAuth) {
-    // 0. Шпион передачи сообщений в сеть
-    QSignalSpy spyMessagesSend(appManager->get(), &control::AppManager::signalSendUniterMessage);
-
-    // 1. Базовый FSM до запроса авторизации
-    appManager->start_run();
-    mockNetwork->emitConnectionUpdated(true);
-    mockAuthWidget->emitUserData();
-
-    // 2. Проверка получения запроса сетевым классом
-    EXPECT_EQ(spyMessagesSend.count(), 1);
-
-    // Шпион получения аутентификации
-    QSignalSpy spyAuthProc(appManager->get(), &control::AppManager::signalAuthed);
-    // Шпион запроса загрузки БД
+// ============================================================================
+// 3. Хороший AUTH: IDLE_AUTHENIFICATION → DBLOADING
+// ============================================================================
+TEST_F(AppManagerTest, GoodAuth_TransitionsToDbLoading) {
+    QSignalSpy spyAuthed(appManager->get(), &control::AppManager::signalAuthed);
     QSignalSpy spyLoadResources(appManager->get(), &control::AppManager::signalLoadResources);
 
-    // 3. Генерируем ответ (успешная авторизация)
+    appManager->start_run();
+    mockNetwork->emitConnectionUpdated(true);
+    mockAuthWidget->emitUserData();
     mockNetwork->emitAuthSuccess();
 
-    // 4. Проверяем что обработка произошла
-    EXPECT_EQ(spyAuthProc.count(), 1);
-    EXPECT_EQ(spyLoadResources.count(), 1);
+    // DBLOADING entry: signalAuthed(true) + signalLoadResources(userhash)
+    EXPECT_EQ(spyAuthed.count(), 1);
+    EXPECT_TRUE(spyAuthed.at(0).at(0).toBool());
     EXPECT_TRUE(mockAuthWidget->authed);
+    EXPECT_EQ(spyLoadResources.count(), 1);
 }
 
-// Сценарии конфигурирования и загрузки БД
-TEST_F(AppManagerTest, postAuthSettings) {
+// ============================================================================
+// 4. KAFKA: offset → OFFSET_ACTUAL → READY (по «золотому пути»)
+// ============================================================================
+TEST_F(AppManagerTest, KafkaFlow_OffsetActual_GoesToReady) {
+    QSignalSpy spyInitMinIO (appManager->get(), &control::AppManager::signalInitMinIO);
+    QSignalSpy spySend      (appManager->get(), &control::AppManager::signalSendUniterMessage);
+    QSignalSpy spySubscribe (appManager->get(), &control::AppManager::signalSubscribeKafka);
+    QSignalSpy spyPoll      (appManager->get(), &control::AppManager::signalPollMessages);
 
-    // 0. Шпионы за FSM переходами
-    QSignalSpy spyConfigProc(appManager->get(), &control::AppManager::signalConfigProc);
-    QSignalSpy spyLoadResources(appManager->get(), &control::AppManager::signalLoadResources);
-    QSignalSpy spyPollMessages(appManager->get(), &control::AppManager::signalPollMessages);
-
-    // Шпион пересылки сообщений appmanager вниз (CRUD forwarding)
-    QSignalSpy spyRecvMessages(appManager->get(), &control::AppManager::signalRecvUniterMessage);
-
-    // 1. BasicFSM → AUTHENTIFICATED
     appManager->start_run();
     mockNetwork->emitConnectionUpdated(true);
     mockAuthWidget->emitUserData();
     mockNetwork->emitAuthSuccess();
-
-    // 2. Проверяем переход AUTHENTIFICATED и инициализацию БД
-    EXPECT_EQ(spyLoadResources.count(), 1);   // signalLoadResources(userhash)
-
-    // 3. БД инициализируется → DBLOADED
-    // Имитируем завершение инициализации БД путём вызова onResourcesLoaded
     appManager->onResourcesLoaded();
-    EXPECT_EQ(spyConfigProc.count(), 1);      // signalConfigProc(User) вызывается из DBLOADED
-
-    // 4. ConfigManager подтверждает завершение работы → READY
     mockConfigManager->emitConfigured();
-    EXPECT_EQ(spyPollMessages.count(), 1);    // signalPollMessages()
 
-    // 6. READY: проверяем CRUD forwarding!
+    // Вход в KAFKA: signalInitMinIO → MinIOConnector инициализируется
+    EXPECT_EQ(spyInitMinIO.count(), 1);
+
+    // OFFSET получен от MinIOConnector → AppManager шлёт запрос серверу
+    const int sendCountBefore = spySend.count();
+    appManager->injectKafkaOffset("offset-12345");
+    EXPECT_EQ(spySend.count(), sendCountBefore + 1);
+
+    // Сервер подтверждает актуальность → READY, подписка на Kafka
+    mockNetwork->emitOffsetCheckResponse(true);
+    EXPECT_EQ(spySubscribe.count(), 1);
+    EXPECT_EQ(spyPoll.count(), 0);
+}
+
+// ============================================================================
+// 5. KAFKA: offset stale → SYNC → READY
+// ============================================================================
+TEST_F(AppManagerTest, KafkaFlow_OffsetStale_GoesToSyncThenReady) {
+    QSignalSpy spyPoll     (appManager->get(), &control::AppManager::signalPollMessages);
+    QSignalSpy spySubscribe(appManager->get(), &control::AppManager::signalSubscribeKafka);
+
+    appManager->start_run();
+    mockNetwork->emitConnectionUpdated(true);
+    mockAuthWidget->emitUserData();
+    mockNetwork->emitAuthSuccess();
+    appManager->onResourcesLoaded();
+    mockConfigManager->emitConfigured();
+    appManager->injectKafkaOffset("offset-outdated");
+
+    // Сервер: offset устарел → SYNC (signalPollMessages при входе)
+    mockNetwork->emitOffsetCheckResponse(false);
+    EXPECT_EQ(spyPoll.count(), 1);
+    EXPECT_EQ(spySubscribe.count(), 0);
+
+    // Завершаем SYNC → READY
+    mockNetwork->emitFullSyncDone();
+    EXPECT_EQ(spySubscribe.count(), 1);
+}
+
+// ============================================================================
+// 6. READY: CRUD-сообщения из Kafka пересылаются в DataManager
+// ============================================================================
+TEST_F(AppManagerTest, ReadyFlow_CrudForwardedDownstream) {
+    QSignalSpy spyRecv(appManager->get(), &control::AppManager::signalRecvUniterMessage);
+
+    driveToReady();
+
+    // Kafka шлёт NOTIFICATION → forward в DataManager
     mockNetwork->emitCrudMessage();
-    EXPECT_EQ(spyRecvMessages.count(), 1);    // signalRecvUniterMessage(Purchase)
+    EXPECT_EQ(spyRecv.count(), 1);
 
-    // 7. Бонус: проверяем параметры CRUD сообщения
-    auto crudArgs = spyRecvMessages.takeFirst();
-    auto message = qvariant_cast<std::shared_ptr<contract::UniterMessage>>(crudArgs.at(0));
+    auto args = spyRecv.takeFirst();
+    auto message = qvariant_cast<std::shared_ptr<contract::UniterMessage>>(args.at(0));
     ASSERT_NE(message, nullptr);
     EXPECT_EQ(message->subsystem, contract::Subsystem::PURCHASES);
     EXPECT_EQ(message->crudact, contract::CrudAction::CREATE);
 }
 
+// ============================================================================
+// 7. READY → LOGOUT → IDLE_AUTHENIFICATION (signalLoggedOut + очистка)
+// ============================================================================
+TEST_F(AppManagerTest, ReadyFlow_LogoutReturnsToIdleAuth) {
+    QSignalSpy spyLogout(appManager->get(), &control::AppManager::signalLoggedOut);
+    QSignalSpy spyClear (appManager->get(), &control::AppManager::signalClearResources);
+
+    driveToReady();
+
+    appManager->get()->onLogout();
+    EXPECT_EQ(spyLogout.count(), 1);
+    EXPECT_EQ(spyClear.count(), 1);
+}
 
 
-} //namespace appmanagertest
+} // namespace appmanagertest
 
 #include "appmanagertest.moc"

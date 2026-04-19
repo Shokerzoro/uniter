@@ -122,6 +122,36 @@ makeCrudResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request
     return response;
 }
 
+// Ответ на GET_KAFKA_CREDENTIALS: подтверждаем актуальность offset.
+// В stub-варианте всегда возвращаем offset_actual=true — FSM должен
+// переходить в READY без прохождения через SYNC. Более детальная проработка
+// (рандомизация/реальная проверка) вынесена в отдельный этап.
+std::shared_ptr<uniter::contract::UniterMessage>
+makeKafkaOffsetCheckResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request)
+{
+    using namespace uniter::contract;
+
+    auto response = std::make_shared<UniterMessage>(*request);
+    response->status    = MessageStatus::RESPONSE;
+    response->protact   = ProtocolAction::GET_KAFKA_CREDENTIALS;
+    response->subsystem = Subsystem::PROTOCOL;
+    response->error     = ErrorCode::SUCCESS;
+
+    // Копируем offset из запроса для прозрачности в логах.
+    QString offset_echo;
+    auto it = request->add_data.find("offset");
+    if (it != request->add_data.end()) {
+        offset_echo = it->second;
+    }
+
+    response->add_data.clear();
+    response->add_data.emplace("offset", offset_echo);
+    response->add_data.emplace("offset_actual", "true");
+
+    qDebug() << "MockNetManager: offset check ACTUAL for offset=" << offset_echo;
+    return response;
+}
+
 } // anonymous namespace
 
 namespace uniter::net {
@@ -184,6 +214,16 @@ void MockNetManager::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
         message->protact  == ProtocolAction::AUTH)
     {
         auto response = makeProtocolAuthResponse(message);
+        ++seq_id_received_;
+        emit signalRecvMessage(response);
+        return;
+    }
+
+    // PROTOCOL: проверка актуальности offset Kafka
+    if (message->subsystem == Subsystem::PROTOCOL &&
+        message->protact  == ProtocolAction::GET_KAFKA_CREDENTIALS)
+    {
+        auto response = makeKafkaOffsetCheckResponse(message);
         ++seq_id_received_;
         emit signalRecvMessage(response);
         return;

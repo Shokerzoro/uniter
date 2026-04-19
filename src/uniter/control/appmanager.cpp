@@ -6,8 +6,6 @@
 
 #include <QCryptographicHash>
 #include <QDebug>
-#include <optional>
-#include <stdexcept>
 #include <memory>
 
 namespace uniter::control {
@@ -29,184 +27,230 @@ namespace uniter::control {
         ProcessEvent(Events::START);
     }
 
-    // ========== ОБРАБОТКА СОБЫТИЙ FSM ==========
+    // ========== ENTRY ACTIONS ==========
+
+    void AppManager::enterStarted()
+    {
+        qDebug() << "AppManager: enter STARTED — requesting network connection";
+        emit signalMakeConnection();
+    }
+
+    void AppManager::enterAuthenification()
+    {
+        qDebug() << "AppManager: enter AUTHENIFICATION — requesting auth data from widget";
+        // Если данные от виджета уже в буфере — сразу отправляем.
+        if (m_authMessage) {
+            qDebug() << "AppManager: AUTHENIFICATION — stored authMessage present, sending";
+            emit signalSendUniterMessage(m_authMessage);
+            // Переходим в IDLE_AUTHENIFICATION: ждём ответ сервера
+            ProcessEvent(Events::AUTH_DATA_READY);
+            return;
+        }
+        // Иначе — просим виджет прислать логин/пароль
+        emit signalFindAuthData();
+    }
+
+    void AppManager::enterIdleAuthenification()
+    {
+        qDebug() << "AppManager: enter IDLE_AUTHENIFICATION — waiting server response";
+        // Действий при входе нет: просто ждём ответ сервера.
+    }
+
+    void AppManager::enterDbLoading()
+    {
+        qDebug() << "AppManager: enter DBLOADING — initializing database";
+        emit signalAuthed(true);
+        if (m_user) {
+            QByteArray userhash = QByteArray::number(m_user->id);
+            emit signalLoadResources(userhash);
+        } else {
+            qDebug() << "AppManager: DBLOADING entered without m_user (unexpected)";
+        }
+    }
+
+    void AppManager::enterConfigurating()
+    {
+        qDebug() << "AppManager: enter CONFIGURATING — invoking ConfigManager";
+        emit signalConfigProc(m_user);
+    }
+
+    void AppManager::enterKafka()
+    {
+        qDebug() << "AppManager: enter KAFKA — init MinIOConnector, expect offset";
+        // MinIOConnector инициализируется и пришлёт offset через
+        // onKafkaOffsetReceived(QString). Этот offset затем отправляется серверу
+        // (PROTOCOL + GET_KAFKA_CREDENTIALS либо CHECK_OFFSET — в текущем
+        // протоколе используем GET_KAFKA_CREDENTIALS с add_data["offset"]).
+        emit signalInitMinIO();
+    }
+
+    void AppManager::enterSync()
+    {
+        qDebug() << "AppManager: enter SYNC — requesting FULL_SYNC from server";
+        emit signalPollMessages();
+    }
+
+    void AppManager::enterReady()
+    {
+        qDebug() << "AppManager: enter READY — subscribing to Kafka broadcast";
+        emit signalSubscribeKafka();
+    }
+
+    void AppManager::enterShutdown()
+    {
+        qDebug() << "AppManager: enter SHUTDOWN — saving settings & message buffers";
+        // TODO: фактическое сохранение настроек и буферов сообщений.
+    }
+
+    bool AppManager::isInsideUiLockedArea(AppState s)
+    {
+        // «UI-блокируемая часть» (пунктирная рамка на диаграмме):
+        // все состояния начиная с AUTHENIFICATION до READY включительно.
+        switch (s) {
+            case AppState::AUTHENIFICATION:
+            case AppState::IDLE_AUTHENIFICATION:
+            case AppState::DBLOADING:
+            case AppState::CONFIGURATING:
+            case AppState::KAFKA:
+            case AppState::SYNC:
+            case AppState::READY:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    // ========== FSM ==========
 
     void AppManager::ProcessEvent(Events event)
     {
-        qDebug() << "AppManager::ProcessEvent() - Event received";
+        qDebug() << "AppManager::ProcessEvent() state=" << static_cast<int>(m_appState)
+                 << " event=" << static_cast<int>(event);
 
-        // Лямбды для переходов между состояниями
-        auto in_idle = []() {
-            qDebug() << "AppManager::in_idle()";
-        };
+        // ---------- Обработка SHUTDOWN из любого состояния ----------
+        if (event == Events::SHUTDOWN) {
+            m_appState = AppState::SHUTDOWN;
+            enterShutdown();
+            return;
+        }
 
-        auto out_idle = []() {
-            qDebug() << "AppManager::out_idle()";
-        };
-
-        auto in_started = [this]() {
-            qDebug() << "AppManager::in_started()";
-            emit signalMakeConnection();
-        };
-
-        auto out_started = []() {
-            qDebug() << "AppManager::out_started()";
-        };
-
-        auto in_idle_connected = [this]() {
-            qDebug() << "AppManager::in_idle_connected()";
-            m_netState = NetState::ONLINE;
-            emit signalConnectionUpdated(true);
-        };
-
-        auto in_connected = [this]() {
-            qDebug() << "AppManager::in_connected()";
-            m_netState = NetState::ONLINE;
-            emit signalConnectionUpdated(true);
-
-            emit signalFindAuthData();         // ← только здесь
-            if (m_authMessage) {
-                qDebug() << "AppManager::in_connected(): sending stored auth request";
-                emit signalSendUniterMessage(m_authMessage);
+        // ---------- Обработка сетевых событий (онлайн/оффлайн) ----------
+        // Переход между online/offline внутри того же логического состояния
+        // FSM не меняет AppState — только NetState. Единственное исключение —
+        // состояния IDLE и STARTED: там NET_CONNECTED ведёт к логическому
+        // переходу (STARTED → AUTHENIFICATION).
+        if (event == Events::NET_DISCONNECTED) {
+            if (m_netState == NetState::ONLINE) {
+                m_netState = NetState::OFFLINE;
+                emit signalConnectionUpdated(false);
             }
-        };
-
-
-        auto out_connected = []() {
-            qDebug() << "AppManager::out_connected()";
-        };
-
-        auto in_authentificated = [this]() {
-            qDebug() << "AppManager::in_authentificated()";
-            emit signalAuthed(true);
-
-            if (m_user) {
-                QByteArray userhash = QByteArray::number(m_user->id);
-                emit signalLoadResources(userhash);
+            return;
+        }
+        if (event == Events::NET_CONNECTED) {
+            // Включаем онлайн
+            bool was_offline = (m_netState == NetState::OFFLINE);
+            m_netState = NetState::ONLINE;
+            if (was_offline) {
+                emit signalConnectionUpdated(true);
             }
-        };
+            // STARTED → AUTHENIFICATION при первом подключении.
+            if (m_appState == AppState::STARTED) {
+                m_appState = AppState::AUTHENIFICATION;
+                enterAuthenification();
+            }
+            return;
+        }
 
-        auto out_authentificated = []() {
-            qDebug() << "AppManager::out_authentificated()";
-        };
-
-        auto in_dbloaded = [this]() {
-            qDebug() << "AppManager::in_dbloaded()";
-            emit signalConfigProc(m_user);
-        };
-
-        auto out_dbloaded = []() {
-            qDebug() << "AppManager::out_dbloaded()";
-        };
-
-        auto in_ready = []() {
-            qDebug() << "AppManager::in_ready()";
-        };
-
-        auto out_ready = []() {
-            qDebug() << "AppManager::out_ready()";
-        };
-
-        auto in_offline = [this]() {
-            qDebug() << "AppManager::in_offline()";
-            m_netState = NetState::OFFLINE;
-            emit signalConnectionUpdated(false);
-        };
-
-        auto out_offline = []() {
-            qDebug() << "AppManager::out_offline()";
-        };
-
-        auto in_shutdown = []() {
-            qDebug() << "AppManager::in_shutdown()";
-        };
-
-        auto out_shutdown = []() {
-            qDebug() << "AppManager::out_shutdown()";
-        };
-
-        // Обработка событий в зависимости от текущего состояния
+        // ---------- Логические переходы (online) ----------
         switch (m_appState) {
             case AppState::IDLE:
                 if (event == Events::START) {
-                    out_idle();
                     m_appState = AppState::STARTED;
-                    in_started();
+                    enterStarted();
                 }
                 break;
 
             case AppState::STARTED:
-                if (event == Events::NET_CONNECTED) {
-                    out_started();
-                    m_appState = AppState::CONNECTED;
-                    in_connected();
-                }
-                else if (event == Events::NET_DISCONNECTED) {
-                    out_started();
-                    m_appState = AppState::STARTED;
-                    in_offline();
+                // Все переходы STARTED обрабатываются в блоке NET_* выше
+                break;
+
+            case AppState::AUTHENIFICATION:
+                if (event == Events::AUTH_DATA_READY) {
+                    // Виджет отдал логин/пароль, запрос уже ушёл — ждём ответ.
+                    m_appState = AppState::IDLE_AUTHENIFICATION;
+                    enterIdleAuthenification();
+                } else if (event == Events::AUTH_SUCCESS) {
+                    // Сервер ответил успешно (редкий путь: логин/пароль
+                    // были в буфере и ответ пришёл очень быстро).
+                    m_appState = AppState::DBLOADING;
+                    enterDbLoading();
                 }
                 break;
 
-            case AppState::CONNECTED:
+            case AppState::IDLE_AUTHENIFICATION:
                 if (event == Events::AUTH_SUCCESS) {
-                    out_connected();
-                    m_appState = AppState::AUTHENTIFICATED;
-                    in_authentificated();
-                }
-                else if (event == Events::NET_DISCONNECTED) {
-                    out_connected();
-                    m_appState = AppState::CONNECTED;
-                    in_offline();
+                    m_appState = AppState::DBLOADING;
+                    enterDbLoading();
+                } else if (event == Events::AUTH_FAIL) {
+                    // Неудачная авторизация — возвращаемся в AUTHENIFICATION,
+                    // чистим буфер, просим виджет ещё раз
+                    m_authMessage.reset();
+                    emit signalAuthed(false);
+                    m_appState = AppState::AUTHENIFICATION;
+                    enterAuthenification();
                 }
                 break;
 
-            case AppState::AUTHENTIFICATED:
+            case AppState::DBLOADING:
                 if (event == Events::DB_LOADED) {
-                    out_authentificated();
-                    m_appState = AppState::DBLOADED;
-                    in_dbloaded();
-                }
-                else if (event == Events::NET_DISCONNECTED) {
-                    out_authentificated();
-                    m_appState = AppState::AUTHENTIFICATED;
-                    in_offline();
+                    m_appState = AppState::CONFIGURATING;
+                    enterConfigurating();
                 }
                 break;
 
-            case AppState::DBLOADED:
+            case AppState::CONFIGURATING:
                 if (event == Events::CONFIG_DONE) {
-                    out_dbloaded();
-                    m_appState = AppState::READY;
-                    in_ready();
+                    m_appState = AppState::KAFKA;
+                    enterKafka();
                 }
-                else if (event == Events::NET_DISCONNECTED) {
-                    out_dbloaded();
-                    m_appState = AppState::DBLOADED;
-                    in_offline();
+                break;
+
+            case AppState::KAFKA:
+                if (event == Events::OFFSET_RECEIVED) {
+                    // Получили offset от MinIOConnector, шлём серверу запрос
+                    // на проверку актуальности.
+                    auto msg = std::make_shared<contract::UniterMessage>();
+                    msg->subsystem = contract::Subsystem::PROTOCOL;
+                    msg->protact   = contract::ProtocolAction::GET_KAFKA_CREDENTIALS;
+                    msg->status    = contract::MessageStatus::REQUEST;
+                    msg->add_data.emplace("offset", m_lastKafkaOffset);
+                    emit signalSendUniterMessage(msg);
+                    // Остаёмся в KAFKA, ждём OFFSET_ACTUAL / OFFSET_STALE
+                } else if (event == Events::OFFSET_ACTUAL) {
+                    m_appState = AppState::READY;
+                    enterReady();
+                } else if (event == Events::OFFSET_STALE) {
+                    m_appState = AppState::SYNC;
+                    enterSync();
+                }
+                break;
+
+            case AppState::SYNC:
+                if (event == Events::SYNC_DONE) {
+                    m_appState = AppState::READY;
+                    enterReady();
                 }
                 break;
 
             case AppState::READY:
                 if (event == Events::LOGOUT) {
-                    out_ready();
-                    // Очистка ресурсов
                     m_user.reset();
                     m_authMessage.reset();
+                    m_lastKafkaOffset.clear();
                     emit signalClearResources();
                     emit signalLoggedOut();
-                    m_appState = AppState::CONNECTED;
-                    in_idle_connected();
-                }
-                else if (event == Events::NET_DISCONNECTED) {
-                    out_ready();
-                    m_appState = AppState::READY;
-                    in_offline();
-                }
-                else if (event == Events::SHUTDOWN) {
-                    out_ready();
-                    m_appState = AppState::SHUTDOWN;
-                    in_shutdown();
+                    m_appState = AppState::IDLE_AUTHENIFICATION;
+                    enterIdleAuthenification();
                 }
                 break;
 
@@ -214,48 +258,14 @@ namespace uniter::control {
                 // Финальное состояние
                 break;
         }
-
-        // Обработка восстановления соединения (независимо от AppState)
-        if (event == Events::NET_CONNECTED && m_netState == NetState::OFFLINE) {
-            out_offline();
-
-            switch (m_appState) {
-                case AppState::STARTED:
-                    in_started();
-                    break;
-                case AppState::IDLE_CONNECTED:
-                    in_idle_connected();
-                    break;
-                case AppState::CONNECTED:
-                    in_connected();
-                    break;
-                case AppState::AUTHENTIFICATED:
-                    in_authentificated();
-                    break;
-                case AppState::DBLOADED:
-                    in_dbloaded();
-                    break;
-                case AppState::READY:
-                    in_ready();
-                    break;
-                default:
-                    break;
-            }
-        }
     }
 
     // ========== СЛОТЫ ==========
 
-    // Объединённый слот от сетевого класса
     void AppManager::onConnectionUpdated(bool state)
     {
         qDebug() << "AppManager::onConnectionUpdated(" << state << ")";
-
-        if (state) {
-            ProcessEvent(Events::NET_CONNECTED);
-        } else {
-            ProcessEvent(Events::NET_DISCONNECTED);
-        }
+        ProcessEvent(state ? Events::NET_CONNECTED : Events::NET_DISCONNECTED);
     }
 
     void AppManager::onResourcesLoaded()
@@ -282,97 +292,118 @@ namespace uniter::control {
         ProcessEvent(Events::SHUTDOWN);
     }
 
-    // Маршрутизация входящих сообщений — публичный вход
+    void AppManager::onKafkaOffsetReceived(QString offset)
+    {
+        qDebug() << "AppManager::onKafkaOffsetReceived(" << offset << ")";
+        m_lastKafkaOffset = std::move(offset);
+        ProcessEvent(Events::OFFSET_RECEIVED);
+    }
+
+    // Маршрутизация входящих сообщений
     void AppManager::onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message)
     {
         if (m_netState == NetState::OFFLINE) {
-            qDebug() << "AppManager::onRecvUniterMessage(): ignoring message in OFFLINE state";
+            qDebug() << "AppManager::onRecvUniterMessage(): ignoring in OFFLINE";
             return;
         }
 
-        if (m_appState != AppState::READY && Message->subsystem == contract::Subsystem::PROTOCOL) {
-            handleInitProtocolMessage(Message);
-            return;
-        }
-
-        if (m_appState == AppState::READY) {
-            if (Message->subsystem == contract::Subsystem::PROTOCOL) {
+        // PROTOCOL-сообщения принимаются в разных состояниях (AUTH,
+        // GET_KAFKA_CREDENTIALS, FULL_SYNC, UPDATE_*). Разделяем:
+        //   — фазу инициализации (до READY): разрешён только AUTH / KAFKA offset
+        //   — READY: остальные (MinIO, UPDATE_*, CRUD)
+        if (Message->subsystem == contract::Subsystem::PROTOCOL) {
+            if (m_appState == AppState::READY) {
                 handleReadyProtocolMessage(Message);
             } else {
-                handleReadyCrudMessage(Message);
-            }
-        }
-    }
-
-    // Протокольные сообщения на этапе инициализации (до READY).
-    // Единственное допустимое действие здесь — ответ на AUTH.
-    // Все прочие протокольные сообщения до READY игнорируются.
-    void AppManager::handleInitProtocolMessage(std::shared_ptr<contract::UniterMessage> message)
-    {
-        if (m_appState == AppState::CONNECTED &&
-            message->protact == contract::ProtocolAction::AUTH &&
-            message->status == contract::MessageStatus::RESPONSE) {
-
-            if (message->error == contract::ErrorCode::SUCCESS && message->resource) {
-                m_user = std::dynamic_pointer_cast<contract::employees::Employee>(message->resource);
-                qDebug() << "AppManager::handleInitProtocolMessage(): authentication successful";
-                ProcessEvent(Events::AUTH_SUCCESS);
-            } else if (message->error == contract::ErrorCode::BAD_REQUEST) {
-                qDebug() << "AppManager::handleInitProtocolMessage(): authentication failed";
-                emit signalAuthed(false);
+                handleInitProtocolMessage(Message);
             }
             return;
         }
 
-        qDebug() << "AppManager::handleInitProtocolMessage(): unexpected protocol message before READY, ignoring"
-                 << "protact=" << message->protact;
+        // Все не-PROTOCOL сообщения (CRUD) актуальны только в READY
+        if (m_appState == AppState::READY) {
+            handleReadyCrudMessage(Message);
+        } else {
+            qDebug() << "AppManager::onRecvUniterMessage(): CRUD ignored, not READY";
+        }
     }
 
-    // Протокольные сообщения в рабочем состоянии (READY):
-    // MinIO presigned URL, MinIO file download, Kafka credentials, FULL_SYNC, обновления.
+    // Протокольные сообщения до READY:
+    //   AUTH (RESPONSE) — запуск AUTH_SUCCESS / AUTH_FAIL
+    //   GET_KAFKA_CREDENTIALS (RESPONSE) — подтверждение актуальности offset
+    void AppManager::handleInitProtocolMessage(std::shared_ptr<contract::UniterMessage> message)
+    {
+        // Авторизация
+        if (message->protact == contract::ProtocolAction::AUTH &&
+            message->status  == contract::MessageStatus::RESPONSE)
+        {
+            if (message->error == contract::ErrorCode::SUCCESS && message->resource) {
+                m_user = std::dynamic_pointer_cast<contract::employees::Employee>(message->resource);
+                qDebug() << "AppManager: auth SUCCESS";
+                ProcessEvent(Events::AUTH_SUCCESS);
+            } else {
+                qDebug() << "AppManager: auth FAIL (" << message->error << ")";
+                ProcessEvent(Events::AUTH_FAIL);
+            }
+            return;
+        }
+
+        // Проверка актуальности offset — сервер возвращает
+        // GET_KAFKA_CREDENTIALS (RESPONSE) с add_data["offset_actual"] = "true"/"false".
+        if (message->protact == contract::ProtocolAction::GET_KAFKA_CREDENTIALS &&
+            message->status  == contract::MessageStatus::RESPONSE &&
+            m_appState      == AppState::KAFKA)
+        {
+            auto it = message->add_data.find("offset_actual");
+            bool actual = (it != message->add_data.end() && it->second == "true");
+            ProcessEvent(actual ? Events::OFFSET_ACTUAL : Events::OFFSET_STALE);
+            return;
+        }
+
+        // Завершение FULL_SYNC — сервер шлёт FULL_SYNC (SUCCESS) после того
+        // как весь поток CREATE закончен.
+        if (message->protact == contract::ProtocolAction::FULL_SYNC &&
+            message->status  == contract::MessageStatus::SUCCESS &&
+            m_appState      == AppState::SYNC)
+        {
+            ProcessEvent(Events::SYNC_DONE);
+            return;
+        }
+
+        qDebug() << "AppManager: unexpected protocol message before READY, ignored."
+                 << "protact=" << message->protact
+                 << "status="  << message->status;
+    }
+
     void AppManager::handleReadyProtocolMessage(std::shared_ptr<contract::UniterMessage> message)
     {
         switch (message->protact) {
             case contract::ProtocolAction::GET_MINIO_PRESIGNED_URL:
-                // Ответ от ServerConnector: add_data["presigned_url"] содержит временный URL.
-                // TODO: маршрутизация в FileManager (реализуется в пункте 6)
-                qDebug() << "AppManager::handleReadyProtocolMessage(): GET_MINIO_PRESIGNED_URL response — routing to FileManager (not yet implemented)";
-                break;
-
             case contract::ProtocolAction::GET_MINIO_FILE:
-                // Ответ/подтверждение от MinIOConnector: файл скачан (status=RESPONSE) или ошибка (status=ERROR).
-                // TODO: маршрутизация в FileManager (реализуется в пункте 6)
-                qDebug() << "AppManager::handleReadyProtocolMessage(): GET_MINIO_FILE response — routing to FileManager (not yet implemented)";
+                // TODO: FileManager
+                qDebug() << "AppManager: READY MinIO protocol — FileManager not yet implemented"
+                         << "protact=" << message->protact;
                 break;
 
             case contract::ProtocolAction::GET_KAFKA_CREDENTIALS:
-                // Ответ от ServerConnector: add_data содержит bootstrap_servers, topic, username, password.
-                // TODO: маршрутизация в KafkaConnector (реализуется в пункте 4/5)
-                qDebug() << "AppManager::handleReadyProtocolMessage(): GET_KAFKA_CREDENTIALS response (not yet implemented)";
-                break;
-
-            case contract::ProtocolAction::FULL_SYNC:
-                // Сигнал от ServerConnector, что FULL_SYNC завершён — DataManager переходит в LOADED.
-                // TODO: инициировать переход DB_LOADED в FSM (реализуется в пункте 4)
-                qDebug() << "AppManager::handleReadyProtocolMessage(): FULL_SYNC complete (not yet implemented)";
+                // Уведомления о замене credentials — TODO
+                qDebug() << "AppManager: READY Kafka credentials update (not implemented)";
                 break;
 
             case contract::ProtocolAction::UPDATE_CHECK:
             case contract::ProtocolAction::UPDATE_CONSENT:
             case contract::ProtocolAction::UPDATE_DOWNLOAD:
-                // TODO: маршрутизация в UpdaterWorker (реализуется в пункте 5)
-                qDebug() << "AppManager::handleReadyProtocolMessage(): Update protocol message (not yet implemented)";
+                // TODO: UpdaterWorker
+                qDebug() << "AppManager: READY Update protocol (not implemented)";
                 break;
 
             default:
-                qDebug() << "AppManager::handleReadyProtocolMessage(): unhandled PROTOCOL action"
-                         << "protact=" << message->protact;
+                qDebug() << "AppManager: unhandled READY protocol action="
+                         << message->protact;
                 break;
         }
     }
 
-    // CRUD-сообщения в рабочем состоянии (READY):
-    // Пересылка в DataManager: входящие NOTIFICATION (Kafka), SUCCESS (Kafka), RESPONSE (ServerConnector).
     void AppManager::handleReadyCrudMessage(std::shared_ptr<contract::UniterMessage> message)
     {
         emit signalRecvUniterMessage(message);
@@ -381,32 +412,36 @@ namespace uniter::control {
     // Маршрутизация исходящих сообщений
     void AppManager::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message)
     {
-        // Проверяем состояние сети
-        if (m_netState == NetState::OFFLINE) {
-            qDebug() << "AppManager::onSendUniterMessage(): cannot send message in OFFLINE state";
-            return;
-        }
-
-        // Пересылка обычных CRUD в состоянии READY
+        // В READY — прямая пересылка.
         if (m_appState == AppState::READY) {
+            if (m_netState == NetState::OFFLINE) {
+                qDebug() << "AppManager::onSendUniterMessage(): READY offline — drop for now";
+                return;
+            }
             emit signalSendUniterMessage(Message);
             return;
         }
 
-        // Обработка запроса аутентификации (до READY)
+        // До READY: единственный разрешённый «канал» от UI — запрос AUTH
+        // от AuthWidget.
         if (Message->subsystem == contract::Subsystem::PROTOCOL &&
-            Message->protact == contract::ProtocolAction::AUTH &&
-            Message->status == contract::MessageStatus::REQUEST) {
-
+            Message->protact   == contract::ProtocolAction::AUTH &&
+            Message->status    == contract::MessageStatus::REQUEST)
+        {
             m_authMessage = Message;
-            qDebug() << "AppManager::onSendUniterMessage(): stored auth request";
+            qDebug() << "AppManager: stored auth request";
 
-            // Если уже в CONNECTED - отправляем сразу
-            if (m_appState == AppState::CONNECTED) {
-                qDebug() << "AppManager::onSendUniterMessage(): sending auth request immediately";
+            // Если мы сейчас в AUTHENIFICATION и онлайн — сразу шлём и
+            // переходим в IDLE_AUTHENIFICATION.
+            if (m_appState == AppState::AUTHENIFICATION && m_netState == NetState::ONLINE) {
                 emit signalSendUniterMessage(m_authMessage);
+                ProcessEvent(Events::AUTH_DATA_READY);
             }
+            return;
         }
+
+        qDebug() << "AppManager::onSendUniterMessage(): rejected (state="
+                 << static_cast<int>(m_appState) << ")";
     }
 
-    } // namespace uniter::control
+} // namespace uniter::control
