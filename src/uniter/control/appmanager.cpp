@@ -41,7 +41,7 @@ namespace uniter::control {
         // Если данные от виджета уже в буфере — сразу отправляем.
         if (m_authMessage) {
             qDebug() << "AppManager: AUTHENIFICATION — stored authMessage present, sending";
-            emit signalSendUniterMessage(m_authMessage);
+            emit signalSendToServer(m_authMessage);
             // Переходим в IDLE_AUTHENIFICATION: ждём ответ сервера
             ProcessEvent(Events::AUTH_DATA_READY);
             return;
@@ -95,7 +95,7 @@ namespace uniter::control {
         msg->protact   = contract::ProtocolAction::GET_KAFKA_CREDENTIALS;
         msg->status    = contract::MessageStatus::REQUEST;
         msg->add_data.emplace("offset", m_lastKafkaOffset);
-        emit signalSendUniterMessage(msg);
+        emit signalSendToServer(msg);
     }
 
     void AppManager::enterDbClear()
@@ -116,7 +116,7 @@ namespace uniter::control {
         msg->subsystem = contract::Subsystem::PROTOCOL;
         msg->protact   = contract::ProtocolAction::FULL_SYNC;
         msg->status    = contract::MessageStatus::REQUEST;
-        emit signalSendUniterMessage(msg);
+        emit signalSendToServer(msg);
     }
 
     void AppManager::enterReady()
@@ -404,17 +404,29 @@ namespace uniter::control {
         ProcessEvent(Events::OFFSET_RECEIVED);
     }
 
-    // Маршрутизация входящих сообщений
+    // Маршрутизация входящих сообщений (см. docs/appmanager_routing.md — вверх).
+    //
+    // Источники сообщений: ServerConnector (ответы сервера),
+    // KafkaConnector (CRUD NOTIFICATION), MinIOConnector (ответы GET/PUT).
+    //
+    // Правила:
+    //   READY + CRUD  (subsystem != PROTOCOL) → DataManager
+    //                                           (signalRecvUniterMessage)
+    //   READY + PROTOCOL + MinIO (GET_MINIO_PRESIGNED_URL / GET_MINIO_FILE
+    //                              / PUT_MINIO_FILE)            → FileManager
+    //                                           (signalForwardToFileManager)
+    //   !=READY + PROTOCOL → часть инициализации → FSM (handleInitProtocolMessage)
+    //   Остальное — игнорируется с диагностическим логом.
     void AppManager::onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message)
     {
+        if (!Message) {
+            return;
+        }
         if (m_netState == NetState::OFFLINE) {
             qDebug() << "AppManager::onRecvUniterMessage(): ignoring in OFFLINE";
             return;
         }
 
-        // PROTOCOL-сообщения принимаются в разных состояниях.
-        //   — фаза инициализации (до READY): AUTH, GET_KAFKA_CREDENTIALS, FULL_SYNC
-        //   — READY: MinIO/Update/Kafka-credentials-refresh
         if (Message->subsystem == contract::Subsystem::PROTOCOL) {
             if (m_appState == AppState::READY) {
                 handleReadyProtocolMessage(Message);
@@ -424,12 +436,20 @@ namespace uniter::control {
             return;
         }
 
-        // Все не-PROTOCOL сообщения (CRUD) актуальны только в READY
+        // Все не-PROTOCOL сообщения (CRUD) актуальны только в READY.
         if (m_appState == AppState::READY) {
             handleReadyCrudMessage(Message);
         } else {
             qDebug() << "AppManager::onRecvUniterMessage(): CRUD ignored, not READY";
         }
+    }
+
+    // --- Вспомогательное: MinIO-протокольные действия ---
+    bool AppManager::isMinioProtocolAction(contract::ProtocolAction a)
+    {
+        return a == contract::ProtocolAction::GET_MINIO_PRESIGNED_URL ||
+               a == contract::ProtocolAction::GET_MINIO_FILE ||
+               a == contract::ProtocolAction::PUT_MINIO_FILE;
     }
 
     // Протокольные сообщения до READY:
@@ -480,16 +500,16 @@ namespace uniter::control {
                  << "status="  << message->status;
     }
 
+    // Протокольные сообщения в READY — путь к FileManager для MINIO,
+    // прочее (UPDATE_*, GET_KAFKA_CREDENTIALS refresh) пока логируем.
     void AppManager::handleReadyProtocolMessage(std::shared_ptr<contract::UniterMessage> message)
     {
-        switch (message->protact) {
-            case contract::ProtocolAction::GET_MINIO_PRESIGNED_URL:
-            case contract::ProtocolAction::GET_MINIO_FILE:
-                // TODO: FileManager
-                qDebug() << "AppManager: READY MinIO protocol — FileManager not yet implemented"
-                         << "protact=" << message->protact;
-                break;
+        if (isMinioProtocolAction(message->protact)) {
+            emit signalForwardToFileManager(message);
+            return;
+        }
 
+        switch (message->protact) {
             case contract::ProtocolAction::GET_KAFKA_CREDENTIALS:
                 // Уведомления о замене credentials — TODO
                 qDebug() << "AppManager: READY Kafka credentials update (not implemented)";
@@ -511,24 +531,41 @@ namespace uniter::control {
 
     void AppManager::handleReadyCrudMessage(std::shared_ptr<contract::UniterMessage> message)
     {
+        // CRUD в READY приходит, как правило, из KafkaConnector (NOTIFICATION).
         emit signalRecvUniterMessage(message);
     }
 
-    // Маршрутизация исходящих сообщений
+    // Маршрутизация исходящих сообщений (см. docs/appmanager_routing.md — вниз).
+    //
+    // Источники сообщений:
+    //   — сама FSM (enterAuthenification/enterKafka/enterSync) — до READY
+    //     с уже выбранным каналом signalSendToServer напрямую;
+    //   — UI/AuthWidget — AUTH REQUEST в AUTHENIFICATION;
+    //   — UI-виджеты и FileManager — в READY, CRUD/PROTOCOL-MINIO.
+    //
+    // Правила диспетчеризации в READY:
+    //   CRUD (subsystem != PROTOCOL)                           → ServerConnector
+    //   PROTOCOL + GET_MINIO_PRESIGNED_URL                     → ServerConnector
+    //   PROTOCOL + GET_MINIO_FILE / PUT_MINIO_FILE             → MinIOConnector
+    //   PROTOCOL + иное (UPDATE_*, GET_KAFKA_CREDENTIALS refresh) → ServerConnector
     void AppManager::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message)
     {
-        // В READY — прямая пересылка.
+        if (!Message) {
+            return;
+        }
+
         if (m_appState == AppState::READY) {
             if (m_netState == NetState::OFFLINE) {
                 qDebug() << "AppManager::onSendUniterMessage(): READY offline — drop for now";
                 return;
             }
-            emit signalSendUniterMessage(Message);
+            dispatchOutgoing(Message);
             return;
         }
 
-        // До READY: единственный разрешённый «канал» от UI — запрос AUTH
-        // от AuthWidget.
+        // До READY: слот вызывается (а) от UI/AuthWidget — только AUTH REQUEST,
+        // (б) от самой FSM — GET_KAFKA_CREDENTIALS/FULL_SYNC через свои enter-actions
+        // (они пишут напрямую в signalSendToServer и сюда не попадают).
         if (Message->subsystem == contract::Subsystem::PROTOCOL &&
             Message->protact   == contract::ProtocolAction::AUTH &&
             Message->status    == contract::MessageStatus::REQUEST)
@@ -539,14 +576,45 @@ namespace uniter::control {
             // Если мы сейчас в AUTHENIFICATION и онлайн — сразу шлём и
             // переходим в IDLE_AUTHENIFICATION.
             if (m_appState == AppState::AUTHENIFICATION && m_netState == NetState::ONLINE) {
-                emit signalSendUniterMessage(m_authMessage);
+                emit signalSendToServer(m_authMessage);
                 ProcessEvent(Events::AUTH_DATA_READY);
             }
             return;
         }
 
         qDebug() << "AppManager::onSendUniterMessage(): rejected (state="
-                 << static_cast<int>(m_appState) << ")";
+                 << static_cast<int>(m_appState)
+                 << ", subsystem=" << Message->subsystem
+                 << ", protact="   << Message->protact
+                 << ", crudact="   << Message->crudact
+                 << ")";
+    }
+
+    // Диспетчер исходящих в READY.
+    void AppManager::dispatchOutgoing(std::shared_ptr<contract::UniterMessage> message)
+    {
+        // Не-протокольные — всегда на сервер.
+        if (message->subsystem != contract::Subsystem::PROTOCOL) {
+            emit signalSendToServer(message);
+            return;
+        }
+
+        switch (message->protact) {
+            case contract::ProtocolAction::GET_MINIO_FILE:
+            case contract::ProtocolAction::PUT_MINIO_FILE:
+                emit signalSendToMinio(message);
+                return;
+
+            case contract::ProtocolAction::GET_MINIO_PRESIGNED_URL:
+                // Presigned URL выдаёт сервер, а не MinIO.
+                emit signalSendToServer(message);
+                return;
+
+            default:
+                // AUTH/GET_KAFKA_CREDENTIALS/FULL_SYNC/UPDATE_* — все на сервер.
+                emit signalSendToServer(message);
+                return;
+        }
     }
 
 } // namespace uniter::control

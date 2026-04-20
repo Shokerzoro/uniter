@@ -86,17 +86,19 @@ void MinIOConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
 {
     if (!message) return;
 
-    // Нас интересуют только GET_MINIO_FILE REQUEST — GET или PUT.
+    // Нас интересуют только GET_MINIO_FILE и PUT_MINIO_FILE в статусе REQUEST.
     if (message->subsystem != Subsystem::PROTOCOL ||
-        message->protact   != ProtocolAction::GET_MINIO_FILE ||
-        message->status    != MessageStatus::REQUEST)
+        message->status    != MessageStatus::REQUEST ||
+        (message->protact != ProtocolAction::GET_MINIO_FILE &&
+         message->protact != ProtocolAction::PUT_MINIO_FILE))
     {
         return;
     }
 
+    const bool is_put = (message->protact == ProtocolAction::PUT_MINIO_FILE);
+
     QString presigned_url;
     QString object_key;
-    QString operation = QStringLiteral("GET");
     QString local_path_in;
 
     {
@@ -108,16 +110,12 @@ void MinIOConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
         if (it != message->add_data.end()) object_key = it->second;
     }
     {
-        auto it = message->add_data.find("minio_operation");
-        if (it != message->add_data.end()) operation = it->second;
-    }
-    {
         auto it = message->add_data.find("local_path");
         if (it != message->add_data.end()) local_path_in = it->second;
     }
 
     const QString bucket_path = presignedUrlToLocalPath(presigned_url);
-    qDebug() << "MinIOConnector::onSendMessage() op=" << operation
+    qDebug() << "MinIOConnector::onSendMessage() op=" << (is_put ? "PUT" : "GET")
              << "key=" << object_key
              << "url=" << presigned_url
              << "bucket_path=" << bucket_path;
@@ -137,7 +135,7 @@ void MinIOConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
         return;
     }
 
-    if (operation == QStringLiteral("PUT")) {
+    if (is_put) {
         // PUT: копируем файл по local_path_in → bucket_path.
         if (local_path_in.isEmpty()) {
             response->status = MessageStatus::ERROR;
@@ -161,12 +159,13 @@ void MinIOConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
             return;
         }
         response->error = ErrorCode::SUCCESS;
-        response->add_data.emplace("local_path", bucket_path);
+        // Для PUT возвращаем только object_key/presigned_url — локальный
+        // путь самого bucket_path FileManager-у не нужен.
         emit signalRecvMessage(response);
         return;
     }
 
-    // GET (по умолчанию): если файла нет — ERROR, иначе отдаём путь.
+    // GET: если файла нет — ERROR, иначе отдаём путь.
     if (!QFile::exists(bucket_path)) {
         response->status = MessageStatus::ERROR;
         response->error  = ErrorCode::SERVICE_UNAVAILABLE;

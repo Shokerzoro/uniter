@@ -94,6 +94,11 @@ enum class ProtocolAction : uint8_t {
     // RESPONSE: add_data["object_key", "local_path"]
     // ERROR:    add_data["object_key", "reason"]
     GET_MINIO_FILE         = 5,
+    // Запрос MinIOConnector загрузить файл в MinIO по presigned URL.
+    // REQUEST:  add_data["presigned_url", "object_key", "local_path"]
+    // RESPONSE: add_data["object_key", "presigned_url"]
+    // ERROR:    add_data["object_key", "reason"]
+    PUT_MINIO_FILE         = 9,
     // Проверка наличия новой версии приложения.
     // REQUEST: add_data["current_version"]; RESPONSE: add_data["update_available", "new_version", "release_notes"]
     UPDATE_CHECK           = 6,
@@ -228,6 +233,7 @@ inline QDebug operator<<(QDebug debug, ProtocolAction action) {
     case ProtocolAction::GET_KAFKA_CREDENTIALS:   debug.nospace() << "GET_KAFKA_CREDENTIALS"; break;
     case ProtocolAction::GET_MINIO_PRESIGNED_URL: debug.nospace() << "GET_MINIO_PRESIGNED_URL"; break;
     case ProtocolAction::GET_MINIO_FILE:          debug.nospace() << "GET_MINIO_FILE"; break;
+    case ProtocolAction::PUT_MINIO_FILE:          debug.nospace() << "PUT_MINIO_FILE"; break;
     case ProtocolAction::UPDATE_CHECK:            debug.nospace() << "UPDATE_CHECK"; break;
     case ProtocolAction::UPDATE_CONSENT:          debug.nospace() << "UPDATE_CONSENT"; break;
     case ProtocolAction::UPDATE_DOWNLOAD:         debug.nospace() << "UPDATE_DOWNLOAD"; break;

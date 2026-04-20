@@ -135,10 +135,13 @@ namespace uniter::control {
         // Для локальных состояний — no-op.
         void reenterOnReconnect();
 
-        // Маршрутизация входящих сообщений
+        // Маршрутизация входящих сообщений (см. docs/appmanager_routing.md).
         void handleInitProtocolMessage(std::shared_ptr<contract::UniterMessage> message);
         void handleReadyProtocolMessage(std::shared_ptr<contract::UniterMessage> message);
         void handleReadyCrudMessage(std::shared_ptr<contract::UniterMessage> message);
+
+        // Маршрутизация исходящих сообщений на основе subsystem/protact.
+        void dispatchOutgoing(std::shared_ptr<contract::UniterMessage> message);
 
         // Вспомогательное
         static bool isNetworkDependent(AppState s); // имеет ли состояние offline-зеркало
@@ -169,6 +172,10 @@ namespace uniter::control {
             m_lastKafkaOffset.clear();
         }
 
+    public:
+        // Helper: тип MinIO-действия (для тестов/диагностики).
+        static bool isMinioProtocolAction(contract::ProtocolAction a);
+
     public slots:
         // От сетевого класса
         void onConnectionUpdated(bool state);
@@ -183,8 +190,13 @@ namespace uniter::control {
         // Kafka / KafkaConnector
         void onKafkaOffsetReceived(QString offset); // KCONNECTOR → KAFKA
 
-        // Маршрутизация сообщений
+        // Единая точка входа входящих UniterMessage
+        // от всех трёх сетевых классов (Server/Kafka/Minio → AppManager).
         void onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
+
+        // Единая точка входа исходящих UniterMessage
+        // от FileManager и UI-виджетов (в рантайме), а также от самой FSM
+        // (enterAuthenification/enterKafka/enterSync).
         void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
 
     signals:
@@ -208,8 +220,19 @@ namespace uniter::control {
         void signalClearDatabase();                  // DBCLEAR: полная очистка таблиц БД
 
         // === Маршрутизация UniterMessage ===
+        // Входящий трафик (onRecvUniterMessage) раскладывается по двум сигналам:
+        //   signalRecvUniterMessage     → DataManager (в READY: CRUD над ресурсами)
+        //   signalForwardToFileManager  → FileManager (в READY: MINIO-протоколизмы)
         void signalRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
-        void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
+        void signalForwardToFileManager(std::shared_ptr<contract::UniterMessage> Message);
+
+        // Исходящий трафик (onSendUniterMessage) диспетчеризуется на два
+        // отдельных сигнала, подключаемых в main.cpp:
+        //   signalSendToServer  → ServerConnector (AUTH, GET_KAFKA_CREDENTIALS,
+        //                          FULL_SYNC, GET_MINIO_PRESIGNED_URL, CRUD в READY)
+        //   signalSendToMinio   → MinIOConnector  (GET_MINIO_FILE, PUT_MINIO_FILE)
+        void signalSendToServer(std::shared_ptr<contract::UniterMessage> Message);
+        void signalSendToMinio(std::shared_ptr<contract::UniterMessage> Message);
     };
 
 

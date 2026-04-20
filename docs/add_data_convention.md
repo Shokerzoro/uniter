@@ -49,6 +49,8 @@
 
 ### GET_MINIO_FILE
 
+Скачивание файла из MinIO по ранее полученному presigned URL.
+
 | Направление | Ключ | Значение | Обязателен |
 |-------------|------|----------|-----------|
 | REQUEST | `"presigned_url"` | URL, полученный из GET_MINIO_PRESIGNED_URL RESPONSE | Да |
@@ -56,6 +58,23 @@
 | REQUEST | `"expected_sha256"` | SHA-256 ожидаемого файла (hex), для верификации после скачивания | Нет |
 | RESPONSE | `"object_key"` | Эхо ключа | Да |
 | RESPONSE | `"local_path"` | Путь к скачанному файлу на диске | Да |
+| ERROR | `"object_key"` | Эхо ключа | Да |
+| ERROR | `"reason"` | Текстовое описание ошибки | Нет |
+
+---
+
+### PUT_MINIO_FILE
+
+Загрузка файла в MinIO по ранее полученному presigned URL (`GET_MINIO_PRESIGNED_URL` с `minio_operation="PUT"`).
+
+| Направление | Ключ | Значение | Обязателен |
+|-------------|------|----------|-----------|
+| REQUEST | `"presigned_url"` | URL, полученный из GET_MINIO_PRESIGNED_URL RESPONSE (PUT-вариант) | Да |
+| REQUEST | `"object_key"` | Ключ объекта (для идентификации в callback) | Да |
+| REQUEST | `"local_path"` | Путь к локальному файлу, который загружается в MinIO | Да |
+| REQUEST | `"sha256"` | SHA-256 загружаемого файла (hex), для верификации на стороне MinIO | Нет |
+| RESPONSE | `"object_key"` | Эхо ключа | Да |
+| RESPONSE | `"presigned_url"` | Эхо исходного URL | Да |
 | ERROR | `"object_key"` | Эхо ключа | Да |
 | ERROR | `"reason"` | Текстовое описание ошибки | Нет |
 

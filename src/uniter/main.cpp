@@ -63,17 +63,23 @@ int main(int argc, char *argv[])
     QObject::connect(minioConnector, &net::MinIOConnector::signalRecvMessage,
                      appManager, &control::AppManager::onRecvUniterMessage);
 
-    // AppManager → DataManager (пересылка входящих сообщений после маршрутизации)
+    // AppManager → DataManager (CRUD в READY, как правило от KafkaConnector)
     QObject::connect(appManager, &control::AppManager::signalRecvUniterMessage,
                      dataManager, &data::DataManager::onRecvUniterMessage);
 
-    // AppManager → ServerConnector (исходящие сообщения в сеть)
-    QObject::connect(appManager, &control::AppManager::signalSendUniterMessage,
+    // AppManager → FileManager (MINIO-протокольные сообщения в READY)
+    // TODO: FileManager пока не реализован — коннект будет добавлен,
+    // когда появится data::FileManager::onForwardUniterMessage.
+    // QObject::connect(appManager, &control::AppManager::signalForwardToFileManager,
+    //                  fileManager, &data::FileManager::onForwardUniterMessage);
+
+    // AppManager → ServerConnector (AUTH / GET_KAFKA_CREDENTIALS / FULL_SYNC
+    // / GET_MINIO_PRESIGNED_URL / CRUD в READY / UPDATE_*)
+    QObject::connect(appManager, &control::AppManager::signalSendToServer,
                      serverConnector, &net::ServerConnector::onSendMessage);
 
-    // AppManager → MinIOConnector (исходящие MinIO GET/PUT файлов)
-    // MinIOConnector сам фильтрует сообщения по protact/status.
-    QObject::connect(appManager, &control::AppManager::signalSendUniterMessage,
+    // AppManager → MinIOConnector (GET_MINIO_FILE, PUT_MINIO_FILE)
+    QObject::connect(appManager, &control::AppManager::signalSendToMinio,
                      minioConnector, &net::MinIOConnector::onSendMessage);
 
     // === 2. Управление сетевым состоянием ===

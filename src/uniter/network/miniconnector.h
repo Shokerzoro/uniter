@@ -29,10 +29,10 @@ namespace uniter::net {
  *     REQUEST с add_data["presigned_url"]) возвращает локальный путь файла
  *     через RESPONSE add_data["object_key","local_path"]. Если файла нет —
  *     ERROR.
- *   — При PUT-запросе (тот же GET_MINIO_FILE REQUEST, но с
- *     add_data["minio_operation"]="PUT" и add_data["local_path"] — путь
- *     к локальному файлу у клиента) копирует файл в bucket по пути,
- *     соответствующему presigned URL, и отвечает RESPONSE/SUCCESS.
+ *   — При PUT-запросе (PROTOCOL/PUT_MINIO_FILE REQUEST с
+ *     add_data["presigned_url", "object_key", "local_path"]) копирует файл
+ *     в bucket по пути, соответствующему presigned URL, и отвечает
+ *     RESPONSE/SUCCESS либо ERROR.
  *
  * Связь с ServerConnector (TEMP signal/slot connect, main.cpp):
  *   ServerConnector → signalRequestMinioPresignedUrl → MinIOConnector::onRequestPresignedUrl
@@ -84,7 +84,8 @@ public slots:
                                QString minio_operation);
 
     // Основной слот: AppManager → MinIOConnector.
-    // Фильтрует только GET_MINIO_FILE (GET/PUT); всё остальное игнорируется.
+    // Фильтрует только GET_MINIO_FILE и PUT_MINIO_FILE; всё остальное
+    // игнорируется.
     void onSendMessage(std::shared_ptr<contract::UniterMessage> message);
 
     // Сброс состояния (на shutdown/logout).
