@@ -570,15 +570,37 @@ namespace uniter::control {
             Message->protact   == contract::ProtocolAction::AUTH &&
             Message->status    == contract::MessageStatus::REQUEST)
         {
-            m_authMessage = Message;
-            qDebug() << "AppManager: stored auth request";
-
-            // Если мы сейчас в AUTHENIFICATION и онлайн — сразу шлём и
-            // переходим в IDLE_AUTHENIFICATION.
+            // (1) Штатный путь: мы в AUTHENIFICATION и онлайн — шлём
+            // запрос и переходим в IDLE_AUTHENIFICATION ждать ответ.
             if (m_appState == AppState::AUTHENIFICATION && m_netState == NetState::ONLINE) {
+                m_authMessage = Message;
+                qDebug() << "AppManager: auth request sent from AUTHENIFICATION";
                 emit signalSendToServer(m_authMessage);
                 ProcessEvent(Events::AUTH_DATA_READY);
+                return;
             }
+
+            // (2) Повторный логин после LOGOUT: мы в IDLE_AUTHENIFICATION
+            // (у него нет entry-action, поэтому авто-логина не будет),
+            // m_authMessage сброшен onLogout'ом. Разрешаем отправку.
+            // Если m_authMessage уже установлен — запрос «в полёте»,
+            // новый не принимаем (защита от спама).
+            if (m_appState == AppState::IDLE_AUTHENIFICATION &&
+                m_netState == NetState::ONLINE &&
+                !m_authMessage)
+            {
+                m_authMessage = Message;
+                qDebug() << "AppManager: auth request sent from IDLE_AUTHENIFICATION (re-login)";
+                emit signalSendToServer(m_authMessage);
+                return;
+            }
+
+            // (3) Иначе — буферизуем до перехода в AUTHENIFICATION
+            // (например, offline или ещё STARTED). enterAuthenification
+            // подхватит m_authMessage и отправит сам.
+            m_authMessage = Message;
+            qDebug() << "AppManager: auth request buffered (state="
+                     << static_cast<int>(m_appState) << ")";
             return;
         }
 

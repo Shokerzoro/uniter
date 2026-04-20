@@ -269,7 +269,12 @@ protected:
         appManager->replaceMockConfigManager(mockConfigManager.get());
 
         // === AppManager ↔ MockNetwork (сеть) ===
-        QObject::connect(appManager->get(), &control::AppManager::signalSendUniterMessage,
+        // После рефакторинга маршрутизации (docs/appmanager_routing.md)
+        // AppManager разделил исходящие на signalSendToServer (сервер) и
+        // signalSendToMinio (MinIO). В этих тестах CRUD/MINIO не используется,
+        // все проверяемые исходящие — AUTH / GET_KAFKA_CREDENTIALS / FULL_SYNC —
+        // уходят через signalSendToServer.
+        QObject::connect(appManager->get(), &control::AppManager::signalSendToServer,
                          mockNetwork.get(), &MockNetwork::onSendUniterMessage);
         QObject::connect(appManager->get(), &control::AppManager::signalMakeConnection,
                          mockNetwork.get(), &MockNetwork::onMakeConnection);
@@ -365,7 +370,7 @@ TEST_F(AppManagerTest, BasicFSM_StartedAndAuthenification) {
 // ============================================================================
 TEST_F(AppManagerTest, BadAuth_ReturnsToAuthenification) {
     QSignalSpy spyAuthed(appManager->get(), &control::AppManager::signalAuthed);
-    QSignalSpy spySend  (appManager->get(), &control::AppManager::signalSendUniterMessage);
+    QSignalSpy spySend  (appManager->get(), &control::AppManager::signalSendToServer);
     QSignalSpy spyFindAuthData(appManager->get(), &control::AppManager::signalFindAuthData);
 
     appManager->start_run();
@@ -504,18 +509,78 @@ TEST_F(AppManagerTest, ReadyFlow_CrudForwardedDownstream) {
 
 // ============================================================================
 // 8. READY → LOGOUT → IDLE_AUTHENIFICATION (signalLoggedOut + очистка)
+//    IDLE_AUTHENIFICATION — без entry-action, чтобы AuthWidget НЕ сделал
+//    авто-логин сохранёнными логином/паролем (Remember me).
 // ============================================================================
 TEST_F(AppManagerTest, ReadyFlow_LogoutReturnsToIdleAuth) {
-    QSignalSpy spyLogout(appManager->get(), &control::AppManager::signalLoggedOut);
-    QSignalSpy spyClear (appManager->get(), &control::AppManager::signalClearResources);
+    QSignalSpy spyLogout      (appManager->get(), &control::AppManager::signalLoggedOut);
+    QSignalSpy spyClear       (appManager->get(), &control::AppManager::signalClearResources);
+    QSignalSpy spyFindAuthData(appManager->get(), &control::AppManager::signalFindAuthData);
 
     driveToReady();
+
+    const int findBefore = spyFindAuthData.count();
 
     appManager->get()->onLogout();
     EXPECT_EQ(spyLogout.count(), 1);
     EXPECT_EQ(spyClear.count(), 1);
     EXPECT_EQ(appManager->get()->currentState(),
               control::AppManager::AppState::IDLE_AUTHENIFICATION);
+    // IDLE_AUTHENIFICATION не имеет entry-action — signalFindAuthData НЕ
+    // должен вызываться, иначе AuthWidget сделает авто-логин.
+    EXPECT_EQ(spyFindAuthData.count(), findBefore);
+}
+
+// ============================================================================
+// 8б. READY → LOGOUT → повторный LOGIN полностью доходит до сервера.
+// В IDLE_AUTHENIFICATION после LOGOUT m_authMessage сброшен — новый
+// AUTH REQUEST от UI должен уйти в сеть, а не просто буферизоваться.
+// ============================================================================
+TEST_F(AppManagerTest, ReadyFlow_LogoutAllowsRelogin) {
+    QSignalSpy spySend(appManager->get(), &control::AppManager::signalSendToServer);
+
+    driveToReady();
+
+    appManager->get()->onLogout();
+    ASSERT_EQ(appManager->get()->currentState(),
+              control::AppManager::AppState::IDLE_AUTHENIFICATION);
+
+    const int sendBefore = spySend.count();
+
+    // Повторный AUTH REQUEST от UI: должен уйти на сервер.
+    mockAuthWidget->emitUserData();
+    EXPECT_EQ(spySend.count(), sendBefore + 1);
+    // Остаёмся в IDLE_AUTHENIFICATION ждать ответ сервера.
+    EXPECT_EQ(appManager->get()->currentState(),
+              control::AppManager::AppState::IDLE_AUTHENIFICATION);
+
+    // Сервер возвращает успех — проходим дальше по FSM.
+    mockNetwork->emitAuthSuccess();
+    EXPECT_EQ(appManager->get()->currentState(),
+              control::AppManager::AppState::DBLOADING);
+
+    // Спам-протект: второй AUTH REQUEST во время ожидания не
+    // должен уйти в сеть (проверяем отдельно).
+}
+
+// ============================================================================
+// 8в. IDLE_AUTHENIFICATION — второй AUTH REQUEST во время ожидания
+//      не уходит в сеть (защита от спама).
+// ============================================================================
+TEST_F(AppManagerTest, IdleAuth_DuplicateAuthRequest_Ignored) {
+    QSignalSpy spySend(appManager->get(), &control::AppManager::signalSendToServer);
+
+    appManager->start_run();
+    mockNetwork->emitConnectionUpdated(true);
+    mockAuthWidget->emitUserData();   // AUTHENIFICATION → IDLE_AUTHENIFICATION
+    ASSERT_EQ(appManager->get()->currentState(),
+              control::AppManager::AppState::IDLE_AUTHENIFICATION);
+    const int sendAfterFirst = spySend.count();
+    ASSERT_GE(sendAfterFirst, 1);
+
+    // Второй AUTH REQUEST пока ждём ответ — не должен уйти.
+    mockAuthWidget->emitUserData();
+    EXPECT_EQ(spySend.count(), sendAfterFirst);
 }
 
 // ============================================================================
