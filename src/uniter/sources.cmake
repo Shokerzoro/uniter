@@ -60,19 +60,14 @@ set(CONTROL_SOURCES
 
 
 set(NETWORK_SOURCES
-    #${CMAKE_CURRENT_LIST_DIR}/network/tcpconnector.cpp
-    #${CMAKE_CURRENT_LIST_DIR}/network/tcpconnector.h
-    #${CMAKE_CURRENT_LIST_DIR}/network/mainnetworker.cpp
-    #${CMAKE_CURRENT_LIST_DIR}/network/mainnetworker.h
-    #${CMAKE_CURRENT_LIST_DIR}/network/updaterworker.cpp
-    #${CMAKE_CURRENT_LIST_DIR}/network/updaterworker.h
-    #${CMAKE_CURRENT_LIST_DIR}/network/unetmestags.h
-
-    ${CMAKE_CURRENT_LIST_DIR}/network/mocknetwork.h
-    ${CMAKE_CURRENT_LIST_DIR}/network/mocknetwork.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/network/serverconnector.h
+    ${CMAKE_CURRENT_LIST_DIR}/network/serverconnector.cpp
 
     ${CMAKE_CURRENT_LIST_DIR}/network/kafkaconnector.h
     ${CMAKE_CURRENT_LIST_DIR}/network/kafkaconnector.cpp
+
+    ${CMAKE_CURRENT_LIST_DIR}/network/miniconnector.h
+    ${CMAKE_CURRENT_LIST_DIR}/network/miniconnector.cpp
 )
 
 # = = = = = = = = common sources = = = = = = = = #

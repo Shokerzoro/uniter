@@ -6,6 +6,8 @@
 
 namespace uniter::net {
 
+using namespace uniter::contract;
+
 KafkaConnector* KafkaConnector::instance()
 {
     static KafkaConnector instance;
@@ -24,6 +26,7 @@ void KafkaConnector::onInitConnection(QByteArray userhash)
 
     m_userhash = std::move(userhash);
     m_initialized = true;
+    m_subscribed  = false;
 
     // Произвольный offset, имитирующий значение из OS Secure Storage.
     // В реальной реализации: вытянуть offset по ключу "kafka.offset.<userhash>".
@@ -41,6 +44,7 @@ void KafkaConnector::onInitConnection(QByteArray userhash)
 void KafkaConnector::onSubscribeKafka()
 {
     qDebug() << "KafkaConnector::onSubscribeKafka() — stub subscribe";
+    m_subscribed = true;
     // Успех подтверждаем сразу, чтобы AppManager/UI могли считать нас подписанными.
     QTimer::singleShot(0, this, [this]() {
         emit signalKafkaSubscribed(true);
@@ -51,7 +55,34 @@ void KafkaConnector::onShutdown()
 {
     qDebug() << "KafkaConnector::onShutdown()";
     m_initialized = false;
+    m_subscribed  = false;
     m_userhash.clear();
+}
+
+void KafkaConnector::onServerNotification(std::shared_ptr<contract::UniterMessage> message)
+{
+    if (!message) return;
+
+    // Инвариант broadcast-очереди: только CRUD с NOTIFICATION.
+    if (message->crudact == CrudAction::NOTCRUD ||
+        message->status  != MessageStatus::NOTIFICATION)
+    {
+        qDebug() << "KafkaConnector::onServerNotification() — dropped, wrong type"
+                 << "crudact=" << message->crudact
+                 << "status="  << message->status;
+        return;
+    }
+
+    // До подписки на топик broadcast-сообщений не существует.
+    if (!m_subscribed) {
+        qDebug() << "KafkaConnector::onServerNotification() — dropped, not subscribed yet";
+        return;
+    }
+
+    qDebug() << "KafkaConnector: broadcasting NOTIFICATION upstream"
+             << "subsystem=" << message->subsystem
+             << "crudact="   << message->crudact;
+    emit signalRecvMessage(message);
 }
 
 } // namespace uniter::net

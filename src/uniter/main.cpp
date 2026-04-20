@@ -3,8 +3,9 @@
 #include "data/datamanager.h"
 #include "control/appmanager.h"
 #include "control/configmanager.h"
-#include "network/mocknetwork.h"
+#include "network/serverconnector.h"
 #include "network/kafkaconnector.h"
+#include "network/miniconnector.h"
 #include "../common/appfuncs.h"
 
 #include <QApplication>
@@ -28,19 +29,18 @@ int main(int argc, char *argv[])
     common::appfuncs::open_log(AEnviroment.logfile);
 
     // ========== ИНИЦИАЛИЗАЦИЯ СИНГЛТОНОВ ==========
-    auto* dataManager = data::DataManager::instance();
-    auto* appManager = control::AppManager::instance();
-    auto* configManager = control::ConfigManager::instance();
-    auto* netManager = net::MockNetManager::instance();
-    auto* kafkaConnector = net::KafkaConnector::instance();
+    auto* dataManager    = data::DataManager::instance();
+    auto* appManager     = control::AppManager::instance();
+    auto* configManager  = control::ConfigManager::instance();
+    auto* serverConnector = net::ServerConnector::instance();
+    auto* kafkaConnector  = net::KafkaConnector::instance();
+    auto* minioConnector  = net::MinIOConnector::instance();
 
     // ========== СОЗДАНИЕ UI ==========
     staticwdg::MainWidget MWindow;
 
     qDebug() << "MainWindow created, visible:" << MWindow.isVisible();
-
     MWindow.show();
-
     qDebug() << "MWindow shown, visible:" << MWindow.isVisible();
     qDebug() << "Window handle:" << MWindow.windowHandle();
 
@@ -51,32 +51,44 @@ int main(int argc, char *argv[])
 
     // === 1. Маршрутизация UniterMessage ===
 
-    // Network → AppManager (входящие сообщения из сети)
-    QObject::connect(netManager, &net::MockNetManager::signalRecvMessage,
+    // ServerConnector → AppManager (входящие RESPONSE/ERROR/SUCCESS)
+    QObject::connect(serverConnector, &net::ServerConnector::signalRecvMessage,
                      appManager, &control::AppManager::onRecvUniterMessage);
 
-    // AppManager → DataManager (пересылка входящих сообщений)
+    // KafkaConnector → AppManager (входящие NOTIFICATION broadcast-очереди)
+    QObject::connect(kafkaConnector, &net::KafkaConnector::signalRecvMessage,
+                     appManager, &control::AppManager::onRecvUniterMessage);
+
+    // MinIOConnector → AppManager (ответы GET/PUT файлов)
+    QObject::connect(minioConnector, &net::MinIOConnector::signalRecvMessage,
+                     appManager, &control::AppManager::onRecvUniterMessage);
+
+    // AppManager → DataManager (пересылка входящих сообщений после маршрутизации)
     QObject::connect(appManager, &control::AppManager::signalRecvUniterMessage,
                      dataManager, &data::DataManager::onRecvUniterMessage);
 
-    // AppManager → Network (исходящие сообщения в сеть)
+    // AppManager → ServerConnector (исходящие сообщения в сеть)
     QObject::connect(appManager, &control::AppManager::signalSendUniterMessage,
-                     netManager, &net::MockNetManager::onSendMessage);
+                     serverConnector, &net::ServerConnector::onSendMessage);
+
+    // AppManager → MinIOConnector (исходящие MinIO GET/PUT файлов)
+    // MinIOConnector сам фильтрует сообщения по protact/status.
+    QObject::connect(appManager, &control::AppManager::signalSendUniterMessage,
+                     minioConnector, &net::MinIOConnector::onSendMessage);
 
     // === 2. Управление сетевым состоянием ===
 
-    // Network → AppManager
-    QObject::connect(netManager, &net::MockNetManager::signalConnectionUpdated,
+    // ServerConnector → AppManager
+    QObject::connect(serverConnector, &net::ServerConnector::signalConnectionUpdated,
                      appManager, &control::AppManager::onConnectionUpdated);
 
-    // AppManager → Network
+    // AppManager → ServerConnector
     QObject::connect(appManager, &control::AppManager::signalMakeConnection,
-                     netManager, &net::MockNetManager::onMakeConnection);
+                     serverConnector, &net::ServerConnector::onMakeConnection);
 
     // AppManager → UI (отражение состояния)
     QObject::connect(appManager, &control::AppManager::signalConnectionUpdated,
                      &MWindow, &staticwdg::MainWidget::onConnectionUpdated);
-
 
     // === 2.1 KafkaConnector (KCONNECTOR / offset / подписка) ===
 
@@ -92,6 +104,34 @@ int main(int argc, char *argv[])
     QObject::connect(appManager, &control::AppManager::signalSubscribeKafka,
                      kafkaConnector, &net::KafkaConnector::onSubscribeKafka);
 
+    // ==========================================================================
+    // === 2.2 ВРЕМЕННЫЕ СВЯЗИ СЕТЕВЫХ ЗАГЛУШЕК МЕЖДУ СОБОЙ ===
+    // ==========================================================================
+    // Эти коннекты эмулируют работу реального бэкенда: сервер публикует
+    // NOTIFICATION в Kafka; сервер общается с MinIO для получения presigned URL.
+    // При переходе на реальную сеть — УДАЛИТЬ: KafkaConnector будет получать
+    // сообщения напрямую от брокера; ServerConnector будет получать presigned
+    // URL от настоящего сервера без участия клиентского MinIOConnector.
+    // ==========================================================================
+
+    // TEMP: ServerConnector → KafkaConnector
+    // Сервер имитирует broadcast: после подтверждения CUD рассылает
+    // NOTIFICATION "через Kafka".
+    QObject::connect(serverConnector, &net::ServerConnector::signalEmitKafkaNotification,
+                     kafkaConnector, &net::KafkaConnector::onServerNotification);
+
+    // TEMP: ServerConnector → MinIOConnector
+    // Сервер при получении GET_MINIO_PRESIGNED_URL делегирует локальному
+    // MinIOConnector (в реальной системе — внешний MinIO, не клиент).
+    QObject::connect(serverConnector, &net::ServerConnector::signalRequestMinioPresignedUrl,
+                     minioConnector, &net::MinIOConnector::onRequestPresignedUrl);
+
+    // TEMP: MinIOConnector → ServerConnector
+    // Presigned URL готов → сервер оборачивает его в RESPONSE клиенту.
+    QObject::connect(minioConnector, &net::MinIOConnector::signalPresignedUrlReady,
+                     serverConnector, &net::ServerConnector::onMinioPresignedUrlReady);
+
+    // ==========================================================================
 
     // === 3. Управление ресурсами и БД ===
 
@@ -147,7 +187,6 @@ int main(int argc, char *argv[])
     // ==========================================================================
 
     appManager->start_run();
-    //MWindow.show();
 
     return app.exec();
 }
