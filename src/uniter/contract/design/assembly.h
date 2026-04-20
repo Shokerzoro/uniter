@@ -4,8 +4,6 @@
 #include "../resourceabstract.h"
 #include "../documents/doclink.h"
 #include "designtypes.h"
-
-#include <tinyxml2.h>
 #include <QString>
 #include <cstdint>
 #include <optional>
@@ -56,8 +54,8 @@ struct AssemblyPartRef {
  * @brief Ресурс подсистемы DESIGN — сборка (узел дерева).
  *
  * Соответствует таблице `assemblies` (§1.3). Дочерние связи (сборка→сборка,
- * сборка→деталь) — в отдельных таблицах-ссылках, которые десериализуются в
- * `child_assemblies` / `parts`.
+ * сборка→деталь) — в отдельных таблицах-ссылках, которые материализуются в
+ * `child_assemblies` / `parts` при загрузке из БД.
  *
  * Файлы (сборочный чертёж, спецификация, 3D-модель и т.п.) хранятся как
  * ресурсы подсистемы DOCUMENTS (Doc) и привязываются через DocLink.
@@ -98,18 +96,16 @@ public:
     QString      description;
     AssemblyType type = AssemblyType::VIRTUAL;      // REAL / VIRTUAL
 
-    // Дочерние связи (десериализуются из таблиц-ссылок).
+    // Дочерние связи (материализуются из таблиц-ссылок при загрузке).
+    // TODO: рассмотреть выделение в отдельные ресурсы AssemblyChildRef/AssemblyPartRef
+    // (каждый со своим id) — это упростит CRUD по отдельной связи.
     std::vector<AssemblyChildRef> child_assemblies;
     std::vector<AssemblyPartRef>  parts;
 
     // Привязанные документы (денормализация таблицы doc_links по target_type=ASSEMBLY).
     // Сам DocLink — полноценный ресурс подсистемы DOCUMENTS; здесь хранится
-    // копия для удобства сериализации и UI.
+    // копия для удобства отображения в UI.
     std::vector<documents::DocLink> linked_documents;
-
-    // Каскадная сериализация (базовые поля — через ResourceAbstract::to_xml)
-    void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml  (tinyxml2::XMLElement* dest)   override;
 
     friend bool operator==(const Assembly& a, const Assembly& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
@@ -125,7 +121,6 @@ public:
     }
     friend bool operator!=(const Assembly& a, const Assembly& b) { return !(a == b); }
 };
-
 
 } // namespace uniter::contract::design
 

@@ -4,8 +4,6 @@
 #include "../resourceabstract.h"
 #include "../documents/doclink.h"
 #include "designtypes.h"
-
-#include <tinyxml2.h>
 #include <QString>
 #include <QDateTime>
 #include <cstdint>
@@ -19,14 +17,14 @@ namespace uniter::contract::design {
  *
  * Соответствует таблице `parts` (см. docs/pdm_design_architecture.md §1.4).
  * Исполнения и подписи — в отдельных таблицах `part_configs` / `part_signatures`,
- * десериализуются в `configs` / `signatures`.
+ * материализуются в `configs` / `signatures` при загрузке из БД.
  *
  * Связь с материалом — через FK `material_instance_id` → material_instances.id.
  * Внутри Part НЕ хранится сам MaterialInstance (никаких shared_ptr — только id),
  * это соответствует принципу ориентации на реляционную БД.
  *
  * Файлы (чертёж детали, 3D-модель) — ресурсы подсистемы DOCUMENTS (Doc);
- * привязки к Part живут в таблице `doc_links` и десериализуются в
+ * привязки к Part живут в таблице `doc_links` и материализуются в
  * `linked_documents` для удобства UI.
  */
 class Part : public ResourceAbstract {
@@ -75,10 +73,6 @@ public:
     // Привязанные документы (денормализация таблицы doc_links по target_type=PART).
     std::vector<documents::DocLink> linked_documents;
 
-    // Каскадная сериализация
-    void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml  (tinyxml2::XMLElement* dest)   override;
-
     friend bool operator==(const Part& a, const Part& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
             && a.project_id           == b.project_id
@@ -95,7 +89,6 @@ public:
     }
     friend bool operator!=(const Part& a, const Part& b) { return !(a == b); }
 };
-
 
 } // namespace uniter::contract::design
 

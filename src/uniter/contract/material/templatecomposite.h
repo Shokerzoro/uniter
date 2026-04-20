@@ -49,10 +49,6 @@ public:
 
     bool isComposite() const override { return true; }
 
-    // Каскадная сериализация
-    virtual void from_xml(tinyxml2::XMLElement* source) override;
-    virtual void to_xml(tinyxml2::XMLElement* dest) override;
-
     friend bool operator==(const TemplateComposite& a, const TemplateComposite& b) {
         return static_cast<const TemplateBase&>(a) == static_cast<const TemplateBase&>(b)
             && a.PrefName           == b.PrefName

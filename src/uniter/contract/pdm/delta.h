@@ -4,8 +4,6 @@
 #include "../resourceabstract.h"
 #include "../documents/doctypes.h"   // DocumentType
 #include "pdmtypes.h"
-
-#include <tinyxml2.h>
 #include <QString>
 #include <QStringList>
 #include <cstdint>
@@ -101,10 +99,6 @@ public:
     // Обновляется при применении дельты: changes_count = changes.size().
     uint32_t changes_count = 0;
 
-    // Каскадная сериализация
-    void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml  (tinyxml2::XMLElement* dest)   override;
-
     friend bool operator==(const Delta& a, const Delta& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
             && a.snapshot_id      == b.snapshot_id
@@ -114,7 +108,6 @@ public:
     }
     friend bool operator!=(const Delta& a, const Delta& b) { return !(a == b); }
 };
-
 
 } // namespace uniter::contract::pdm
 

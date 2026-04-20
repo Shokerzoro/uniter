@@ -2,7 +2,6 @@
 #define PROJECT_H
 
 #include "../resourceabstract.h"
-#include <tinyxml2.h>
 #include <QString>
 #include <cstdint>
 #include <optional>
@@ -53,10 +52,6 @@ public:
     // NULL пока ни один Snapshot не утверждён.
     std::optional<uint64_t> active_snapshot_id;
 
-    // Каскадная сериализация (базовые поля пишутся через ResourceAbstract::to_xml)
-    void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml  (tinyxml2::XMLElement* dest)   override;
-
     friend bool operator==(const Project& a, const Project& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
             && a.name                == b.name
@@ -67,7 +62,6 @@ public:
     }
     friend bool operator!=(const Project& a, const Project& b) { return !(a == b); }
 };
-
 
 } // namespace uniter::contract::design
 

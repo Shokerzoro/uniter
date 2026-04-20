@@ -3,8 +3,6 @@
 
 #include "../resourceabstract.h"
 #include "pdmtypes.h"
-
-#include <tinyxml2.h>
 #include <QString>
 #include <QDateTime>
 #include <cstdint>
@@ -63,10 +61,6 @@ public:
     uint32_t error_count   = 0;
     uint32_t warning_count = 0;
 
-    // Каскадная сериализация
-    void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml  (tinyxml2::XMLElement* dest)   override;
-
     friend bool operator==(const Snapshot& a, const Snapshot& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
             && a.project_id           == b.project_id
@@ -82,7 +76,6 @@ public:
     }
     friend bool operator!=(const Snapshot& a, const Snapshot& b) { return !(a == b); }
 };
-
 
 } // namespace uniter::contract::pdm
 

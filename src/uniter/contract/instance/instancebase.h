@@ -3,12 +3,10 @@
 
 #include "../resourceabstract.h"
 #include "../material/templatebase.h"
-#include <tinyxml2.h>
 #include <QString>
 #include <QDateTime>
 #include <cstdint>
 #include <optional>
-
 
 namespace uniter {
 namespace contract {
@@ -100,13 +98,6 @@ public:
     // Различение типов (Simple vs Composite)
     virtual bool isComposite() const = 0;
 
-    // Каскадная сериализация — наследники вызывают
-    //   InstanceBase::to_xml(dest);
-    //   InstanceBase::from_xml(source);
-    // ПЕРВОЙ строкой своих реализаций.
-    virtual void from_xml(tinyxml2::XMLElement* source) override;
-    virtual void to_xml(tinyxml2::XMLElement* dest) override;
-
     friend bool operator==(const InstanceBase& a, const InstanceBase& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
             && a.template_id    == b.template_id
@@ -118,10 +109,7 @@ public:
     friend bool operator!=(const InstanceBase& a, const InstanceBase& b) { return !(a == b); }
 };
 
-
-
 } // contract
 } // uniter
-
 
 #endif // INSTANCEBASE_H

@@ -3,8 +3,6 @@
 
 #include "../resourceabstract.h"
 #include "../documents/doclink.h"
-
-#include <tinyxml2.h>
 #include <QString>
 #include <QDateTime>
 #include <cstdint>
@@ -44,9 +42,6 @@ enum class GostSource : uint8_t {
  * @brief Базовый класс шаблона материала.
  *
  * Наследники: TemplateSimple, TemplateComposite.
- * Каскадная сериализация: реализации наследников обязаны первой строкой
- * вызывать TemplateBase::to_xml / from_xml, которые в свою очередь
- * первой строкой вызывают ResourceAbstract::to_xml / from_xml.
  *
  * Семантика "standalone / assortment / material" для простых шаблонов
  * вынесена в TemplateSimple::standart_type (см. StandartType в templatesimple.h);
@@ -98,12 +93,6 @@ public:
     // Различение типов
     virtual bool isComposite() const = 0;
 
-    // Каскадная сериализация (базовая реализация — пишет общие поля
-    // шаблона поверх полей ResourceAbstract). Наследники переопределяют
-    // и первой строкой вызывают TemplateBase::to_xml / from_xml.
-    void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml(tinyxml2::XMLElement* dest) override;
-
     friend bool operator==(const TemplateBase& a, const TemplateBase& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
             && a.name             == b.name
@@ -115,7 +104,6 @@ public:
     }
     friend bool operator!=(const TemplateBase& a, const TemplateBase& b) { return !(a == b); }
 };
-
 
 } // materials
 } // contract

@@ -2,7 +2,6 @@
 #define PRODUCTIONSTOCK_H
 
 #include "../resourceabstract.h"
-#include <tinyxml2.h>
 #include <cstdint>
 
 namespace uniter::contract::production {
@@ -58,10 +57,6 @@ public:
     double quantity_length = 0.0;  // м    (LINEAR)
     double quantity_area   = 0.0;  // м²   (AREA)
 
-    // Каскадная сериализация
-    void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml(tinyxml2::XMLElement* dest) override;
-
     friend bool operator==(const ProductionStock& a, const ProductionStock& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
             && a.material_instance_id == b.material_instance_id
@@ -72,7 +67,6 @@ public:
     }
     friend bool operator!=(const ProductionStock& a, const ProductionStock& b) { return !(a == b); }
 };
-
 
 } // namespace uniter::contract::production
 

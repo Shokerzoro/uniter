@@ -2,7 +2,6 @@
 #define INSTANCESIMPLE_H
 
 #include "instancebase.h"
-#include <tinyxml2.h>
 #include <map>
 #include <string>
 #include <optional>
@@ -31,10 +30,6 @@ public:
     std::optional<std::string> getPrefixValue(uint8_t segment_id) const;
     std::optional<std::string> getSuffixValue(uint8_t segment_id) const;
 
-    // Каскадная сериализация
-    void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml(tinyxml2::XMLElement* dest) override;
-
     friend bool operator==(const InstanceSimple& a, const InstanceSimple& b) {
         return static_cast<const InstanceBase&>(a) == static_cast<const InstanceBase&>(b)
             && a.prefix_values == b.prefix_values
@@ -42,7 +37,6 @@ public:
     }
     friend bool operator!=(const InstanceSimple& a, const InstanceSimple& b) { return !(a == b); }
 };
-
 
 } // contract
 } // uniter

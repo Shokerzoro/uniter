@@ -3,7 +3,6 @@
 
 #include "segment.h"
 #include "templatebase.h"
-#include <tinyxml2.h>
 #include <QString>
 #include <map>
 #include <vector>
@@ -85,7 +84,6 @@ public:
         , compatible_template_ids(std::move(compatible_template_ids_))
     {}
 
-
     GostStandardType standard_type = GostStandardType::GOST; // Тип стандарта
     QString standard_number; // Номер стандарта
     QString year;            // Год редакции стандарта (например "89")
@@ -103,10 +101,6 @@ public:
     std::vector<uint64_t> compatible_template_ids;
 
     bool isComposite() const override { return false; }
-
-    // Каскадная сериализация
-    virtual void from_xml(tinyxml2::XMLElement* source) override;
-    virtual void to_xml(tinyxml2::XMLElement* dest) override;
 
     friend bool operator==(const TemplateSimple& a, const TemplateSimple& b) {
         return static_cast<const TemplateBase&>(a) == static_cast<const TemplateBase&>(b)
@@ -126,6 +120,5 @@ public:
 } // materials
 } // contract
 } // uniter
-
 
 #endif // TEMPLATESIMPLE_H

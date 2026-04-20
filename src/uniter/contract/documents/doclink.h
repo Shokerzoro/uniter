@@ -3,8 +3,6 @@
 
 #include "../resourceabstract.h"
 #include "doctypes.h"
-
-#include <tinyxml2.h>
 #include <QString>
 #include <cstdint>
 
@@ -72,10 +70,6 @@ public:
     QString  role;
     uint32_t position = 0;
 
-    // Каскадная сериализация
-    void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml  (tinyxml2::XMLElement* dest)   override;
-
     friend bool operator==(const DocLink& a, const DocLink& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
             && a.doc_id      == b.doc_id
@@ -86,7 +80,6 @@ public:
     }
     friend bool operator!=(const DocLink& a, const DocLink& b) { return !(a == b); }
 };
-
 
 } // namespace uniter::contract::documents
 

@@ -3,13 +3,11 @@
 
 #include "../resourceabstract.h"
 #include "purchase.h"
-#include <tinyxml2.h>
 #include <vector>
 #include <cstdint>
 #include <QString>
 
 namespace uniter::contract::supply {
-
 
 /**
  * @brief Комплексная закупочная заявка.
@@ -38,15 +36,10 @@ public:
           status(status_),
           purchases(std::move(purchases_)) {}
 
-
     QString               name;
     QString               description;
     PurchStatus           status = PurchStatus::DRAFT;
     std::vector<uint64_t> purchases;   // FK → purchases.id
-
-    // Каскадная сериализация
-    void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml(tinyxml2::XMLElement* dest) override;
 
     friend bool operator==(const PurchaseComplex& a, const PurchaseComplex& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
@@ -58,8 +51,6 @@ public:
     friend bool operator!=(const PurchaseComplex& a, const PurchaseComplex& b) { return !(a == b); }
 };
 
-
 } // namespace uniter::contract::supply
-
 
 #endif // PURCHASECOMPLEX_H
