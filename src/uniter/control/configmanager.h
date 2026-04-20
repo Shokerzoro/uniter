@@ -1,7 +1,7 @@
 #ifndef CONFIGMANAGER_H
 #define CONFIGMANAGER_H
 
-#include "../contract/employee/employee.h"
+#include "../contract/manager/employee.h"
 #include "../contract/unitermessage.h"
 #include <QObject>
 #include <memory>

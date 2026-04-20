@@ -2,7 +2,7 @@
 #include "../src/uniter/control/configmanager.h"
 #include "../src/uniter/contract/unitermessage.h"
 #include "../src/uniter/contract/resourceabstract.h"
-#include "../src/uniter/contract/employee/employee.h"
+#include "../src/uniter/contract/manager/employee.h"
 #include "../src/uniter/contract/supply/purchase.h"
 
 #include <gtest/gtest.h>

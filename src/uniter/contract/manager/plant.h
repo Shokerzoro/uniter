@@ -2,19 +2,23 @@
 #define PLANT_H
 
 #include "../resourceabstract.h"
-#include <tinyxml2.h>
+#include "managertypes.h"
 #include <QString>
 #include <cstdint>
 
-namespace uniter::contract::plant {
+namespace uniter::contract::manager {
 
-// Тип производства
-enum class PlantType : uint8_t {
-    PLANT = 0,      // Завод
-    WAREHOUSE = 1,  // Склад
-    VIRTUAL = 2     // Виртуальное (группа)
-};
-
+/**
+ * @brief Производственная площадка (ResourceType::PRODUCTION = 11, Subsystem::MANAGER).
+ *
+ * Генеративный ресурс: создание Plant порождает GenSubsystem::PRODUCTION
+ * c `GenSubsystemId == plant.id`. Под каждой площадкой появляются свои
+ * ProductionTask + ProductionStock (см. contract/production/).
+ *
+ * TODO(refactor): поле `location` сейчас — свободная строка. Если потребуется
+ *   структура (адрес, координаты, почтовый индекс), вынести в отдельный
+ *   ресурс PlantAddress с FK plant_id.
+ */
 class Plant : public ResourceAbstract
 {
 public:
@@ -42,10 +46,6 @@ public:
     PlantType type = PlantType::PLANT;
     QString location;
 
-    // Сериализация десериализация
-    void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml(tinyxml2::XMLElement* dest) override;
-
     friend bool operator==(const Plant& a, const Plant& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
             && a.name        == b.name
@@ -56,8 +56,12 @@ public:
     friend bool operator!=(const Plant& a, const Plant& b) { return !(a == b); }
 };
 
+} // namespace uniter::contract::manager
 
-
-} // plant
+// Backward-compat: старый namespace contract::plant использовался в некоторых
+// заголовках. Alias позволяет не ломать внешние include до полного перехода.
+namespace uniter::contract {
+namespace plant = manager;
+}
 
 #endif // PLANT_H

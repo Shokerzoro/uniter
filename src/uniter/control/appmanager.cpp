@@ -2,7 +2,7 @@
 #include "appmanager.h"
 #include "configmanager.h"
 #include "../contract/unitermessage.h"
-#include "../contract/employee/employee.h"
+#include "../contract/manager/employee.h"
 
 #include <QCryptographicHash>
 #include <QDebug>

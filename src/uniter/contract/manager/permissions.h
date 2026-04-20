@@ -1,9 +1,15 @@
-#ifndef PERMISSIONS_H
-#define PERMISSIONS_H
+#ifndef MANAGER_PERMISSIONS_H
+#define MANAGER_PERMISSIONS_H
 
-namespace uniter::contract::employees {
+#include <cstdint>
 
+namespace uniter::contract::manager {
 
+// NOTE(refactor): локальный enum Subsystem в permissions.h дублирует
+// uniter::contract::Subsystem из uniterprotocol.h. Сохранён для
+// совместимости с существующим Employee.assignments, где permissions
+// хранятся как vector<uint8_t> без привязки к внешнему enum.
+// TODO: унифицировать с contract::Subsystem и удалить этот дубликат.
 enum class Subsystem : uint8_t {
     MANAGER     = 0,
     MATERIALS   = 1,
@@ -60,7 +66,19 @@ enum class ProductionPermission : uint8_t {
                              // (списание на производство - автоматически через UPDATE_TASK)
 };
 
+enum class IntegrationPermission : uint8_t {
+    CREATE_INTEGRATION_TASK = 0, // Создание задачи на передачу данных партнёру
+    UPDATE_INTEGRATION_TASK = 1, // Правка/повторная отправка
+    CANCEL_INTEGRATION_TASK = 2, // Отмена
+};
 
-} // employees
+} // namespace uniter::contract::manager
 
-#endif // PERMISSIONS_H
+// Backward-compat: старые потребители (appmanager, configmanager, serverconnector,
+// tests/appmanagertest.cpp) используют namespace uniter::contract::employees.
+// Alias сохраняет их работоспособность без точечных правок include/usages.
+namespace uniter::contract {
+namespace employees = manager;
+}
+
+#endif // MANAGER_PERMISSIONS_H

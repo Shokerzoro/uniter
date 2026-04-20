@@ -4,15 +4,23 @@
 #include "../uniterprotocol.h"
 #include "../resourceabstract.h"
 #include "permissions.h"
-#include <tinyxml2.h>
 #include <QString>
 #include <QDateTime>
 #include <optional>
 #include <cstdint>
+#include <vector>
 
-namespace uniter::contract::employees {
+namespace uniter::contract::manager {
 
-
+/**
+ * @brief Назначение сотрудника на подсистему.
+ *
+ * TODO(refactor): вектор EmployeeAssignment внутри Employee — это embedded
+ * one-to-many. Для реляционной БД правильнее выделить в отдельный ресурс
+ * EmployeeAssignment (таблица `employee_assignments`), как советует
+ * user (раздробить, а не сомкать). Сделаем после первой итерации,
+ * когда будут реализованы базовые CRUD.
+ */
 struct EmployeeAssignment {
     contract::Subsystem subsystem;
     contract::GenSubsystemType genSubsystem = contract::GenSubsystemType::NOTGEN;
@@ -28,6 +36,12 @@ struct EmployeeAssignment {
     friend bool operator!=(const EmployeeAssignment& a, const EmployeeAssignment& b) { return !(a == b); }
 };
 
+/**
+ * @brief Сотрудник / пользователь (ResourceType::EMPLOYEES = 10).
+ *
+ * Subsystem::MANAGER. Логин/пароль остаются на стороне сервера (этот класс
+ * отражает учётную запись, а не credentials).
+ */
 class Employee : public ResourceAbstract {
 public:
     Employee() = default;
@@ -58,10 +72,6 @@ public:
     // Может быть назначен на несколько подсистем
     std::vector<EmployeeAssignment> assignments;
 
-    // Сериалиализация десериализация
-    void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml(tinyxml2::XMLElement* dest) override;
-
     friend bool operator==(const Employee& a, const Employee& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
             && a.name        == b.name
@@ -73,7 +83,6 @@ public:
     friend bool operator!=(const Employee& a, const Employee& b) { return !(a == b); }
 };
 
-
-} // employees
+} // namespace uniter::contract::manager
 
 #endif // EMPLOYEE_H

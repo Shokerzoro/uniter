@@ -1,6 +1,6 @@
 
 #include "../contract/unitermessage.h"
-#include "../contract/employee/employee.h"
+#include "../contract/manager/employee.h"
 #include "configmanager.h"
 #include <QObject>
 #include <memory>

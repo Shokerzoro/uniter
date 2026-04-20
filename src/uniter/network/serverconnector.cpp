@@ -2,8 +2,8 @@
 #include "serverconnector.h"
 
 #include "../contract/unitermessage.h"
-#include "../contract/employee/employee.h"
-#include "../contract/employee/permissions.h"
+#include "../contract/manager/employee.h"
+#include "../contract/manager/permissions.h"
 
 #include <QDebug>
 #include <QDateTime>

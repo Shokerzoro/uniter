@@ -76,6 +76,8 @@ set(DATABASE_SOURCES
 
 )
 
+# Протокол и корневой абстрактный ресурс.
+# После удаления XML-сериализации у ResourceAbstract нет .cpp.
 set(MESSAGES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/unitermessage.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/unitermessage.h
@@ -84,59 +86,57 @@ set(MESSAGES_SOURCES
 )
 
 
+# Ресурсы сгруппированы по подсистемам.
+# Сериализация удалена: у ресурсов остались только заголовочные файлы.
+# Исключение: instance/instancesimple.cpp содержит setPrefixValue/Suffix-логику.
 set(RESOUCES_SOURCES
+    # --- Subsystem::MATERIALS --------------------------------------------
     ${CMAKE_CURRENT_LIST_DIR}/contract/material/segment.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatebase.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatebase.cpp
-
     ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatesimple.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatesimple.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatecomposite.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatecomposite.cpp
 
-    ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchase.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchase.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchasecomplex.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchasecomplex.cpp
-
+    # --- Subsystem::INSTANCES --------------------------------------------
     ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancebase.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancebase.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancesimple.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancesimple.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancecomposite.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancecomposite.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/contract/resourceabstract.cpp
 
+    # --- Subsystem::DESIGN -----------------------------------------------
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/designtypes.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/assembly.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/design/assembly.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/part.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/design/part.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/project.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/design/project.cpp
 
+    # --- Subsystem::PDM --------------------------------------------------
     ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/pdmtypes.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/snapshot.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/snapshot.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/delta.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/delta.cpp
 
+    # --- Subsystem::DOCUMENTS --------------------------------------------
     ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doctypes.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doc.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doclink.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doclink.cpp
 
-    ${CMAKE_CURRENT_LIST_DIR}/contract/employee/permissions.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/employee/employee.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/employee/employee.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/contract/plant/plant.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/plant/plant.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/contract/plant/task.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/plant/task.cpp
+    # --- Subsystem::MANAGER (employee, plant, integration) ---------------
+    ${CMAKE_CURRENT_LIST_DIR}/contract/manager/managertypes.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/manager/permissions.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/manager/employee.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/manager/plant.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/manager/integration.h
 
+    # --- Subsystem::PURCHASES --------------------------------------------
+    ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchase.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchasecomplex.h
+
+    # --- Subsystem::GENERATIVE / GenSubsystem::PRODUCTION ----------------
+    ${CMAKE_CURRENT_LIST_DIR}/contract/production/productiontypes.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/production/productiontask.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/production/productionstock.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/production/productionstock.cpp
+
+    # --- Subsystem::GENERATIVE / GenSubsystem::INTERGATION ---------------
+    ${CMAKE_CURRENT_LIST_DIR}/contract/integration/integrationtypes.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/integration/integrationtask.h
 )
 
 set(CONTRACT_SOURCES

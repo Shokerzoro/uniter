@@ -3,7 +3,7 @@
 #define APPMANAGER_H
 
 #include "../contract/unitermessage.h"
-#include "../contract/employee/employee.h"
+#include "../contract/manager/employee.h"
 #include <QObject>
 #include <QByteArray>
 #include <optional>
