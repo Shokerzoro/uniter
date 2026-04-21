@@ -6,7 +6,6 @@
 #include <QString>
 #include <QDateTime>
 #include <cstdint>
-#include <vector>
 
 namespace uniter {
 namespace contract {
@@ -48,10 +47,11 @@ enum class GostSource : uint8_t {
  * поэтому TemplateBase не содержит is_standalone — это свойство применимо
  * только к простым стандартам, но не к составным.
  *
- * Документы стандарта (PDF ГОСТа, выдержка из ТУ и т.п.) — ресурсы
- * подсистемы DOCUMENTS (Doc), привязанные через DocLink. Денормализованный
- * список привязок хранится в `linked_documents`; источник истины — таблица
- * `doc_links`.
+ * Документы стандарта (PDF ГОСТа, выдержка из ТУ и т.п.) — «папка»
+ * документов (documents::DocLink). У каждого шаблона ровно одна
+ * папка; она свёрнута в поле `doc_link` целиком, без хранения
+ * `doc_link_id` в рантайме (в БД, разумеется, FK `doc_link_id`
+ * присутствует — см. docs/db/material_instance.md).
  */
 class TemplateBase : public ResourceAbstract {
 public:
@@ -62,6 +62,7 @@ public:
         QString description_,
         DimensionType dimension_type_,
         GostSource source_,
+        documents::DocLink doc_link_ = {},
         bool is_active_ = true,
         const QDateTime& created_at_ = QDateTime(),
         const QDateTime& updated_at_ = QDateTime(),
@@ -74,6 +75,7 @@ public:
         , dimension_type(dimension_type_)
         , source(source_)
         , version(version_)
+        , doc_link(std::move(doc_link_))
     {}
 
     virtual ~TemplateBase() = default;
@@ -86,21 +88,23 @@ public:
     GostSource source  = GostSource::BUILT_IN; // Источник: встроенный или компании-специфичный
     uint32_t   version = 1;                    // Версия шаблона (не SQL-ревизия, а семантическая)
 
-    // Привязанные документы стандарта (PDF ГОСТа и т.п.)
-    // Денормализация таблицы doc_links с target_type=MATERIAL_TEMPLATE_*.
-    std::vector<documents::DocLink> linked_documents;
+    // «Папка» документов стандарта (PDF ГОСТа и т.п.), свёрнутая целиком.
+    // В БД хранится как FK `doc_link_id` на стороне template_simple /
+    // template_composite; в рантайме FK не повторяется — содержимое
+    // DocLink материализуется DataManager-ом при загрузке шаблона.
+    documents::DocLink doc_link;
 
     // Различение типов
     virtual bool isComposite() const = 0;
 
     friend bool operator==(const TemplateBase& a, const TemplateBase& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
-            && a.name             == b.name
-            && a.description      == b.description
-            && a.dimension_type   == b.dimension_type
-            && a.source           == b.source
-            && a.version          == b.version
-            && a.linked_documents == b.linked_documents;
+            && a.name           == b.name
+            && a.description    == b.description
+            && a.dimension_type == b.dimension_type
+            && a.source         == b.source
+            && a.version        == b.version
+            && a.doc_link       == b.doc_link;
     }
     friend bool operator!=(const TemplateBase& a, const TemplateBase& b) { return !(a == b); }
 };

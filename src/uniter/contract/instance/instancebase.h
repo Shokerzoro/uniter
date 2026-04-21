@@ -57,6 +57,16 @@ struct Quantity {
  * UniterMessage не сработает). DimensionType берётся из
  * `materials::DimensionType` (`PIECE`/`LINEAR`/`AREA`) — см.
  * material/templatebase.h.
+ *
+ * Соответствие БД (см. docs/db/material_instance.md):
+ *   instance/instance_simple    — наследник InstanceSimple
+ *   instance/instance_composite — наследник InstanceComposite
+ *
+ * Поле `template_id` — FK на material/template_simple.id (для
+ * InstanceSimple) или material/template_composite.id (для
+ * InstanceComposite). В отличие от «сворачиваемых» FK (doc_link_id,
+ * segment.template_id, ...) этот FK остаётся в рантайм-классе:
+ * без него Instance не знает, какой шаблон специализирует.
  */
 class InstanceBase : public ResourceAbstract {
 public:

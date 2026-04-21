@@ -16,8 +16,16 @@ namespace uniter::contract::materials {
  *   - STANDALONE-стандарты не могут входить в Composite ни в каком виде.
  *
  * Связь "совместимости" (какой ASSORTMENT с каким MATERIAL допустим)
- * хранится в TemplateSimple::compatible_template_ids — Composite её
- * не дублирует, но сервер обязан проверять её при создании/обновлении.
+ * хранится в TemplateSimple::compatible_template_ids (свёрнутая таблица
+ * material/template_compatibility). Composite её не дублирует, но
+ * сервер обязан проверять её при создании/обновлении.
+ *
+ * Соответствие БД: таблица material/template_composite
+ *   id                  PK
+ *   top_template_id     FK → material/template_simple.id (ASSORTMENT)
+ *   bottom_template_id  FK → material/template_simple.id (MATERIAL)
+ *   doc_link_id         FK → documents/doc_link.id
+ *   + общие поля TemplateBase (name, description, dimension_type, source, version)
  */
 class TemplateComposite : public TemplateBase {
 public:
@@ -30,6 +38,7 @@ public:
         GostSource source_,
         uint64_t top_template_id_,  // Id простого шаблона для верхней части (ASSORTMENT)
         uint64_t bottom_template_id_,  // Id простого шаблона для нижней части (MATERIAL)
+        documents::DocLink doc_link_ = {},  // Свёрнутая папка документов составного стандарта
         bool is_active_ = true,  // Активен ли шаблон (для архивирования)
         const QDateTime& created_at_ = QDateTime(),
         const QDateTime& updated_at_ = QDateTime(),
@@ -38,14 +47,15 @@ public:
         uint64_t updated_by_ = 0
         )
         : TemplateBase(id_, std::move(name_), std::move(description_), dimension_type_, source_,
+                       std::move(doc_link_),
                        is_active_, created_at_, updated_at_, version_, created_by_, updated_by_)
         , top_template_id(top_template_id_)
         , bottom_template_id(bottom_template_id_)
     {}
 
     QString PrefName; // Запись перед дробью (лист, круг...) — берётся из ASSORTMENT-стандарта
-    uint64_t top_template_id    = 0; // FK → templates.id (простой, ASSORTMENT)
-    uint64_t bottom_template_id = 0; // FK → templates.id (простой, MATERIAL)
+    uint64_t top_template_id    = 0; // FK → material/template_simple.id (ASSORTMENT)
+    uint64_t bottom_template_id = 0; // FK → material/template_simple.id (MATERIAL)
 
     bool isComposite() const override { return true; }
 
