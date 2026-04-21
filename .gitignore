@@ -2,7 +2,8 @@
 cmake-build-*/
 build/
 deploy/
-docs/
+docs/*
+!docs/db/
 CMakeFiles/
 CMakeCache.txt
 
