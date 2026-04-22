@@ -43,24 +43,38 @@ enum class ResourceType : uint8_t {
     TEMPLATE_COMPATIBILITY      = 24,   // material/template_compatibility (M:N template_simple ↔ template_simple)
 
     // --- Subsystem::DESIGN ---
-    PROJECT                  = 30,
-    ASSEMBLY                 = 31,
-    PART                     = 32,
+    PROJECT                  = 30,   // design_project
+    ASSEMBLY                 = 31,   // design_assembly (общие данные сборки)
+    PART                     = 32,   // design_part     (общие данные детали)
+    ASSEMBLY_CONFIG          = 33,   // design_assembly_config + join-таблицы
+    PART_CONFIG              = 34,   // design_part_config (исполнение детали)
+    // PDM-зеркала классов DESIGN (см. docs/db/pdm.md). Классы переиспользуются
+    // из namespace design::*, отличие — ResourceType и таблица-приёмник в БД.
+    ASSEMBLY_PDM             = 35,   // pdm_assembly
+    ASSEMBLY_CONFIG_PDM      = 36,   // pdm_assembly_config + join-таблицы
+    PART_PDM                 = 37,   // pdm_part
+    PART_CONFIG_PDM          = 38,   // pdm_part_config
 
     // --- Subsystem::PURCHASES ---
     PURCHASE_GROUP           = 40,   // Комплексная заявка
     PURCHASE                 = 41,   // ProcurementRequest
 
     // --- Subsystem::PDM ---
-    SNAPSHOT                 = 50,
-    DELTA                    = 51,
+    SNAPSHOT                 = 50,   // pdm_snapshot
+    DELTA                    = 51,   // pdm_delta
+    PDM_PROJECT              = 52,   // pdm_project (версионная ветка)
 
     // --- Subsystem::INSTANCES ---
-    MATERIAL_INSTANCE        = 60,
+    // По ЕСКД Instance бывает двух структурных вариантов, хранятся в
+    // разных таблицах (material_instances_simple / material_instances_composite).
+    // Прежний обобщённый MATERIAL_INSTANCE = 60 удалён.
+    MATERIAL_INSTANCE_SIMPLE    = 61,   // material_instances_simple
+    MATERIAL_INSTANCE_COMPOSITE = 62,   // material_instances_composite
 
     // --- Subsystem::GENERATIVE + GenSubsystem::PRODUCTION ---
-    PRODUCTION_TASK          = 70,
+    PRODUCTION_TASK          = 70,   // production_task
     PRODUCTION_STOCK         = 71,   // Позиция склада: ссылка на MaterialInstance + количество
+    PRODUCTION_SUPPLY        = 72,   // Связь ProductionTask ↔ PurchaseComplex
 
     // --- Subsystem::GENERATIVE + GenSubsystem::INTERGATION ---
     INTEGRATION_TASK         = 80,
@@ -208,13 +222,22 @@ inline QDebug operator<<(QDebug debug, ResourceType type) {
     case ResourceType::PROJECT:                      debug.nospace() << "PROJECT"; break;
     case ResourceType::ASSEMBLY:                     debug.nospace() << "ASSEMBLY"; break;
     case ResourceType::PART:                         debug.nospace() << "PART"; break;
+    case ResourceType::ASSEMBLY_CONFIG:              debug.nospace() << "ASSEMBLY_CONFIG"; break;
+    case ResourceType::PART_CONFIG:                  debug.nospace() << "PART_CONFIG"; break;
+    case ResourceType::ASSEMBLY_PDM:                 debug.nospace() << "ASSEMBLY_PDM"; break;
+    case ResourceType::ASSEMBLY_CONFIG_PDM:          debug.nospace() << "ASSEMBLY_CONFIG_PDM"; break;
+    case ResourceType::PART_PDM:                     debug.nospace() << "PART_PDM"; break;
+    case ResourceType::PART_CONFIG_PDM:              debug.nospace() << "PART_CONFIG_PDM"; break;
     case ResourceType::PURCHASE_GROUP:               debug.nospace() << "PURCHASE_GROUP"; break;
     case ResourceType::PURCHASE:                     debug.nospace() << "PURCHASE"; break;
     case ResourceType::SNAPSHOT:                     debug.nospace() << "SNAPSHOT"; break;
     case ResourceType::DELTA:                        debug.nospace() << "DELTA"; break;
-    case ResourceType::MATERIAL_INSTANCE:            debug.nospace() << "MATERIAL_INSTANCE"; break;
+    case ResourceType::PDM_PROJECT:                  debug.nospace() << "PDM_PROJECT"; break;
+    case ResourceType::MATERIAL_INSTANCE_SIMPLE:     debug.nospace() << "MATERIAL_INSTANCE_SIMPLE"; break;
+    case ResourceType::MATERIAL_INSTANCE_COMPOSITE:  debug.nospace() << "MATERIAL_INSTANCE_COMPOSITE"; break;
     case ResourceType::PRODUCTION_TASK:              debug.nospace() << "PRODUCTION_TASK"; break;
     case ResourceType::PRODUCTION_STOCK:             debug.nospace() << "PRODUCTION_STOCK"; break;
+    case ResourceType::PRODUCTION_SUPPLY:            debug.nospace() << "PRODUCTION_SUPPLY"; break;
     case ResourceType::INTEGRATION_TASK:             debug.nospace() << "INTEGRATION_TASK"; break;
     case ResourceType::DOC:                          debug.nospace() << "DOC"; break;
     case ResourceType::DOC_LINK:                     debug.nospace() << "DOC_LINK"; break;

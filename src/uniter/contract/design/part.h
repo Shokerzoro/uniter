@@ -13,19 +13,24 @@
 namespace uniter::contract::design {
 
 /**
- * @brief Ресурс подсистемы DESIGN — деталь (листовой узел дерева).
+ * @brief Ресурс подсистемы DESIGN — деталь (общие данные).
  *
- * Соответствует таблице `parts` (см. docs/pdm_design_architecture.md §1.4).
- * Исполнения и подписи — в отдельных таблицах `part_configs` / `part_signatures`,
- * материализуются в `configs` / `signatures` при загрузке из БД.
+ * Соответствует таблице `design_part` (см. docs/db/design.md).
  *
- * Связь с материалом — через FK `material_instance_id` → material_instances.id.
- * Внутри Part НЕ хранится сам MaterialInstance (никаких shared_ptr — только id),
- * это соответствует принципу ориентации на реляционную БД.
+ * Деталь НЕ принадлежит конкретной сборке: она входит в исполнения сборок
+ * через join-таблицу `design_assembly_config_parts` (N:M). Поэтому здесь
+ * нет `assembly_id`.
  *
- * Файлы (чертёж детали, 3D-модель) — ресурсы подсистемы DOCUMENTS (Doc);
- * привязки к Part живут в таблице `doc_links` и материализуются в
- * `linked_documents` для удобства UI.
+ * Исполнения детали (`PartConfig`) вынесены в отдельный ресурс (класс
+ * `PartConfig` наследник ResourceAbstract), таблица `design_part_config`.
+ * Здесь в классе полей configs[] больше не хранится — CRUD по исполнениям
+ * идёт через UniterMessage с `ResourceType::PART_CONFIG`.
+ *
+ * Материал детали — ровно ОДНА из двух FK:
+ *   - `instance_simple_id`    → material_instances_simple.id  (лист/пруток/…)
+ *   - `instance_composite_id` → material_instances_composite.id (лист+покрытие, …)
+ * Инвариант XOR поддерживается DataManager (можно «ни одного» для отвлечённых
+ * деталей уровня спецификации, но одновременно оба — запрещено).
  */
 class Part : public ResourceAbstract {
 public:
@@ -38,20 +43,17 @@ public:
         uint64_t s_created_by,
         uint64_t s_updated_by,
         uint64_t project_id_,
-        uint64_t assembly_id_,
         QString  designation_,
         QString  name_,
         QString  description_)
         : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
         , project_id  (project_id_)
-        , assembly_id (assembly_id_)
         , designation (std::move(designation_))
         , name        (std::move(name_))
         , description (std::move(description_)) {}
 
-    // Идентификация и иерархия
-    uint64_t project_id  = 0;   // FK → projects.id
-    uint64_t assembly_id = 0;   // FK → assemblies.id (родительская сборка)
+    // FK на проект (классификация деталей по проектам).
+    uint64_t project_id = 0;    // FK → design_project.id
 
     // Атрибуты ЕСКД
     QString designation;        // Обозначение ЕСКД (например "СБ-001-01")
@@ -60,32 +62,38 @@ public:
     QString litera;             // Литера КД (О, О1, А, ...)
     QString organization;       // Организация-разработчик
 
-    // Ссылка на материал (FK → material_instances.id).
-    // nullopt для сборок, не имеющих материала как таковых (напр. изделия в сборе).
-    std::optional<uint64_t> material_instance_id;
+    // Материал детали: ровно одна из двух FK (или обе NULL для отвлечённых).
+    // Инвариант: (instance_simple_id IS NULL) XOR (instance_composite_id IS NULL)
+    //            OR  (оба NULL).
+    std::optional<uint64_t> instance_simple_id;      // FK → material_instances_simple.id
+    std::optional<uint64_t> instance_composite_id;   // FK → material_instances_composite.id
 
-    // Исполнения детали (таблица `part_configs`)
-    std::vector<PartConfig> configs;
-
-    // Подписи на чертеже (таблица `part_signatures`)
+    // Подписи на чертеже (таблица `design_part_signatures`, прикладная).
+    // TODO(на подумать): вынести в отдельный ресурс PartSignature (ResourceType)
+    // если понадобится CRUD по отдельной подписи. Пока — вектор внутри Part.
     std::vector<PartSignature> signatures;
 
-    // Привязанные документы (денормализация таблицы doc_links по target_type=PART).
+    // Привязанные документы (денормализация doc_links по target_type=PART).
     std::vector<documents::DocLink> linked_documents;
+
+    // Отсутствует (вынесено в отдельные сущности):
+    //   - assembly_id         → N:M через design_assembly_config_parts
+    //   - configs[]           → отдельный ресурс PartConfig с FK part_id
+    //   - material_instance_id (старое поле) → разделено на simple/composite
+    //     согласно ЕСКД-типу материала.
 
     friend bool operator==(const Part& a, const Part& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
-            && a.project_id           == b.project_id
-            && a.assembly_id          == b.assembly_id
-            && a.designation          == b.designation
-            && a.name                 == b.name
-            && a.description          == b.description
-            && a.litera               == b.litera
-            && a.organization         == b.organization
-            && a.material_instance_id == b.material_instance_id
-            && a.configs              == b.configs
-            && a.signatures           == b.signatures
-            && a.linked_documents     == b.linked_documents;
+            && a.project_id            == b.project_id
+            && a.designation           == b.designation
+            && a.name                  == b.name
+            && a.description           == b.description
+            && a.litera                == b.litera
+            && a.organization          == b.organization
+            && a.instance_simple_id    == b.instance_simple_id
+            && a.instance_composite_id == b.instance_composite_id
+            && a.signatures            == b.signatures
+            && a.linked_documents      == b.linked_documents;
     }
     friend bool operator!=(const Part& a, const Part& b) { return !(a == b); }
 };

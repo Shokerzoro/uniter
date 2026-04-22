@@ -3,32 +3,30 @@
 
 #include "../uniterprotocol.h"
 #include "../resourceabstract.h"
-#include "integrationtypes.h"
-#include <QString>
-#include <QDateTime>
 #include <cstdint>
-#include <optional>
 
 namespace uniter::contract::integration {
 
 /**
- * @brief Задача на передачу конкретного ресурса внешнему партнёру
+ * @brief Задача на выгрузку конкретного ресурса внешнему партнёру
  *        (ResourceType::INTEGRATION_TASK = 80,
  *         Subsystem::GENERATIVE + GenSubsystem::INTERGATION).
  *
- * Задача = «выгрузить ресурс X из подсистемы S в рамках интеграции I
- * партнёру». Ссылается на породившую Integration через `integration_id`
- * (FK → integrations.id == generative subsystem instance).
+ * Маппится на таблицу `integration_task` (см. docs/db/integration.md).
+ *
+ * Структура ресурса сведена к минимуму по схеме БД (INTEGRATION.pdf):
+ *   id | integration_id | target_subsystem | target_resource_type | any_resource_id
  *
  * Целевой ресурс идентифицируется тройкой:
- *   (target_subsystem, target_resource_type, foreign_resource_id).
- * Используем uniter::contract::Subsystem и ResourceType из uniterprotocol.h,
- * чтобы не плодить свои enum-ы — это стандартная модель «адреса» ресурса
- * в Uniter.
+ *   (target_subsystem, target_resource_type, any_resource_id).
+ * Это полиморфный FK: таблица-назначение определяется парой
+ * (subsystem, resource_type) в рантайме; ссылочную целостность проверяет
+ * DataManager при CREATE/UPDATE.
  *
- * TODO(refactor): если выяснится, что за одну IntegrationTask реально
- * нужно передавать несколько ресурсов разных типов, разбить на отдельный
- * ресурс IntegrationTaskItem с FK integration_task_id.
+ * TODO(на подумать): если понадобится отслеживание попыток/статуса
+ * передачи — вынести в отдельный ресурс IntegrationTaskAttempt с FK
+ * integration_task_id (история). Сейчас сама задача — это только
+ * «что и куда передать», без состояния передачи.
  */
 class IntegrationTask : public ResourceAbstract
 {
@@ -45,60 +43,30 @@ public:
         uint64_t integration_id_,
         contract::Subsystem target_subsystem_,
         contract::ResourceType target_resource_type_,
-        uint64_t foreign_resource_id_,
-        IntegrationTaskStatus status_,
-        QString payload_ref_ = {},
-        std::optional<QDateTime> planned_at_ = std::nullopt,
-        std::optional<QDateTime> transmitted_at_ = std::nullopt,
-        QString last_error_ = {})
+        uint64_t any_resource_id_)
         : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
           integration_id(integration_id_),
           target_subsystem(target_subsystem_),
           target_resource_type(target_resource_type_),
-          foreign_resource_id(foreign_resource_id_),
-          status(status_),
-          payload_ref(std::move(payload_ref_)),
-          planned_at(planned_at_),
-          transmitted_at(transmitted_at_),
-          last_error(std::move(last_error_))
+          any_resource_id(any_resource_id_)
     {}
 
-    // Связь с генеративной подсистемой
-    uint64_t integration_id = 0; // FK → integrations.id
+    // Порождающая Integration (Subsystem::MANAGER, ResourceType::INTEGRATION = 12)
+    uint64_t integration_id = 0; // FK → manager_integration.id
 
-    // «Адрес» передаваемого ресурса
+    // Полиморфный «адрес» передаваемого ресурса.
+    // (target_subsystem, target_resource_type) → таблица;
+    // any_resource_id → строка в этой таблице.
     contract::Subsystem    target_subsystem     = contract::Subsystem::PROTOCOL;
     contract::ResourceType target_resource_type = contract::ResourceType::DEFAULT;
-    uint64_t               foreign_resource_id  = 0; // id ресурса в локальной БД
-
-    // Состояние передачи
-    IntegrationTaskStatus status = IntegrationTaskStatus::PENDING;
-
-    // Опциональная ссылка на сериализованный payload (например, MinIO object_key
-    // или хэш экспортированного файла). Свободная строка: содержимое определяет
-    // конкретный коннектор партнёра. TODO: перевести на отдельный ресурс-файл
-    // (IntegrationPayload) с DocLink-подобной семантикой.
-    QString payload_ref;
-
-    // Тайминги
-    std::optional<QDateTime> planned_at;
-    std::optional<QDateTime> transmitted_at;
-
-    // Диагностика. При status=FAILED сюда складывается последнее сообщение
-    // об ошибке. Пустая при успешных статусах.
-    QString last_error;
+    uint64_t               any_resource_id      = 0;
 
     friend bool operator==(const IntegrationTask& a, const IntegrationTask& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
             && a.integration_id        == b.integration_id
             && a.target_subsystem      == b.target_subsystem
             && a.target_resource_type  == b.target_resource_type
-            && a.foreign_resource_id   == b.foreign_resource_id
-            && a.status                == b.status
-            && a.payload_ref           == b.payload_ref
-            && a.planned_at            == b.planned_at
-            && a.transmitted_at        == b.transmitted_at
-            && a.last_error            == b.last_error;
+            && a.any_resource_id       == b.any_resource_id;
     }
     friend bool operator!=(const IntegrationTask& a, const IntegrationTask& b) { return !(a == b); }
 };

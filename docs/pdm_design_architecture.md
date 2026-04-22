@@ -1,5 +1,13 @@
 # Архитектура PDM/DESIGN: взаимодействие подсистем, управление файлами, версионирование
 
+> ⚠️ **УСТАРЕЛО (legacy).** Этот документ описывает предыдущую итерацию
+> концепции DESIGN/PDM (Assembly с embedded child_assemblies/parts,
+> `Project.active_snapshot_id`, единый `MATERIAL_INSTANCE`). Актуальная
+> концепция — в `docs/db/design.md`, `docs/db/pdm.md`,
+> `docs/db/pdm_design_logic.md`. Документ оставлен для истории и для
+> рабочих процессов, связанных с FileManager/PDMManager, которые пока
+> сохраняют валидность.
+
 > Справочник при реализации классов ресурсов `contract/design/`, `contract/pdm/`, схемы SQLite и логики `PDMManager`.
 
 ---

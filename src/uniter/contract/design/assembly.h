@@ -6,61 +6,29 @@
 #include "designtypes.h"
 #include <QString>
 #include <cstdint>
-#include <optional>
 #include <vector>
 
 namespace uniter::contract::design {
 
 /**
- * @brief Ссылка на дочернюю сборку (связь N:M parent Assembly → child Assembly).
+ * @brief Ресурс подсистемы DESIGN — сборка (общие данные изделия).
  *
- * Соответствует таблице `assembly_children` (см. docs/pdm_design_architecture.md §1.3).
- * Одна запись = одно вхождение дочерней сборки в родительскую с указанием
- * количества и исполнения (config).
- */
-struct AssemblyChildRef {
-    uint64_t child_assembly_id = 0;  // FK → assemblies.id
-    uint32_t quantity          = 1;  // Количество вхождений
-    QString  config;                 // Идентификатор исполнения ("01", "02", ... или пусто)
-
-    friend bool operator==(const AssemblyChildRef& a, const AssemblyChildRef& b) {
-        return a.child_assembly_id == b.child_assembly_id
-            && a.quantity          == b.quantity
-            && a.config            == b.config;
-    }
-    friend bool operator!=(const AssemblyChildRef& a, const AssemblyChildRef& b) { return !(a == b); }
-};
-
-/**
- * @brief Ссылка на деталь в сборке (вхождение Part в Assembly).
+ * Соответствует таблице `design_assembly` (см. docs/db/design.md).
  *
- * Хранится отдельной таблицей (планируется `assembly_parts` по тому же
- * принципу, что и `assembly_children`), но с FK на `parts.id`.
- */
-struct AssemblyPartRef {
-    uint64_t part_id  = 0;   // FK → parts.id
-    uint32_t quantity = 1;
-    QString  config;
-
-    friend bool operator==(const AssemblyPartRef& a, const AssemblyPartRef& b) {
-        return a.part_id  == b.part_id
-            && a.quantity == b.quantity
-            && a.config   == b.config;
-    }
-    friend bool operator!=(const AssemblyPartRef& a, const AssemblyPartRef& b) { return !(a == b); }
-};
-
-/**
- * @brief Ресурс подсистемы DESIGN — сборка (узел дерева).
+ * Сборка хранит ТОЛЬКО общие данные, не зависящие от исполнения:
+ * обозначение, наименование, описание, тип. Структура сборки (состав
+ * подсборок, деталей, стандартных изделий, материалов) вынесена на
+ * уровень исполнения — см. `AssemblyConfig` (`design_assembly_config` +
+ * join-таблицы).
  *
- * Соответствует таблице `assemblies` (§1.3). Дочерние связи (сборка→сборка,
- * сборка→деталь) — в отдельных таблицах-ссылках, которые материализуются в
- * `child_assemblies` / `parts` при загрузке из БД.
+ * Родительство Assembly→Assembly в таблице НЕ хранится: одна сборка
+ * может входить в состав нескольких разных сборок через
+ * `design_assembly_config_children`.
  *
- * Файлы (сборочный чертёж, спецификация, 3D-модель и т.п.) хранятся как
- * ресурсы подсистемы DOCUMENTS (Doc) и привязываются через DocLink.
- * Денормализованный список привязок копируется в `linked_documents` для
- * удобства UI; источник истины — таблица `doc_links`.
+ * Файлы (сборочный чертёж, спецификация, 3D-модель) — ресурсы
+ * подсистемы DOCUMENTS (Doc); привязки живут в таблице `documents_doc_link`
+ * с `target_type = ASSEMBLY`. Денормализованная копия — в `linked_documents`
+ * (для удобства UI; источник истины всё равно doc_links).
  */
 class Assembly : public ResourceAbstract {
 public:
@@ -73,51 +41,46 @@ public:
         uint64_t s_created_by,
         uint64_t s_updated_by,
         uint64_t project_id_,
-        std::optional<uint64_t> parent_assembly_id_,
         QString  designation_,
         QString  name_,
         QString  description_,
         AssemblyType type_ = AssemblyType::VIRTUAL)
         : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
-        , project_id         (project_id_)
-        , parent_assembly_id (std::move(parent_assembly_id_))
-        , designation        (std::move(designation_))
-        , name               (std::move(name_))
-        , description        (std::move(description_))
-        , type               (type_) {}
+        , project_id  (project_id_)
+        , designation (std::move(designation_))
+        , name        (std::move(name_))
+        , description (std::move(description_))
+        , type        (type_) {}
 
-    // Идентификация и иерархия
-    uint64_t project_id = 0;                        // FK → projects.id
-    std::optional<uint64_t> parent_assembly_id;     // FK → assemblies.id (NULL для корневой)
+    // FK на проект, к которому сборка относится.
+    uint64_t project_id = 0;                       // FK → design_project.id
 
     // Атрибуты ЕСКД
-    QString      designation;                       // Обозначение ЕСКД (например "СБ-001")
-    QString      name;                              // Наименование
+    QString      designation;                      // Обозначение ЕСКД (например "СБ-001")
+    QString      name;                             // Наименование
     QString      description;
-    AssemblyType type = AssemblyType::VIRTUAL;      // REAL / VIRTUAL
+    AssemblyType type = AssemblyType::VIRTUAL;     // REAL / VIRTUAL
 
-    // Дочерние связи (материализуются из таблиц-ссылок при загрузке).
-    // TODO: рассмотреть выделение в отдельные ресурсы AssemblyChildRef/AssemblyPartRef
-    // (каждый со своим id) — это упростит CRUD по отдельной связи.
-    std::vector<AssemblyChildRef> child_assemblies;
-    std::vector<AssemblyPartRef>  parts;
-
-    // Привязанные документы (денормализация таблицы doc_links по target_type=ASSEMBLY).
-    // Сам DocLink — полноценный ресурс подсистемы DOCUMENTS; здесь хранится
-    // копия для удобства отображения в UI.
+    // Привязанные документы (денормализация doc_links по target_type=ASSEMBLY).
+    // Сам DocLink — полноценный ресурс DOCUMENTS; здесь хранится копия
+    // для удобства отображения в UI.
     std::vector<documents::DocLink> linked_documents;
+
+    // Отсутствуют (перенесены в AssemblyConfig):
+    //   - parent_assembly_id  → в join design_assembly_config_children
+    //   - child_assemblies[]  → в join design_assembly_config_children
+    //   - parts[]             → в join design_assembly_config_parts
+    // Ассоциации с исполнениями (configs[]) тоже хранятся снаружи:
+    // один Assembly имеет N AssemblyConfig через FK `assembly_id` у конфига.
 
     friend bool operator==(const Assembly& a, const Assembly& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
-            && a.project_id         == b.project_id
-            && a.parent_assembly_id == b.parent_assembly_id
-            && a.designation        == b.designation
-            && a.name               == b.name
-            && a.description        == b.description
-            && a.type               == b.type
-            && a.child_assemblies   == b.child_assemblies
-            && a.parts              == b.parts
-            && a.linked_documents   == b.linked_documents;
+            && a.project_id       == b.project_id
+            && a.designation      == b.designation
+            && a.name             == b.name
+            && a.description      == b.description
+            && a.type             == b.type
+            && a.linked_documents == b.linked_documents;
     }
     friend bool operator!=(const Assembly& a, const Assembly& b) { return !(a == b); }
 };

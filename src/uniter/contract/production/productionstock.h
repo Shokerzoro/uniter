@@ -3,27 +3,23 @@
 
 #include "../resourceabstract.h"
 #include <cstdint>
+#include <optional>
 
 namespace uniter::contract::production {
 
 /**
- * @brief Позиция складского запаса (ResourceType::PRODUCTION_STOCK = 71).
+ * @brief Позиция складского запаса
+ *        (ResourceType::PRODUCTION_STOCK = 71,
+ *         Subsystem::GENERATIVE + GenSubsystem::PRODUCTION).
  *
- * Связывает конкретный MaterialInstance с конкретной площадкой (Plant)
- * и показывает доступное количество этого материала на этой площадке.
+ * Маппится на таблицу `production_stock` (см. docs/db/production.md).
  *
- * Реляционное представление (таблица `production_stock`):
- *   id               PK
- *   material_instance_id  FK → material_instances.id
- *   plant_id              FK → plants.id
- *   quantity_items        INTEGER    (для DimensionType::PIECE)
- *   quantity_length       REAL       (для DimensionType::LINEAR, м)
- *   quantity_area         REAL       (для DimensionType::AREA,   м²)
+ * Связь с материалом: instance_simple_id XOR instance_composite_id
+ * (exactly-one-of-two, проверяет DataManager).
  *
  * Какое из трёх количественных полей активно — определяется
- * `dimension_type` у соответствующего MaterialInstance/Template.
- * Храним все три для однообразного маппинга на SQLite; незаполненные
- * поля остаются нулевыми.
+ * `dimension_type` соответствующего Instance. Храним все три для
+ * однообразного маппинга на SQLite; неактивные остаются нулевыми.
  */
 class ProductionStock : public ResourceAbstract
 {
@@ -36,21 +32,27 @@ public:
         const QDateTime& s_updated_at,
         uint64_t s_created_by,
         uint64_t s_updated_by,
-        uint64_t material_instance_id_,
         uint64_t plant_id_,
+        std::optional<uint64_t> instance_simple_id_    = std::nullopt,
+        std::optional<uint64_t> instance_composite_id_ = std::nullopt,
         int      quantity_items_  = 0,
         double   quantity_length_ = 0.0,
         double   quantity_area_   = 0.0)
         : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
-          material_instance_id(material_instance_id_),
           plant_id(plant_id_),
+          instance_simple_id(instance_simple_id_),
+          instance_composite_id(instance_composite_id_),
           quantity_items(quantity_items_),
           quantity_length(quantity_length_),
           quantity_area(quantity_area_)
     {}
 
-    uint64_t material_instance_id = 0;  // FK → material_instances.id
-    uint64_t plant_id             = 0;  // FK → plants.id
+    // Площадка-владелец (генеративная подсистема PRODUCTION)
+    uint64_t plant_id = 0;                            // FK → manager_plant.id
+
+    // Материал (exactly-one-of-two)
+    std::optional<uint64_t> instance_simple_id;       // FK → material_instances_simple.id
+    std::optional<uint64_t> instance_composite_id;    // FK → material_instances_composite.id
 
     // Количественные поля (активность определяется dimension_type материала)
     int    quantity_items  = 0;    // штук (PIECE)
@@ -59,11 +61,12 @@ public:
 
     friend bool operator==(const ProductionStock& a, const ProductionStock& b) {
         return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
-            && a.material_instance_id == b.material_instance_id
-            && a.plant_id             == b.plant_id
-            && a.quantity_items       == b.quantity_items
-            && a.quantity_length      == b.quantity_length
-            && a.quantity_area        == b.quantity_area;
+            && a.plant_id              == b.plant_id
+            && a.instance_simple_id    == b.instance_simple_id
+            && a.instance_composite_id == b.instance_composite_id
+            && a.quantity_items        == b.quantity_items
+            && a.quantity_length       == b.quantity_length
+            && a.quantity_area         == b.quantity_area;
     }
     friend bool operator!=(const ProductionStock& a, const ProductionStock& b) { return !(a == b); }
 };

@@ -104,12 +104,15 @@ set(RESOUCES_SOURCES
 
     # --- Subsystem::DESIGN -----------------------------------------------
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/designtypes.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/design/assembly.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/design/part.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/design/project.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/design/assembly.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/design/assemblyconfig.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/design/part.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/design/partconfig.h
 
     # --- Subsystem::PDM --------------------------------------------------
     ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/pdmtypes.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/pdmproject.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/snapshot.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/delta.h
 
@@ -133,9 +136,9 @@ set(RESOUCES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/production/productiontypes.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/production/productiontask.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/production/productionstock.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/production/productionsupply.h
 
     # --- Subsystem::GENERATIVE / GenSubsystem::INTERGATION ---------------
-    ${CMAKE_CURRENT_LIST_DIR}/contract/integration/integrationtypes.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/integration/integrationtask.h
 )
 

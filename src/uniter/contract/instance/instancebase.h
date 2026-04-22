@@ -52,21 +52,23 @@ struct Quantity {
 /**
  * @brief Базовый класс экземпляра ссылки на материал.
  *
- * MATERIAL_INSTANCE = 60 в ResourceType, поэтому должен быть полноценным
- * ресурсом, унаследованным от ResourceAbstract (иначе CRUD через
- * UniterMessage не сработает). DimensionType берётся из
- * `materials::DimensionType` (`PIECE`/`LINEAR`/`AREA`) — см.
- * material/templatebase.h.
+ * По структуре Instance делится на два варианта (simple/composite),
+ * которые лежат в разных таблицах БД и имеют разные ResourceType:
+ *   - `MATERIAL_INSTANCE_SIMPLE    = 61` → instance/instance_simple
+ *   - `MATERIAL_INSTANCE_COMPOSITE = 62` → instance/instance_composite
+ * Прежний обобщённый `ResourceType::MATERIAL_INSTANCE = 60` удалён.
+ * CRUD идёт через UniterMessage по конкретному ResourceType.
  *
- * Соответствие БД (см. docs/db/material_instance.md):
- *   instance/instance_simple    — наследник InstanceSimple
- *   instance/instance_composite — наследник InstanceComposite
+ * Соответствие БД — см. docs/db/material_instance.md.
  *
  * Поле `template_id` — FK на material/template_simple.id (для
  * InstanceSimple) или material/template_composite.id (для
  * InstanceComposite). В отличие от «сворачиваемых» FK (doc_link_id,
  * segment.template_id, ...) этот FK остаётся в рантайм-классе:
  * без него Instance не знает, какой шаблон специализирует.
+ *
+ * DimensionType берётся из `materials::DimensionType`
+ * (`PIECE`/`LINEAR`/`AREA`) — см. material/templatebase.h.
  */
 class InstanceBase : public ResourceAbstract {
 public:

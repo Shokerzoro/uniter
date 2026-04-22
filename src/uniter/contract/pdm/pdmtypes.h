@@ -9,11 +9,17 @@ namespace uniter::contract::pdm {
  * @brief Жизненный цикл Snapshot.
  *
  * DRAFT    — создан PDMManager после парсинга, виден только PDM-менеджерам.
- * APPROVED — утверждён ответственным; Project.active_snapshot_id указывает сюда.
- * ARCHIVED — при утверждении следующего APPROVED, предыдущий архивируется.
+ * APPROVED — утверждён ответственным (рабочий состав для других подсистем).
+ * ARCHIVED — заменён последующим APPROVED.
+ *
+ * Связь с DESIGN идёт через `design_project.pdm_project_id →
+ * pdm_project.head_snapshot_id` (см. docs/db/pdm_design_logic.md §5).
+ * Вопрос "head vs approved" отложен до реализации PDMManager: нужно ли
+ * выделять `pdm_project.approved_snapshot_id` рядом с head_snapshot_id —
+ * TODO.
  *
  * Snapshot никогда не удаляется — только архивируется, это обеспечивает
- * воспроизводимость Task'ов, ссылающихся на него (см. pdm_design_architecture.md §3).
+ * воспроизводимость Task'ов, ссылающихся на него.
  */
 enum class SnapshotStatus : uint8_t {
     DRAFT    = 0,
