@@ -5,20 +5,20 @@
 
 namespace uniter::contract::manager {
 
-// NOTE(refactor): локальный enum Subsystem в permissions.h дублирует
-// uniter::contract::Subsystem из uniterprotocol.h. Сохранён для
-// совместимости с существующим Employee.assignments, где permissions
-// хранятся как vector<uint8_t> без привязки к внешнему enum.
-// TODO: унифицировать с contract::Subsystem и удалить этот дубликат.
-enum class Subsystem : uint8_t {
-    MANAGER     = 0,
-    MATERIALS   = 1,
-    DESIGN      = 2,
-    PURCHASES   = 3,
-    PRODUCTION  = 5,
-    INTEGRATION = 6
-};
+// Подсистема, к которой относится назначение, задаётся через
+// uniter::contract::Subsystem из uniterprotocol.h — никакого дубликата
+// manager::Subsystem в этом файле больше нет. EmployeeAssignment хранит
+// contract::Subsystem напрямую.
 
+/**
+ * @brief Разрешения подсистемы MANAGER.
+ *
+ * Значения этого и аналогичных перечислений (DesignPermission,
+ * MaterialsPermission, ...) записываются в EmployeeAssignment::permissions
+ * как uint8_t — конкретное перечисление выбирается по
+ * `EmployeeAssignment::subsystem`. В БД это строки таблицы
+ * `manager/permissions` (assignment_id FK + permission INT).
+ */
 enum class ManagerPermission : uint8_t {
     // Операции с сотрудниками
     CREATE_EMPLOYEE     = 0,

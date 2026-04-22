@@ -2,8 +2,8 @@
 cmake-build-*/
 build/
 deploy/
-docs/
 CMakeFiles/
+.idea/
 CMakeCache.txt
 
 # Qt Creator
@@ -20,10 +20,15 @@ CMakeCache.txt
 *.log
 *.ico
 *.png
-*.pdf
-*.dwg
+
 
 # Временные
 *.tmp
 *.bak
 *.swp
+
+# Autocad
+*.dwg
+*.bak
+*.dwl
+*.dwl2

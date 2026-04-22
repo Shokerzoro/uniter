@@ -35,11 +35,11 @@ namespace materials {
  *                 неклассифицированный импорт. Используется как
  *                 безопасное значение по умолчанию.
  *
- * Связь "совместимости" между ASSORTMENT и MATERIAL хранится через
- * TemplateSimple::compatible_template_ids: один сортамент указывает
- * множество совместимых материалов и наоборот — связь N:M. В БД на
- * сервере это таблица `template_compatibilities`; в клиентском ресурсе
- * держится денормализованная копия (по аналогии с linked_documents).
+ * Связь "совместимости" между ASSORTMENT и MATERIAL — M:N; в БД это
+ * отдельная связочная таблица `material/template_compatibility`
+ * (ResourceType::TEMPLATE_COMPATIBILITY, см. uniterprotocol.h).
+ * В рантайме она свёрнута в `compatible_template_ids` —
+ * никаких связочных объектов в коде нет.
  */
 enum class StandartType : uint8_t {
     STANDALONE  = 0,
@@ -48,6 +48,23 @@ enum class StandartType : uint8_t {
     NONE        = 255
 };
 
+/**
+ * @brief Простой шаблон материала (ГОСТ / ОСТ / ТУ и т.п.).
+ *
+ * Сворачивание таблиц → класс (см. docs/db/material_instance.md):
+ *
+ *   material/template_simple       → сам TemplateSimple
+ *   material/segment               → prefix_segments + suffix_segments
+ *                                    (разделение по segment.type)
+ *   material/segment_value         → SegmentDefinition.allowed_values
+ *   material/template_compatibility→ compatible_template_ids
+ *   documents/doc_link (+doc)      → TemplateBase::doc_link (+ docs внутри)
+ *
+ * Все FK (segment.template_id, segment_value.segment_id,
+ * template_compatibility.template_simple_id*2, template_simple.doc_link_id)
+ * существуют только в БД и в рантайм-классы не переносятся: после
+ * свёртки они восстановимы из положения объекта в своём контейнере.
+ */
 class TemplateSimple : public TemplateBase
 {
 public:
@@ -66,6 +83,7 @@ public:
         std::map<uint8_t, SegmentDefinition> suffix_segments_ = {},  // Суффиксы (части обозначения, идущие после номера стандарта)
         std::vector<uint8_t> suffix_order_ = {},  // Порядок следования суффиксов
         std::vector<uint64_t> compatible_template_ids_ = {},  // id совместимых простых шаблонов противоположной роли
+        documents::DocLink doc_link_ = {},  // Свёрнутая папка документов стандарта
         bool is_active_ = true,  // Активен ли шаблон (для архивирования)
         const QDateTime& created_at_ = QDateTime(),
         const QDateTime& updated_at_ = QDateTime(),
@@ -73,14 +91,15 @@ public:
         uint64_t created_by_ = 0,
         uint64_t updated_by_ = 0)
         : TemplateBase(id_, std::move(name_), std::move(description_), dimension_type_, source_,
+                       std::move(doc_link_),
                        is_active_, created_at_, updated_at_, version_, created_by_, updated_by_)
-        , standart_type(standart_type_)
         , standard_type(standard_type_)  // Тип стандарта и номер (имеют смысл только для простого шаблона)
         , standard_number(std::move(standard_number_))
         , prefix_segments(std::move(prefix_segments_))
         , prefix_order(std::move(prefix_order_))
         , suffix_segments(std::move(suffix_segments_))
         , suffix_order(std::move(suffix_order_))
+        , standart_type(standart_type_)
         , compatible_template_ids(std::move(compatible_template_ids_))
     {}
 
@@ -88,15 +107,21 @@ public:
     QString standard_number; // Номер стандарта
     QString year;            // Год редакции стандарта (например "89")
 
-    // Префиксы стандарта
+    // Префиксы стандарта — свёрнутая выборка material/segment + segment_value
+    // (segment.type = PREFIX). Ключ map — segment.id из БД; значения
+    // segment_value складываются в SegmentDefinition::allowed_values.
     std::map<uint8_t, SegmentDefinition> prefix_segments;
-    std::vector<uint8_t> prefix_order; // Порядок следования префиксов
+    std::vector<uint8_t> prefix_order; // Порядок следования префиксов (unique per (template_id, PREFIX))
 
-    // Суффиксы стандарта
+    // Суффиксы стандарта — аналогично, segment.type = SUFFIX.
     std::map<uint8_t, SegmentDefinition> suffix_segments;
-    std::vector<uint8_t> suffix_order; // Порядок следования суффиксов
+    std::vector<uint8_t> suffix_order; // Порядок следования суффиксов (unique per (template_id, SUFFIX))
 
-    // Тип стандарта и связь между сортаментами и материалами
+    // Тип стандарта и связь между сортаментами и материалами.
+    // `compatible_template_ids` — свёрнутая связочная таблица
+    // material/template_compatibility (M:N между template_simple ↔ template_simple
+    // для пар ASSORTMENT ↔ MATERIAL). Сам ресурс связки —
+    // ResourceType::TEMPLATE_COMPATIBILITY.
     StandartType standart_type = StandartType::NONE;
     std::vector<uint64_t> compatible_template_ids;
 

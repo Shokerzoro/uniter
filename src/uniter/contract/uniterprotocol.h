@@ -31,10 +31,16 @@ enum class ResourceType : uint8_t {
     EMPLOYEES                = 10,
     PRODUCTION               = 11,   // Генеративный: создание порождает GenSubsystem::PRODUCTION
     INTEGRATION              = 12,   // Генеративный: создание порождает GenSubsystem::INTERGATION
+    EMPLOYEE_ASSIGNMENT      = 13,   // manager/employee_assignment (свёрнуто в Employee.assignments)
+    PERMISSION               = 14,   // manager/permissions (1:M к employee_assignment)
+    EMPLOYEE_ASSIGNMENT_LINK = 15,   // manager/employee_assignment_link (junction employee↔assignment, M:N)
 
     // --- Subsystem::MATERIALS ---
     MATERIAL_TEMPLATE_SIMPLE    = 20,
     MATERIAL_TEMPLATE_COMPOSITE = 21,
+    SEGMENT                     = 22,   // material/segment (свёрнуто в TemplateSimple.prefix_segments / suffix_segments)
+    SEGMENT_VALUE               = 23,   // material/segment_value (1:M к segment; в SegmentDefinition.allowed_values)
+    TEMPLATE_COMPATIBILITY      = 24,   // material/template_compatibility (M:N template_simple ↔ template_simple)
 
     // --- Subsystem::DESIGN ---
     PROJECT                  = 30,
@@ -61,7 +67,7 @@ enum class ResourceType : uint8_t {
 
     // --- Subsystem::DOCUMENTS ---
     DOC                      = 90,   // Внешний документ (файл в MinIO: чертёж/PDF ГОСТ/3D-модель)
-    DOC_LINK                 = 91,   // N:M связь Doc ↔ целевой ресурс (Assembly/Part/Project/MaterialTemplate)
+    DOC_LINK                 = 91,   // «Папка» документов: 1:M к Doc (свёрнута в DocLink.docs); ссылка со стороны владельца через doc_link_id
 };
 
 enum class CrudAction : uint8_t {
@@ -191,8 +197,14 @@ inline QDebug operator<<(QDebug debug, ResourceType type) {
     case ResourceType::EMPLOYEES:                    debug.nospace() << "EMPLOYEES"; break;
     case ResourceType::PRODUCTION:                   debug.nospace() << "PRODUCTION"; break;
     case ResourceType::INTEGRATION:                  debug.nospace() << "INTEGRATION"; break;
+    case ResourceType::EMPLOYEE_ASSIGNMENT:          debug.nospace() << "EMPLOYEE_ASSIGNMENT"; break;
+    case ResourceType::PERMISSION:                   debug.nospace() << "PERMISSION"; break;
+    case ResourceType::EMPLOYEE_ASSIGNMENT_LINK:     debug.nospace() << "EMPLOYEE_ASSIGNMENT_LINK"; break;
     case ResourceType::MATERIAL_TEMPLATE_SIMPLE:     debug.nospace() << "MATERIAL_TEMPLATE_SIMPLE"; break;
     case ResourceType::MATERIAL_TEMPLATE_COMPOSITE:  debug.nospace() << "MATERIAL_TEMPLATE_COMPOSITE"; break;
+    case ResourceType::SEGMENT:                      debug.nospace() << "SEGMENT"; break;
+    case ResourceType::SEGMENT_VALUE:                debug.nospace() << "SEGMENT_VALUE"; break;
+    case ResourceType::TEMPLATE_COMPATIBILITY:       debug.nospace() << "TEMPLATE_COMPATIBILITY"; break;
     case ResourceType::PROJECT:                      debug.nospace() << "PROJECT"; break;
     case ResourceType::ASSEMBLY:                     debug.nospace() << "ASSEMBLY"; break;
     case ResourceType::PART:                         debug.nospace() << "PART"; break;

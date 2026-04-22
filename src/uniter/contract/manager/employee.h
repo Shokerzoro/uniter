@@ -15,11 +15,35 @@ namespace uniter::contract::manager {
 /**
  * @brief Назначение сотрудника на подсистему.
  *
- * TODO(refactor): вектор EmployeeAssignment внутри Employee — это embedded
- * one-to-many. Для реляционной БД правильнее выделить в отдельный ресурс
- * EmployeeAssignment (таблица `employee_assignments`), как советует
- * user (раздробить, а не сомкать). Сделаем после первой итерации,
- * когда будут реализованы базовые CRUD.
+ * Сворачивается из трёх таблиц БД (см. docs/db/manager.md):
+ *
+ *   manager/employee_assignment — сама запись назначения
+ *     (id PK, subsystem INT, gensubsystem INT, gensubsystem_id BIGINT NULL)
+ *   manager/permissions         — список разрешений для этого назначения
+ *     (id PK, assignment_id FK → employee_assignment.id, permission INT)
+ *   manager/employee_assignment_link — M:N junction
+ *     (employee_id FK, assignment_id FK)
+ *
+ * В рантайме всё свёрнуто в `EmployeeAssignment`:
+ *   subsystem / genSubsystem / genId — поля самого `employee_assignment`;
+ *   permissions — свёрнутая выборка `manager/permissions` по
+ *                 `assignment_id = this.id` (у рантайм-объекта хранится
+ *                 как vector<uint8_t>; конкретные значения зависят от
+ *                 подсистемы — ManagerPermission / DesignPermission / …).
+ *
+ * FK `assignment_id` в `manager/permissions` в рантайм-класс не
+ * переносится: Permissions живут внутри своего EmployeeAssignment и
+ * знают «своего родителя» через положение в контейнере. Аналогично
+ * junction `employee_assignment_link` не имеет отдельного класса —
+ * при чтении Employee его assignments подтягиваются join-ом.
+ *
+ * Ресурсы в uniterprotocol.h:
+ *   ResourceType::EMPLOYEES             = 10  — таблица employee
+ *   ResourceType::EMPLOYEE_ASSIGNMENT   = ... — таблица employee_assignment
+ *   ResourceType::PERMISSION            = ... — таблица permissions
+ *   (плюс связочная таблица employee_assignment_link — добавляется по
+ *   необходимости, если серверу нужно CRUD на сам факт назначения
+ *   сотрудника на assignment отдельно от самого assignment)
  */
 struct EmployeeAssignment {
     contract::Subsystem subsystem;
@@ -41,6 +65,16 @@ struct EmployeeAssignment {
  *
  * Subsystem::MANAGER. Логин/пароль остаются на стороне сервера (этот класс
  * отражает учётную запись, а не credentials).
+ *
+ * Сворачивание:
+ *   manager/employee                 → сам Employee
+ *   manager/employee_assignment_link → выборка id всех assignment-ов сотрудника
+ *   manager/employee_assignment      → поля каждого EmployeeAssignment
+ *   manager/permissions              → EmployeeAssignment::permissions
+ *
+ * Всё это укладывается в `Employee::assignments`. FK (junction.employee_id,
+ * junction.assignment_id, permissions.assignment_id) в рантайм-классы
+ * не переносятся.
  */
 class Employee : public ResourceAbstract {
 public:
@@ -69,7 +103,9 @@ public:
     QString surname;
     QString patronymic;
     QString email;
-    // Может быть назначен на несколько подсистем
+    // Может быть назначен на несколько подсистем — свёрнутая выборка
+    // manager/employee_assignment (+permissions) через junction
+    // manager/employee_assignment_link.
     std::vector<EmployeeAssignment> assignments;
 
     friend bool operator==(const Employee& a, const Employee& b) {
