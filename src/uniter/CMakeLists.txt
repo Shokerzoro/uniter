@@ -4,6 +4,10 @@ project(uniter_app LANGUAGES CXX)
 # contract/sources.cmake устанавливает CONTRACT_SOURCES и CONTRACT_INCLUDE_DIR.
 include(contract/sources.cmake)
 
+# ─── Submodule: база данных (sources.cmake устанавливает DATABASE_SOURCES) ─────
+# database/sources.cmake устанавливает DATABASE_SOURCES и DATABASE_INCLUDE_DIR.
+include(database/sources.cmake)
+
 include(sources.cmake)
 
 # WIN32 — скрываем консольное окно (эквивалент qt_add_executable WIN32)
@@ -26,12 +30,15 @@ add_executable(Uniter WIN32
     ${CONTRACT_QT_SOURCES}
     # Contract (client/server shared: protocol + resources)
     ${CONTRACT_SOURCES}
+    # Database layer (IDatabase + mappers)
+    ${DATABASE_SOURCES}
 )
 
 target_include_directories(Uniter
     PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
-        ${CONTRACT_INCLUDE_DIR}  # корень submodule contract/ — для #include "design/assembly.h" и т.п.
+        ${CONTRACT_INCLUDE_DIR}   # корень submodule contract/ — для #include "design/assembly.h" и т.п.
+        ${DATABASE_INCLUDE_DIR}   # корень submodule database/ — для #include "idatabase.h" и т.п.
 )
 
 # ─── Зависимости через DevKit ────────────────────────────────────────────────

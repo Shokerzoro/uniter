@@ -2,6 +2,7 @@
 # Здесь только описываем таргет UniterTests.
 
 include(../src/uniter/contract/sources.cmake)
+include(../src/uniter/database/sources.cmake)
 include(../src/uniter/sources.cmake)
 
 add_executable(UniterTests
@@ -22,6 +23,8 @@ add_executable(UniterTests
     ${NETWORK_SOURCES}
     # Contract (client/server)
     ${CONTRACT_SOURCES}
+    # Database layer (IDatabase + mappers)
+    ${DATABASE_SOURCES}
 )
 
 # ─── Зависимости через DevKit ────────────────────────────────────────────────
@@ -52,6 +55,7 @@ target_include_directories(UniterTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/common
     ${CMAKE_SOURCE_DIR}/src/uniter
     ${CONTRACT_INCLUDE_DIR}
+    ${DATABASE_INCLUDE_DIR}
 )
 
 include(GoogleTest)
