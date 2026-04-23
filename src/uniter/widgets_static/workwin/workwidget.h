@@ -1,7 +1,7 @@
 #ifndef WORKWIDGET_H
 #define WORKWIDGET_H
 
-#include "../../contract/unitermessage.h"
+#include <uniter/contract/unitermessage.h>
 #include "./workbar/workbar.h"
 #include "./workarea/workarea.h"
 #include <QWidget>

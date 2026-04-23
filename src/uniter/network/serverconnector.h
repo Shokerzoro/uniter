@@ -4,7 +4,7 @@
 
 #include <QObject>
 #include <memory>
-#include "../contract/unitermessage.h"
+#include <uniter/contract/unitermessage.h>
 
 namespace uniter::net {
 

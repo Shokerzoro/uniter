@@ -103,15 +103,15 @@ void MinIOConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
 
     {
         auto it = message->add_data.find("presigned_url");
-        if (it != message->add_data.end()) presigned_url = it->second;
+        if (it != message->add_data.end()) presigned_url = QString::fromStdString(it->second);
     }
     {
         auto it = message->add_data.find("object_key");
-        if (it != message->add_data.end()) object_key = it->second;
+        if (it != message->add_data.end()) object_key = QString::fromStdString(it->second);
     }
     {
         auto it = message->add_data.find("local_path");
-        if (it != message->add_data.end()) local_path_in = it->second;
+        if (it != message->add_data.end()) local_path_in = QString::fromStdString(it->second);
     }
 
     const QString bucket_path = presignedUrlToLocalPath(presigned_url);
@@ -124,13 +124,13 @@ void MinIOConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
     auto response = std::make_shared<UniterMessage>(*message);
     response->status  = MessageStatus::RESPONSE;
     response->add_data.clear();
-    response->add_data.emplace("object_key",   object_key);
-    response->add_data.emplace("presigned_url", presigned_url);
+    response->add_data.emplace("object_key",    object_key.toStdString());
+    response->add_data.emplace("presigned_url", presigned_url.toStdString());
 
     if (bucket_path.isEmpty()) {
         response->status = MessageStatus::ERROR;
         response->error  = ErrorCode::BAD_REQUEST;
-        response->add_data.emplace("reason", QStringLiteral("bad presigned_url"));
+        response->add_data.emplace("reason", std::string("bad presigned_url"));
         emit signalRecvMessage(response);
         return;
     }
@@ -140,7 +140,7 @@ void MinIOConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
         if (local_path_in.isEmpty()) {
             response->status = MessageStatus::ERROR;
             response->error  = ErrorCode::BAD_REQUEST;
-            response->add_data.emplace("reason", QStringLiteral("missing local_path for PUT"));
+            response->add_data.emplace("reason", std::string("missing local_path for PUT"));
             emit signalRecvMessage(response);
             return;
         }
@@ -154,7 +154,7 @@ void MinIOConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
         if (!QFile::copy(local_path_in, bucket_path)) {
             response->status = MessageStatus::ERROR;
             response->error  = ErrorCode::INTERNAL_ERROR;
-            response->add_data.emplace("reason", QStringLiteral("copy failed"));
+            response->add_data.emplace("reason", std::string("copy failed"));
             emit signalRecvMessage(response);
             return;
         }
@@ -169,12 +169,12 @@ void MinIOConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
     if (!QFile::exists(bucket_path)) {
         response->status = MessageStatus::ERROR;
         response->error  = ErrorCode::SERVICE_UNAVAILABLE;
-        response->add_data.emplace("reason", QStringLiteral("file not found in local bucket"));
+        response->add_data.emplace("reason", std::string("file not found in local bucket"));
         emit signalRecvMessage(response);
         return;
     }
     response->error = ErrorCode::SUCCESS;
-    response->add_data.emplace("local_path", bucket_path);
+    response->add_data.emplace("local_path", bucket_path.toStdString());
     emit signalRecvMessage(response);
 }
 

@@ -106,6 +106,32 @@ endif()
 #===============================================================================
 # 7. ПОДПРОЕКТЫ
 #===============================================================================
+
+# --- 7.0 Shared git submodules (protocol + DB layer) -----------------------
+#
+# uniter-contract и uniter-database — общие с серверной стороной.
+# Контракт зависит от tinyxml2 (PUBLIC). tinyxml2 предоставляется DevKit-ом,
+# поэтому в зависимости от build-type нужно сконфигурировать тот или иной
+# tinyxml2-таргет ДО add_subdirectory(extern/uniter-contract). Это делает
+# подпроект Uniter в src/uniter/CMakeLists.txt (там же, где используется
+# devkit_use_tinyxml2_*). Здесь же мы просто включаем submodules в сборку.
+#
+# ВАЖНО: tinyxml2-таргет должен существовать к моменту add_subdirectory
+# uniter-contract. Если родительская сборка не предоставила его —
+# CMakeLists.txt contract выдаст ошибку.
+
+# 7.0.a Проверка наличия tinyxml2 (базовый ожидаемый таргет).
+# Если DevKit ещё не добавил tinyxml2 на этом этапе, создаём "lazy"-stub
+# через INTERFACE-таргет. Реальные include/library пути доставит DevKit
+# при конфигурации target-а Uniter ниже.
+if(NOT TARGET tinyxml2 AND NOT TARGET tinyxml2::tinyxml2)
+    add_library(tinyxml2 INTERFACE)
+    message(STATUS "[Uniter] tinyxml2 target not yet defined — created INTERFACE stub for uniter-contract.")
+endif()
+
+add_subdirectory(extern/uniter-contract)
+add_subdirectory(extern/uniter-database)
+
 add_subdirectory(src/common)
 add_subdirectory(src/uniter)
 add_subdirectory(src/updater)

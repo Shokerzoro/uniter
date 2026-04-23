@@ -1,5 +1,5 @@
 
-#include "../contract/unitermessage.h"
+#include <uniter/contract/unitermessage.h>
 #include "../control/uimanager.h"
 #include "./authwin/authwidget.h"
 #include "./offlinewin/offlinewdg.h"

@@ -1,8 +1,10 @@
 
-#include "../contract/unitermessage.h"
-#include "../contract/manager/employee.h"
+#include <uniter/contract/unitermessage.h>
+#include <uniter/contract/manager/employee.h>
 #include "configmanager.h"
+#include "../contract_qt/qt_compat.h"
 #include <QObject>
+#include <QStringList>
 #include <memory>
 
 namespace uniter::control {
@@ -32,10 +34,12 @@ void ConfigManager::onConfigProc(std::shared_ptr<contract::employees::Employee> 
     // Собираем список подсистем для лога
     QStringList subsystemList;
     for (const auto& assign : user->assignments) {
-        subsystemList << contract::subsystemToString(assign.subsystem);
+        subsystemList << uniter::qt_compat::toQ(contract::subsystemToString(assign.subsystem));
     }
 
-    qDebug() << "ConfigManager::onConfigProc() - User:" << user->surname << user->name
+    qDebug() << "ConfigManager::onConfigProc() - User:"
+             << uniter::qt_compat::toQ(user->surname)
+             << uniter::qt_compat::toQ(user->name)
              << "Subsystems:" << subsystemList.join(", ");
 
     for (const contract::employees::EmployeeAssignment& assign : user->assignments) {
@@ -69,11 +73,12 @@ void ConfigManager::onClearResources()
     // Собираем список подсистем для лога
     QStringList subsystemList;
     for (const auto& assign : user->assignments) {
-        subsystemList << contract::subsystemToString(assign.subsystem);
+        subsystemList << uniter::qt_compat::toQ(contract::subsystemToString(assign.subsystem));
     }
 
     qDebug() << "ConfigManager::onClearResources() - Clearing user:"
-             << user->surname << user->name
+             << uniter::qt_compat::toQ(user->surname)
+             << uniter::qt_compat::toQ(user->name)
              << "Subsystems:" << subsystemList.join(", ");
 
     // Для каждой назначенной подсистемы отправляем событие с created = false

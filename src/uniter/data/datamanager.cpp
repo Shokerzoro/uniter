@@ -1,6 +1,6 @@
 
 #include "datamanager.h"
-#include "../contract/unitermessage.h"
+#include <uniter/contract/unitermessage.h>
 #include <QByteArray>
 #include <QDebug>
 #include <optional>

@@ -1,7 +1,7 @@
 #ifndef WORKBAR_H
 #define WORKBAR_H
 
-#include "../../../contract/unitermessage.h"
+#include <uniter/contract/unitermessage.h>
 #include "../../../widgets_generative/subsystemicon.h"
 #include <QBoxLayout>
 #include <QWidget>

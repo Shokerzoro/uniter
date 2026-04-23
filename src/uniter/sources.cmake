@@ -72,13 +72,37 @@ set(NETWORK_SOURCES
 
 # = = = = = = = = common sources = = = = = = = = #
 
-set(DATABASE_SOURCES
-
+# Qt-адаптеры к std-ресурсам из uniter-contract.
+# Используются строго на границе "контракт ↔ Qt-код клиента".
+set(CONTRACT_QT_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/contract_qt/qt_compat.h
 )
 
-# Протокол и корневой абстрактный ресурс.
-# После удаления XML-сериализации у ResourceAbstract нет .cpp.
-set(MESSAGES_SOURCES
+# DATABASE_SOURCES отсюда удален: теперь слой базы данных является
+# отдельным submodule `extern/uniter-database` и линкуется через target
+# uniter::database в src/uniter/CMakeLists.txt.
+
+# Старые блоки MESSAGES_SOURCES / RESOUCES_SOURCES / CONTRACT_SOURCES удалены:
+# весь контракт теперь поставляется submodule-ом `extern/uniter-contract`
+# через target `uniter::contract`.
+
+# Заглушка ниже оставлена для обратной совместимости с возможными сторонними
+# референсами в src/uniter/CMakeLists.txt (пустой список).
+set(CONTRACT_SOURCES)
+
+# Заполнитель-заглушка, сохраняется раньшего имени MESSAGES_SOURCES на случай,
+# если внешний скрипт на него ссылается.
+set(MESSAGES_SOURCES)
+set(RESOUCES_SOURCES)
+set(DATABASE_SOURCES)
+
+# --- Оставшиеся старые contract-списки ниже больше не подключаются к сборке,
+#     но оставлены в файле закомментированными как историческая справка.
+# (удалите, когда убедитесь, что всё собирается через submodules)
+
+if(FALSE)
+# Старый MESSAGES_SOURCES располагался здесь, обращался к src/uniter/contract/.
+set(__LEGACY_MESSAGES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/unitermessage.cpp
     ${CMAKE_CURRENT_LIST_DIR}/contract/unitermessage.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/resourceabstract.h
@@ -89,7 +113,7 @@ set(MESSAGES_SOURCES
 # Ресурсы сгруппированы по подсистемам.
 # Сериализация удалена: у ресурсов остались только заголовочные файлы.
 # Исключение: instance/instancesimple.cpp содержит setPrefixValue/Suffix-логику.
-set(RESOUCES_SOURCES
+set(__LEGACY_RESOUCES_SOURCES
     # --- Subsystem::MATERIALS --------------------------------------------
     ${CMAKE_CURRENT_LIST_DIR}/contract/material/segment.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatebase.h
@@ -143,8 +167,8 @@ set(RESOUCES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/integration/integrationtask.h
 )
 
-set(CONTRACT_SOURCES
-    ${MESSAGES_SOURCES}
-    ${RESOUCES_SOURCES}
-    ${DATABASE_SOURCES}
+set(__LEGACY_CONTRACT_SOURCES
+    ${__LEGACY_MESSAGES_SOURCES}
+    ${__LEGACY_RESOUCES_SOURCES}
 )
+endif() # FALSE (legacy)

@@ -1,8 +1,8 @@
 #ifndef IDATAOBSERVER_H
 #define IDATAOBSERVER_H
 
-#include "../contract/unitermessage.h"
-#include "../contract/resourceabstract.h"
+#include <uniter/contract/unitermessage.h>
+#include <uniter/contract/resourceabstract.h>
 #include <QObject>
 #include <memory>
 #include <vector>

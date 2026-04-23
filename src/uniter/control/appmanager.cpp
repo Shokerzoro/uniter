@@ -1,8 +1,8 @@
 
 #include "appmanager.h"
 #include "configmanager.h"
-#include "../contract/unitermessage.h"
-#include "../contract/manager/employee.h"
+#include <uniter/contract/unitermessage.h>
+#include <uniter/contract/manager/employee.h>
 
 #include <QCryptographicHash>
 #include <QDebug>
@@ -94,7 +94,7 @@ namespace uniter::control {
         msg->subsystem = contract::Subsystem::PROTOCOL;
         msg->protact   = contract::ProtocolAction::GET_KAFKA_CREDENTIALS;
         msg->status    = contract::MessageStatus::REQUEST;
-        msg->add_data.emplace("offset", m_lastKafkaOffset);
+        msg->add_data.emplace("offset", m_lastKafkaOffset.toStdString());
         emit signalSendToServer(msg);
     }
 

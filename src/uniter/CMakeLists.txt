@@ -18,8 +18,8 @@ add_executable(Uniter WIN32
     ${CONTROL_SOURCES}
     # Net layer
     ${NETWORK_SOURCES}
-    # Contract (client/server)
-    ${CONTRACT_SOURCES}
+    # Qt-адаптеры к std-ресурсам из uniter-contract
+    ${CONTRACT_QT_SOURCES}
 )
 
 target_include_directories(Uniter
@@ -47,6 +47,8 @@ endif()
 target_link_libraries(Uniter
     PRIVATE
         uniter_common
+        uniter::contract    # общий с сервером контракт (submodule extern/uniter-contract)
+        uniter::database    # общий с сервером слой БД   (submodule extern/uniter-database)
 )
 
 # ОБЯЗАТЕЛЬНО последним — добавляет HarfBuzz+FreeType если подключён MuPDF,
