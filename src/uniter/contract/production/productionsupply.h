@@ -1,6 +1,7 @@
 #ifndef PRODUCTIONSUPPLY_H
 #define PRODUCTIONSUPPLY_H
 
+#include "../uniterprotocol.h"
 #include "../resourceabstract.h"
 #include <cstdint>
 
@@ -24,7 +25,9 @@ namespace uniter::contract::production {
 class ProductionSupply : public ResourceAbstract
 {
 public:
-    ProductionSupply() = default;
+    ProductionSupply()
+        : ResourceAbstract(Subsystem::GENERATIVE, GenSubsystemType::PRODUCTION,
+                           ResourceType::PRODUCTION_SUPPLY) {}
     ProductionSupply(
         uint64_t s_id,
         bool actual,
@@ -34,7 +37,9 @@ public:
         uint64_t s_updated_by,
         uint64_t plant_id_,
         uint64_t purchase_complex_id_)
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
+        : ResourceAbstract(Subsystem::GENERATIVE, GenSubsystemType::PRODUCTION,
+                           ResourceType::PRODUCTION_SUPPLY,
+                           s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
           plant_id(plant_id_),
           purchase_complex_id(purchase_complex_id_)
     {}

@@ -16,7 +16,8 @@ namespace contract {
  */
 class InstanceComposite : public InstanceBase {
 public:
-    InstanceComposite() = default;
+    InstanceComposite()
+        : InstanceBase(ResourceType::MATERIAL_INSTANCE_COMPOSITE) {}
 
     // Заполненные значения сегментов для составного материала
     std::map<uint8_t, std::string> top_values;    // Значения верхней части

@@ -1,6 +1,7 @@
 #ifndef PRODUCTIONTASK_H
 #define PRODUCTIONTASK_H
 
+#include "../uniterprotocol.h"
 #include "../resourceabstract.h"
 #include "productiontypes.h"
 #include <QString>
@@ -43,7 +44,9 @@ namespace uniter::contract::production {
 class ProductionTask : public ResourceAbstract
 {
 public:
-    ProductionTask() = default;
+    ProductionTask()
+        : ResourceAbstract(Subsystem::GENERATIVE, GenSubsystemType::PRODUCTION,
+                           ResourceType::PRODUCTION_TASK) {}
     ProductionTask(
         uint64_t s_id,
         bool actual,
@@ -58,7 +61,9 @@ public:
         QString  name_        = {},
         uint64_t quantity_    = 0,
         TaskStatus status_    = TaskStatus::PLANNED)
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
+        : ResourceAbstract(Subsystem::GENERATIVE, GenSubsystemType::PRODUCTION,
+                           ResourceType::PRODUCTION_TASK,
+                           s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
           plant_id(plant_id_),
           snapshot_original_id(snapshot_original_id_),
           snapshot_current_id(snapshot_current_id_),

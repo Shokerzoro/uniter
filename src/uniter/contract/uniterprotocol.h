@@ -48,12 +48,6 @@ enum class ResourceType : uint8_t {
     PART                     = 32,   // design_part     (общие данные детали)
     ASSEMBLY_CONFIG          = 33,   // design_assembly_config + join-таблицы
     PART_CONFIG              = 34,   // design_part_config (исполнение детали)
-    // PDM-зеркала классов DESIGN (см. docs/db/pdm.md). Классы переиспользуются
-    // из namespace design::*, отличие — ResourceType и таблица-приёмник в БД.
-    ASSEMBLY_PDM             = 35,   // pdm_assembly
-    ASSEMBLY_CONFIG_PDM      = 36,   // pdm_assembly_config + join-таблицы
-    PART_PDM                 = 37,   // pdm_part
-    PART_CONFIG_PDM          = 38,   // pdm_part_config
 
     // --- Subsystem::PURCHASES ---
     PURCHASE_GROUP           = 40,   // Комплексная заявка
@@ -63,6 +57,13 @@ enum class ResourceType : uint8_t {
     SNAPSHOT                 = 50,   // pdm_snapshot
     DELTA                    = 51,   // pdm_delta
     PDM_PROJECT              = 52,   // pdm_project (версионная ветка)
+    // PDM-зеркала классов DESIGN (см. docs/db/pdm.md). Классы переиспользуются
+    // из namespace design::*, отличие — ResourceType и таблица-приёмник в БД.
+    ASSEMBLY_PDM             = 53,   // pdm_assembly
+    ASSEMBLY_CONFIG_PDM      = 54,   // pdm_assembly_config + join-таблицы
+    PART_PDM                 = 55,   // pdm_part
+    PART_CONFIG_PDM          = 56,   // pdm_part_config
+    DIAGNOSTIC               = 57,   // pdm_diagnostic (ошибки/замечания парсинга, N:M к snapshot)
 
     // --- Subsystem::INSTANCES ---
     // По ЕСКД Instance бывает двух структурных вариантов, хранятся в
@@ -233,6 +234,7 @@ inline QDebug operator<<(QDebug debug, ResourceType type) {
     case ResourceType::SNAPSHOT:                     debug.nospace() << "SNAPSHOT"; break;
     case ResourceType::DELTA:                        debug.nospace() << "DELTA"; break;
     case ResourceType::PDM_PROJECT:                  debug.nospace() << "PDM_PROJECT"; break;
+    case ResourceType::DIAGNOSTIC:                   debug.nospace() << "DIAGNOSTIC"; break;
     case ResourceType::MATERIAL_INSTANCE_SIMPLE:     debug.nospace() << "MATERIAL_INSTANCE_SIMPLE"; break;
     case ResourceType::MATERIAL_INSTANCE_COMPOSITE:  debug.nospace() << "MATERIAL_INSTANCE_COMPOSITE"; break;
     case ResourceType::PRODUCTION_TASK:              debug.nospace() << "PRODUCTION_TASK"; break;

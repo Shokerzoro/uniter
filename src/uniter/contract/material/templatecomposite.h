@@ -29,7 +29,8 @@ namespace uniter::contract::materials {
  */
 class TemplateComposite : public TemplateBase {
 public:
-    TemplateComposite() = default;
+    TemplateComposite()
+        : TemplateBase(ResourceType::MATERIAL_TEMPLATE_COMPOSITE) {}
     TemplateComposite(
         uint64_t id_,  // Уникальный id шаблона в компании
         QString name_,
@@ -46,7 +47,8 @@ public:
         uint64_t created_by_ = 0,
         uint64_t updated_by_ = 0
         )
-        : TemplateBase(id_, std::move(name_), std::move(description_), dimension_type_, source_,
+        : TemplateBase(ResourceType::MATERIAL_TEMPLATE_COMPOSITE,
+                       id_, std::move(name_), std::move(description_), dimension_type_, source_,
                        std::move(doc_link_),
                        is_active_, created_at_, updated_at_, version_, created_by_, updated_by_)
         , top_template_id(top_template_id_)

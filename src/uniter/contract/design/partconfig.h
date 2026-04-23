@@ -24,7 +24,11 @@ namespace uniter::contract::design {
  */
 class PartConfig : public ResourceAbstract {
 public:
-    PartConfig() = default;
+    PartConfig()
+        : ResourceAbstract(
+              Subsystem::DESIGN,
+              GenSubsystemType::NOTGEN,
+              ResourceType::PART_CONFIG) {}
     PartConfig(
         uint64_t s_id,
         bool actual,
@@ -38,7 +42,11 @@ public:
         double   width_mm_  = 0.0,
         double   height_mm_ = 0.0,
         double   mass_kg_   = 0.0)
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
+        : ResourceAbstract(
+              Subsystem::DESIGN,
+              GenSubsystemType::NOTGEN,
+              ResourceType::PART_CONFIG,
+              s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
         , part_id     (part_id_)
         , config_code (std::move(config_code_))
         , length_mm   (length_mm_)

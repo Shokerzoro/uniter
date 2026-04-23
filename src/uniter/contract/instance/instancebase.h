@@ -56,8 +56,12 @@ struct Quantity {
  * которые лежат в разных таблицах БД и имеют разные ResourceType:
  *   - `MATERIAL_INSTANCE_SIMPLE    = 61` → instance/instance_simple
  *   - `MATERIAL_INSTANCE_COMPOSITE = 62` → instance/instance_composite
- * Прежний обобщённый `ResourceType::MATERIAL_INSTANCE = 60` удалён.
  * CRUD идёт через UniterMessage по конкретному ResourceType.
+ *
+ * InstanceBase — абстрактный. Конкретный ResourceType передаётся из
+ * наследника через `protected` конструктор (см. InstanceSimple /
+ * InstanceComposite ниже). Subsystem/gen_subsystem у обоих наследников
+ * общие: INSTANCES / NOTGEN.
  *
  * Соответствие БД — см. docs/db/material_instance.md.
  *
@@ -71,9 +75,17 @@ struct Quantity {
  * (`PIECE`/`LINEAR`/`AREA`) — см. material/templatebase.h.
  */
 class InstanceBase : public ResourceAbstract {
-public:
-    InstanceBase() = default;
+protected:
+    // Protected-конструкторы: наследники ОБЯЗАНЫ передавать ResourceType
+    // (MATERIAL_INSTANCE_SIMPLE / MATERIAL_INSTANCE_COMPOSITE).
+    explicit InstanceBase(ResourceType resource_type_)
+        : ResourceAbstract(
+              Subsystem::INSTANCES,
+              GenSubsystemType::NOTGEN,
+              resource_type_) {}
+
     InstanceBase(
+        ResourceType resource_type_,
         uint64_t id_,
         bool actual_,
         const QDateTime& created_at_,
@@ -85,13 +97,19 @@ public:
         QString description_,
         materials::DimensionType dimension_type_,
         Quantity quantity_)
-        : ResourceAbstract(id_, actual_, created_at_, updated_at_, created_by_, updated_by_),
+        : ResourceAbstract(
+              Subsystem::INSTANCES,
+              GenSubsystemType::NOTGEN,
+              resource_type_,
+              id_, actual_, created_at_, updated_at_, created_by_, updated_by_),
           template_id(template_id_),
           name(std::move(name_)),
           description(std::move(description_)),
           dimension_type(dimension_type_),
           quantity(std::move(quantity_))
     {}
+
+public:
     virtual ~InstanceBase() = default;
 
     // Связь с шаблоном материала (FK → templates.id)

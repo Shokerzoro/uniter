@@ -2,68 +2,42 @@
 #define DELTA_H
 
 #include "../resourceabstract.h"
-#include "../documents/doctypes.h"   // DocumentType
 #include "pdmtypes.h"
 #include <QString>
-#include <QStringList>
 #include <cstdint>
-#include <optional>
+#include <map>
+#include <memory>
+#include <utility>
 #include <vector>
 
 namespace uniter::contract::pdm {
 
-/**
- * @brief Одно файловое изменение внутри DeltaChange.
- *
- * Соответствует строке прикладной таблицы `pdm_delta_file_changes`
- * (детализация содержимого `changed_elements` — схема PDM.pdf помечает
- * этот слот "!!!", оставлена на стадию реализации PDMManager).
- *
- * old_* пусто при ADD, new_* пусто при DELETE.
- */
-struct DeltaFileChange {
-    uint64_t                id = 0;
-    documents::DocumentType file_type = documents::DocumentType::UNKNOWN;
-    QString                 old_object_key;
-    QString                 old_sha256;
-    QString                 new_object_key;
-    QString                 new_sha256;
-
-    friend bool operator==(const DeltaFileChange& a, const DeltaFileChange& b) {
-        return a.id             == b.id
-            && a.file_type      == b.file_type
-            && a.old_object_key == b.old_object_key
-            && a.old_sha256     == b.old_sha256
-            && a.new_object_key == b.new_object_key
-            && a.new_sha256     == b.new_sha256;
-    }
-    friend bool operator!=(const DeltaFileChange& a, const DeltaFileChange& b) { return !(a == b); }
-};
+class Snapshot; // fwd
 
 /**
- * @brief Одно изменение внутри Delta — ADD/MODIFY/DELETE конкретного элемента.
+ * @brief Стабильный ключ элемента дельты.
  *
- * Соответствует строке прикладной таблицы `pdm_delta_changes`.
- * Связь с Part/Assembly — по `designation` (текстовая ссылка, не FK):
- * designation стабилен при переименовании id на сервере.
+ * Ключ составной: designation (строковое обозначение ЕСКД, стабильное
+ * между версиями) + тип элемента (ASSEMBLY / ASSEMBLY_CONFIG / PART /
+ * PART_CONFIG). Для конфигураций designation — это
+ * "обозначение_родителя::config_code".
+ *
+ * Два элемента с одинаковым ключом в двух соседних снэпшотах считаются
+ * «тем же самым элементом, возможно, изменившимся».
  */
-struct DeltaChange {
-    uint64_t                     id = 0;
-    QString                      designation;       // Обозначение элемента
-    DeltaElementType             element_type = DeltaElementType::PART;
-    DeltaChangeType              change_type  = DeltaChangeType::MODIFY;
-    QStringList                  changed_fields;    // напр. ["drawing","litera"]
-    std::vector<DeltaFileChange> file_changes;
+struct DeltaKey {
+    QString           designation;
+    DeltaElementType  element_type = DeltaElementType::PART;
 
-    friend bool operator==(const DeltaChange& a, const DeltaChange& b) {
-        return a.id             == b.id
-            && a.designation    == b.designation
-            && a.element_type   == b.element_type
-            && a.change_type    == b.change_type
-            && a.changed_fields == b.changed_fields
-            && a.file_changes   == b.file_changes;
+    friend bool operator<(const DeltaKey& a, const DeltaKey& b) {
+        if (a.element_type != b.element_type) return a.element_type < b.element_type;
+        return a.designation < b.designation;
     }
-    friend bool operator!=(const DeltaChange& a, const DeltaChange& b) { return !(a == b); }
+    friend bool operator==(const DeltaKey& a, const DeltaKey& b) {
+        return a.element_type == b.element_type
+            && a.designation  == b.designation;
+    }
+    friend bool operator!=(const DeltaKey& a, const DeltaKey& b) { return !(a == b); }
 };
 
 /**
@@ -71,25 +45,53 @@ struct DeltaChange {
  *
  * Соответствует таблице `pdm_delta` (см. docs/db/pdm.md).
  *
- * Delta ссылается одновременно на пару смежных снэпшотов через
- * prev/next_snapshot_id и на пару смежных дельт через prev/next_delta_id —
- * это двусторонний связный список в пределах pdm_project. При этом
- * parent-связь с каким-то одним снэпшотом отсутствует: дельта «висит» на
- * ребре между prev_snapshot и next_snapshot.
+ * Delta связана одновременно с парой смежных снэпшотов (prev/next_snapshot)
+ * и с парой смежных дельт (prev/next_delta) — это двусторонний связный
+ * список в пределах pdm_project. В БД все четыре связи — FK по id;
+ * в рантайме — `std::shared_ptr`, чтобы PDMManager мог итерировать по
+ * цепочке дельт и применять изменения без дополнительных запросов.
  *
- * Несмотря на вложенные структуры (DeltaChange, DeltaFileChange), в БД
- * они раскладываются в три прикладные таблицы: `pdm_delta`,
- * `pdm_delta_changes`, `pdm_delta_file_changes` — это соответствует
- * принципу ориентации на реляционную БД.
+ * **Содержимое дельты.**
  *
- * TODO(на подумать): структурная схема помечает содержимое дельты как
- * `changed_elements "!!!"` — формат не зафиксирован. Альтернатива
- * трём таблицам — JSON-поле внутри pdm_delta. Остановиться на одном
- * варианте при реализации PDMManager.
+ *   changes — std::map<DeltaKey, pair<shared_ptr<old>, shared_ptr<new>>>.
+ *     Ключ (designation + element_type) идентифицирует элемент между
+ *     версиями. Пара (old, new) хранит «было → стало»:
+ *       - old == nullptr, new != nullptr  — элемент ДОБАВЛЕН;
+ *       - old != nullptr, new != nullptr  — элемент ИЗМЕНЁН;
+ *       (удаления живут в отдельном векторе `removed`).
+ *     Указатели ведут на ResourceAbstract — конкретный тип
+ *     (Assembly / AssemblyConfig / Part / PartConfig) определяется
+ *     `ResourceAbstract::resource_type` у объекта.
+ *
+ *   removed — std::vector<shared_ptr<ResourceAbstract>>.
+ *     Полный список элементов, исчезнувших в новой версии.
+ *     Вынесен из map, потому что в pair<old,new> семантика "был, не стал"
+ *     была бы (old != nullptr, new == nullptr), и это путало бы итерацию.
+ *
+ * При применении дельты к prev_snapshot PDMManager идёт по `changes` и
+ * для каждого ключа:
+ *   - если old == nullptr  → вставляет new в снэпшот;
+ *   - иначе                → заменяет old на new;
+ * затем удаляет всё, что в `removed`.
+ *
+ * Старые структуры DeltaChange / DeltaFileChange убраны: они были
+ * проекцией полей таблиц pdm_delta_changes / pdm_delta_file_changes,
+ * но при наличии полных old/new указателей такая детализация
+ * избыточна — diff можно посчитать по паре объектов.
  */
 class Delta : public ResourceAbstract {
 public:
-    Delta() = default;
+    using ChangesMap = std::map<
+        DeltaKey,
+        std::pair<std::shared_ptr<ResourceAbstract>,
+                  std::shared_ptr<ResourceAbstract>>
+    >;
+
+    Delta()
+        : ResourceAbstract(
+              Subsystem::PDM,
+              GenSubsystemType::NOTGEN,
+              ResourceType::DELTA) {}
     Delta(
         uint64_t s_id,
         bool actual,
@@ -97,40 +99,60 @@ public:
         const QDateTime& s_updated_at,
         uint64_t s_created_by,
         uint64_t s_updated_by,
-        std::optional<uint64_t> prev_snapshot_id_ = std::nullopt,
-        std::optional<uint64_t> next_snapshot_id_ = std::nullopt,
-        std::optional<uint64_t> prev_delta_id_    = std::nullopt,
-        std::optional<uint64_t> next_delta_id_    = std::nullopt)
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
-        , prev_snapshot_id (std::move(prev_snapshot_id_))
-        , next_snapshot_id (std::move(next_snapshot_id_))
-        , prev_delta_id    (std::move(prev_delta_id_))
-        , next_delta_id    (std::move(next_delta_id_)) {}
+        std::shared_ptr<Snapshot> prev_snapshot_ = nullptr,
+        std::shared_ptr<Snapshot> next_snapshot_ = nullptr,
+        std::shared_ptr<Delta>    prev_delta_    = nullptr,
+        std::shared_ptr<Delta>    next_delta_    = nullptr)
+        : ResourceAbstract(
+              Subsystem::PDM,
+              GenSubsystemType::NOTGEN,
+              ResourceType::DELTA,
+              s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
+        , prev_snapshot (std::move(prev_snapshot_))
+        , next_snapshot (std::move(next_snapshot_))
+        , prev_delta    (std::move(prev_delta_))
+        , next_delta    (std::move(next_delta_)) {}
 
     // Связь со снэпшотами, между которыми лежит дельта.
-    std::optional<uint64_t> prev_snapshot_id;   // FK → pdm_snapshot.id (ОТ)
-    std::optional<uint64_t> next_snapshot_id;   // FK → pdm_snapshot.id (ДО)
+    // В БД — FK → pdm_snapshot.id.
+    std::shared_ptr<Snapshot> prev_snapshot;   // (ОТ)
+    std::shared_ptr<Snapshot> next_snapshot;   // (ДО)
 
-    // Связь с соседними дельтами — двусвязный список дельт проекта.
-    std::optional<uint64_t> prev_delta_id;      // FK → pdm_delta.id (слева)
-    std::optional<uint64_t> next_delta_id;      // FK → pdm_delta.id (справа)
+    // Двусвязный список дельт проекта. В БД — FK → pdm_delta.id.
+    std::shared_ptr<Delta> prev_delta;
+    std::shared_ptr<Delta> next_delta;
 
-    // Содержательная часть дельты (раскладывается в pdm_delta_changes /
-    // pdm_delta_file_changes). В PDF-схеме — столбец `changed_elements "!!!"`.
-    std::vector<DeltaChange> changes;
+    // Добавленные + изменённые элементы (ключ → пара old/new).
+    // Для ADD old == nullptr; для MODIFY оба ненулевые.
+    ChangesMap changes;
 
-    // Денормализованное поле для быстрого отображения в UI.
-    // Обновляется при применении дельты: changes_count = changes.size().
-    uint32_t changes_count = 0;
+    // Удалённые элементы (в отдельном векторе, а не в changes с new==nullptr —
+    // чтобы итерирование "old→new" по changes не обрабатывало удаления).
+    std::vector<std::shared_ptr<ResourceAbstract>> removed;
 
     friend bool operator==(const Delta& a, const Delta& b) {
-        return static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b)
-            && a.prev_snapshot_id == b.prev_snapshot_id
-            && a.next_snapshot_id == b.next_snapshot_id
-            && a.prev_delta_id    == b.prev_delta_id
-            && a.next_delta_id    == b.next_delta_id
-            && a.changes          == b.changes
-            && a.changes_count    == b.changes_count;
+        // Смежные снэпшоты и дельты сравниваются по адресу указателя
+        // (глубокое сравнение вызвало бы рекурсию в двусвязном списке).
+        // Содержимое changes / removed сравнивается по адресам указателей
+        // внутри — DataManager восстанавливает одни и те же объекты по id.
+        if (!(static_cast<const ResourceAbstract&>(a) == static_cast<const ResourceAbstract&>(b))) return false;
+        if (a.prev_snapshot.get() != b.prev_snapshot.get()) return false;
+        if (a.next_snapshot.get() != b.next_snapshot.get()) return false;
+        if (a.prev_delta.get()    != b.prev_delta.get())    return false;
+        if (a.next_delta.get()    != b.next_delta.get())    return false;
+        if (a.changes.size()  != b.changes.size())  return false;
+        if (a.removed.size()  != b.removed.size())  return false;
+        auto ita = a.changes.begin();
+        auto itb = b.changes.begin();
+        for (; ita != a.changes.end(); ++ita, ++itb) {
+            if (!(ita->first == itb->first)) return false;
+            if (ita->second.first.get()  != itb->second.first.get())  return false;
+            if (ita->second.second.get() != itb->second.second.get()) return false;
+        }
+        for (size_t i = 0; i < a.removed.size(); ++i) {
+            if (a.removed[i].get() != b.removed[i].get()) return false;
+        }
+        return true;
     }
     friend bool operator!=(const Delta& a, const Delta& b) { return !(a == b); }
 };

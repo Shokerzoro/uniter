@@ -26,7 +26,8 @@ namespace uniter::contract::manager {
 class Integration : public ResourceAbstract
 {
 public:
-    Integration() = default;
+    Integration()
+        : ResourceAbstract(Subsystem::MANAGER, GenSubsystemType::NOTGEN, ResourceType::INTEGRATION) {}
 
     Integration(
         uint64_t s_id,
@@ -41,7 +42,8 @@ public:
         QString partner_contact_,
         IntegrationStatus status_,
         std::optional<uint64_t> initiator_employee_id_ = std::nullopt)
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
+        : ResourceAbstract(Subsystem::MANAGER, GenSubsystemType::NOTGEN, ResourceType::INTEGRATION,
+                           s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
           name(std::move(name_)),
           description(std::move(description_)),
           partner_company(std::move(partner_company_)),

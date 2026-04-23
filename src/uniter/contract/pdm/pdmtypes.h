@@ -28,24 +28,54 @@ enum class SnapshotStatus : uint8_t {
 };
 
 /**
- * @brief Тип элемента, к которому относится изменение в Delta.
+ * @brief Тип элемента Delta — используется ключом std::map<Key, pair<old,new>>.
+ *
+ * Типы соответствуют ResourceType'ам, которые могут участвовать в дельте
+ * проекта: сборка, исполнение сборки, деталь, исполнение детали. Для
+ * бизнес-логики применения дельт атомарная единица изменения — один из
+ * этих четырёх объектов.
  */
 enum class DeltaElementType : uint8_t {
-    PART     = 0,
-    ASSEMBLY = 1
+    ASSEMBLY        = 0,
+    ASSEMBLY_CONFIG = 1,
+    PART            = 2,
+    PART_CONFIG     = 3
 };
 
 /**
- * @brief Тип изменения в Delta.
+ * @brief Уровень серьёзности диагностики парсинга.
  *
- * ADD    — элемент появился в новой версии (new_object_key заполнены, old — пусты).
- * MODIFY — элемент существовал, но изменились его поля/файлы.
- * DELETE — элемент удалён в новой версии (old_object_key заполнены, new — пусты).
+ * ERROR   — блокирующая проблема (нет файла, нет спецификации) — snapshot
+ *           остаётся DRAFT до ручного исправления.
+ * WARNING — некритичная проблема (неформальное изменение имени, пропущенная
+ *           подпись) — snapshot может быть APPROVED.
+ * INFO    — информационное сообщение (пропущен рекомендованный атрибут).
  */
-enum class DeltaChangeType : uint8_t {
-    ADD    = 0,
-    MODIFY = 1,
-    DELETE = 2
+enum class DiagnosticSeverity : uint8_t {
+    ERROR   = 0,
+    WARNING = 1,
+    INFO    = 2
+};
+
+/**
+ * @brief Крупная категория диагностики парсинга.
+ *
+ * FILE_SYSTEM     — проблемы с файлами на диске (нет файла, нет прав).
+ * VERSION_CONTROL — проблемы жизненного цикла версий (неформальное изменение).
+ * PARSING         — проблемы разбора PDF/структуры документа.
+ * VALIDATION      — проблемы соответствия ЕСКД (отсутствуют обязательные поля).
+ * OTHER           — прочее / неклассифицированное.
+ *
+ * Код конкретной проблемы (NO_FILE, INFORMAL_CHANGE, …) живёт в
+ * `Diagnostic::type` как строка; перечень канонических значений —
+ * в docs/db/pdm.md.
+ */
+enum class DiagnosticCategory : uint8_t {
+    FILE_SYSTEM     = 0,
+    VERSION_CONTROL = 1,
+    PARSING         = 2,
+    VALIDATION      = 3,
+    OTHER           = 255
 };
 
 } // namespace uniter::contract::pdm

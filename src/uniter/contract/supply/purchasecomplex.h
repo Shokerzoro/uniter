@@ -1,6 +1,7 @@
 #ifndef PURCHASECOMPLEX_H
 #define PURCHASECOMPLEX_H
 
+#include "../uniterprotocol.h"
 #include "../resourceabstract.h"
 #include "purchase.h"
 #include <cstdint>
@@ -25,7 +26,9 @@ namespace uniter::contract::supply {
 class PurchaseComplex : public ResourceAbstract
 {
 public:
-    PurchaseComplex() = default;
+    PurchaseComplex()
+        : ResourceAbstract(Subsystem::PURCHASES, GenSubsystemType::NOTGEN,
+                           ResourceType::PURCHASE_GROUP) {}
     PurchaseComplex(
         uint64_t s_id,
         bool actual,
@@ -36,7 +39,9 @@ public:
         QString name_,
         QString description_,
         PurchStatus status_)
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
+        : ResourceAbstract(Subsystem::PURCHASES, GenSubsystemType::NOTGEN,
+                           ResourceType::PURCHASE_GROUP,
+                           s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
           name(std::move(name_)),
           description(std::move(description_)),
           status(status_) {}

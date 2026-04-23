@@ -104,16 +104,26 @@ join-таблицах:
 | `child_config_code` | TEXT NULL | Выбранное исполнение дочерней сборки |
 
 ### Join `design_assembly_config_standard_products`
-Стандартные изделия — ссылки на **составные** Instance (например, болт
-M8×30 ГОСТ 7798-70 — это composite: «болт + ГОСТ»).
+Стандартные изделия — ссылки на **простые** Instance. По ЕСКД стандартное
+изделие (например, «Болт М8×30 ГОСТ 7798-70») полностью описывается одним
+стандартом — никакого разделения на «сортамент + марка» нет, весь набор
+характеристик задаётся префиксами/суффиксами внутри одного простого
+Template. Поэтому ссылка идёт на `material_instances_simple`, а не
+на composite.
+
 | Колонка | Тип | Описание |
 |---|---|---|
 | `assembly_config_id` | INTEGER | FK → `design_assembly_config.id` |
-| `instance_composite_id` | INTEGER | FK → `material_instances_composite.id` |
+| `instance_simple_id` | INTEGER | FK → `material_instances_simple.id` |
 | `quantity` | INTEGER | |
 
 ### Join `design_assembly_config_materials`
-Материалы (листы, прутки, провод и т.д.) — ссылки на **простые** Instance.
+Материалы (листы, прутки, провод и т.д.) — тоже ссылки на **простые**
+Instance: лист, пруток и проч. — это одночастные стандартные материалы.
+Composite-Instance (сортамент + марка) описывает полуфабрикат (например,
+«Круг 20 / Сталь 20»); такие ссылки в `assembly_config` не ожидаются
+(полуфабрикат раскрывается до материала через PartConfig).
+
 | Колонка | Тип | Описание |
 |---|---|---|
 | `assembly_config_id` | INTEGER | FK → `design_assembly_config.id` |
@@ -122,19 +132,33 @@ M8×30 ГОСТ 7798-70 — это composite: «болт + ГОСТ»).
 | `quantity_length` | REAL NULL | для LINEAR |
 | `quantity_area` | REAL NULL | для AREA |
 
-> Почему standard_products = composite, а materials = simple. По ЕСКД
-> стандартные изделия всегда идентифицируются двухчастным обозначением
-> «название / ГОСТ» — это структурный composite. Листовой/прутковый
-> материал — одночастное обозначение с сегментами ГОСТа (simple).
-> Это соответствует схеме DESIGN.pdf: два разных столбца у `assembly_config`.
+> И standard_products, и materials в `assembly_config` ссылаются
+> на `material_instances_simple`. Разделение на две join-таблицы
+> сохранено исключительно ради семантики ЕСКД (стандартное изделие vs
+> материал); технически же обе связи — simple-instance.
+> Composite Instance зарезервирован под полуфабрикаты («сортамент + марка»)
+> и привязывается к Part, а не к AssemblyConfig.
 
 В C++ содержимое материализуется в `AssemblyConfig` как:
 ```cpp
 std::vector<AssemblyConfigPartRef>     parts;
 std::vector<AssemblyConfigChildRef>    child_assemblies;
-std::vector<AssemblyConfigStandardRef> standard_products;
-std::vector<AssemblyConfigMaterialRef> materials;
+std::vector<AssemblyConfigStandardRef> standard_products; // ref → InstanceSimple
+std::vector<AssemblyConfigMaterialRef> materials;         // ref → InstanceSimple
 ```
+
+## Сворачивание `Assembly.configs` / `Part.configs` в C++
+
+В БД связь `design_assembly` → `design_assembly_config` (1:M) представлена
+FK `assembly_config.assembly_id`. В C++-классе `design::Assembly` эта связь
+свёрнута в `std::vector<AssemblyConfig> configs` — вектор исполнений
+материализуется DataManager-ом при загрузке сборки. То же самое для
+`Part` → `PartConfig` (`std::vector<PartConfig> configs` в `Part`).
+
+Класс ≠ таблица: в рантайме FK из `*_config` таблиц в свою родительскую
+запись не хранится — положение конфигурации в контейнере родителя уже
+знает, кому она принадлежит. При записи в БД DataManager восстанавливает
+FK из позиции объекта.
 
 ## Таблица `design_part` — деталь (общие данные)
 
@@ -160,9 +184,12 @@ std::vector<AssemblyConfigMaterialRef> materials;
 `design_assembly_config_parts`.
 
 Документы — через `documents_doc_link` (`target_type=PART`).
-Подписи чертежа (`PartSignature`) — отдельная таблица
-`design_part_signatures` (см. ниже). В структурной схеме не указана,
-но остаётся функциональной необходимостью.
+
+Подписи чертежа (разработал / проверил / …) в рантайм-классе Part
+больше НЕ хранятся — они не являются частью конструкторской информации,
+нужной DESIGN-подсистеме. Для воспроизведения подписи в выпускаемом
+комплекте КД эти данные берутся из metadata PDF-файлов, связанных
+с `design_part` через `documents_doc_link`.
 
 ## Таблица `design_part_config` — исполнение детали
 
@@ -181,19 +208,6 @@ std::vector<AssemblyConfigMaterialRef> materials;
 (ResourceType::PART_CONFIG). Раньше это была вложенная struct — теперь
 отдельный ресурс, CRUD идёт через UniterMessage.
 
-## Таблица `design_part_signatures` (прикладная, не в структурной схеме)
-
-| Колонка | Тип | Описание |
-|---|---|---|
-| `part_id` | INTEGER | FK → `design_part.id` |
-| `role` | TEXT | Разработал / Проверил / … |
-| `name` | TEXT | ФИО |
-| `date` | TEXT | ISO 8601 |
-
-В C++ — `std::vector<PartSignature> signatures` в `Part`. TODO(на подумать):
-вынести в отдельный ресурс `PartSignature` (ResourceType) если понадобится
-CRUD по отдельной подписи.
-
 ## Связи (обзор)
 
 ```
@@ -202,9 +216,27 @@ design_project              1 ─ 0..1 pdm_project           (pdm_project_id)
 design_assembly             1 ─ N design_assembly_config   (assembly_id)
 design_assembly_config      N ─ M design_part              (join: ..._parts)
 design_assembly_config      N ─ M design_assembly          (join: ..._children)
-design_assembly_config      N ─ M material_instances_composite (join: ..._standard_products)
-design_assembly_config      N ─ M material_instances_simple    (join: ..._materials)
+design_assembly_config      N ─ M material_instances_simple (join: ..._standard_products)
+design_assembly_config      N ─ M material_instances_simple (join: ..._materials)
+design_part                 N ─ 1 design_project           (project_id)
 design_part                 1 ─ N design_part_config       (part_id)
 design_part                 N ─ 1 material_instances_simple    (instance_simple_id)
 design_part                 N ─ 1 material_instances_composite (instance_composite_id)
 ```
+
+### Метаданные ресурсов
+
+Ресурсы DESIGN в C++ несут общие метаданные `subsystem/gen_subsystem/
+resource_type` (заполняются автоматически в конструкторе каждого
+наследника `ResourceAbstract`):
+
+| Класс | Subsystem | GenSubsystem | ResourceType |
+|---|---|---|---|
+| `Project` | DESIGN | NOTGEN | PROJECT |
+| `Assembly` | DESIGN | NOTGEN | ASSEMBLY |
+| `AssemblyConfig` | DESIGN | NOTGEN | ASSEMBLY_CONFIG |
+| `Part` | DESIGN | NOTGEN | PART |
+| `PartConfig` | DESIGN | NOTGEN | PART_CONFIG |
+
+Эти поля в БД не хранятся — они однозначно определяются таблицей.
+Рантайм использует их для маршрутизации CRUD-сообщений и логирования.

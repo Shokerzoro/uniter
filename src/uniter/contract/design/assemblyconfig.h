@@ -21,7 +21,9 @@ namespace uniter::contract::design {
  *       * parts              → `design_assembly_config_parts`
  *       * child_assemblies   → `design_assembly_config_children`
  *       * standard_products  → `design_assembly_config_standard_products`
+ *                              (simple instance: один ГОСТ = один крепёж)
  *       * materials          → `design_assembly_config_materials`
+ *                              (simple instance: лист/пруток/провод)
  *
  * В C++ M:N-связи материализуются в четыре std::vector<...Ref> при
  * загрузке из БД. CRUD этих векторов — через UniterMessage с
@@ -36,7 +38,11 @@ namespace uniter::contract::design {
  */
 class AssemblyConfig : public ResourceAbstract {
 public:
-    AssemblyConfig() = default;
+    AssemblyConfig()
+        : ResourceAbstract(
+              Subsystem::DESIGN,
+              GenSubsystemType::NOTGEN,
+              ResourceType::ASSEMBLY_CONFIG) {}
     AssemblyConfig(
         uint64_t s_id,
         bool actual,
@@ -46,7 +52,11 @@ public:
         uint64_t s_updated_by,
         uint64_t assembly_id_,
         QString  config_code_)
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
+        : ResourceAbstract(
+              Subsystem::DESIGN,
+              GenSubsystemType::NOTGEN,
+              ResourceType::ASSEMBLY_CONFIG,
+              s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
         , assembly_id (assembly_id_)
         , config_code (std::move(config_code_)) {}
 

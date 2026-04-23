@@ -1,6 +1,7 @@
 #ifndef PURCHASE_H
 #define PURCHASE_H
 
+#include "../uniterprotocol.h"
 #include "../resourceabstract.h"
 #include <QString>
 #include <cstdint>
@@ -38,7 +39,8 @@ enum class PurchStatus : uint8_t {
  */
 class Purchase : public ResourceAbstract {
 public:
-    Purchase() = default;
+    Purchase()
+        : ResourceAbstract(Subsystem::PURCHASES, GenSubsystemType::NOTGEN, ResourceType::PURCHASE) {}
 
     Purchase(
         uint64_t s_id,
@@ -55,7 +57,8 @@ public:
         std::optional<uint64_t> plant_id_              = std::nullopt,
         std::optional<uint64_t> doc_link_id_           = std::nullopt,
         std::optional<uint64_t> purchase_complex_id_   = std::nullopt)
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
+        : ResourceAbstract(Subsystem::PURCHASES, GenSubsystemType::NOTGEN, ResourceType::PURCHASE,
+                           s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
           name(std::move(name_)),
           description(std::move(description_)),
           status(status_),

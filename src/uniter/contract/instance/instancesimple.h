@@ -18,7 +18,8 @@ namespace contract {
  */
 class InstanceSimple : public InstanceBase {
 public:
-    InstanceSimple() = default;
+    InstanceSimple()
+        : InstanceBase(ResourceType::MATERIAL_INSTANCE_SIMPLE) {}
 
     std::map<uint8_t, std::string> prefix_values; // Значения префиксов
     std::map<uint8_t, std::string> suffix_values; // Значения суффиксов

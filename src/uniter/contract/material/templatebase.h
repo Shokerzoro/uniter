@@ -42,6 +42,11 @@ enum class GostSource : uint8_t {
  *
  * Наследники: TemplateSimple, TemplateComposite.
  *
+ * TemplateBase — абстрактный. Конкретный ResourceType передаётся из
+ * наследника через `protected` конструктор (см. TemplateSimple /
+ * TemplateComposite). Subsystem/gen_subsystem у обоих наследников
+ * общие: MATERIALS / NOTGEN.
+ *
  * Семантика "standalone / assortment / material" для простых шаблонов
  * вынесена в TemplateSimple::standart_type (см. StandartType в templatesimple.h);
  * поэтому TemplateBase не содержит is_standalone — это свойство применимо
@@ -54,9 +59,17 @@ enum class GostSource : uint8_t {
  * присутствует — см. docs/db/material_instance.md).
  */
 class TemplateBase : public ResourceAbstract {
-public:
-    TemplateBase() = default;
+protected:
+    // Protected-конструкторы: наследники ОБЯЗАНЫ передавать ResourceType
+    // (MATERIAL_TEMPLATE_SIMPLE / MATERIAL_TEMPLATE_COMPOSITE).
+    explicit TemplateBase(ResourceType resource_type_)
+        : ResourceAbstract(
+              Subsystem::MATERIALS,
+              GenSubsystemType::NOTGEN,
+              resource_type_) {}
+
     TemplateBase(
+        ResourceType resource_type_,
         uint64_t id_,
         QString name_,
         QString description_,
@@ -69,7 +82,11 @@ public:
         uint32_t version_ = 1,
         uint64_t created_by_ = 0,
         uint64_t updated_by_ = 0)
-        : ResourceAbstract(id_, is_active_, created_at_, updated_at_, created_by_, updated_by_)
+        : ResourceAbstract(
+              Subsystem::MATERIALS,
+              GenSubsystemType::NOTGEN,
+              resource_type_,
+              id_, is_active_, created_at_, updated_at_, created_by_, updated_by_)
         , name(std::move(name_))
         , description(std::move(description_))
         , dimension_type(dimension_type_)
@@ -78,6 +95,7 @@ public:
         , doc_link(std::move(doc_link_))
     {}
 
+public:
     virtual ~TemplateBase() = default;
 
     QString       name;             // Краткое человекочитаемое имя

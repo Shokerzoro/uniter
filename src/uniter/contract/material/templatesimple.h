@@ -68,7 +68,8 @@ enum class StandartType : uint8_t {
 class TemplateSimple : public TemplateBase
 {
 public:
-    TemplateSimple() = default;
+    TemplateSimple()
+        : TemplateBase(ResourceType::MATERIAL_TEMPLATE_SIMPLE) {}
     TemplateSimple(
         uint64_t id_,  // Уникальный id шаблона в компании
         QString name_,
@@ -90,7 +91,8 @@ public:
         uint32_t version_ = 1,  // Версия шаблона
         uint64_t created_by_ = 0,
         uint64_t updated_by_ = 0)
-        : TemplateBase(id_, std::move(name_), std::move(description_), dimension_type_, source_,
+        : TemplateBase(ResourceType::MATERIAL_TEMPLATE_SIMPLE,
+                       id_, std::move(name_), std::move(description_), dimension_type_, source_,
                        std::move(doc_link_),
                        is_active_, created_at_, updated_at_, version_, created_by_, updated_by_)
         , standard_type(standard_type_)  // Тип стандарта и номер (имеют смысл только для простого шаблона)

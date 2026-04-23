@@ -39,7 +39,11 @@ namespace uniter::contract::documents {
  */
 class DocLink : public ResourceAbstract {
 public:
-    DocLink() = default;
+    DocLink()
+        : ResourceAbstract(
+              Subsystem::DOCUMENTS,
+              GenSubsystemType::NOTGEN,
+              ResourceType::DOC_LINK) {}
     DocLink(
         uint64_t s_id,
         bool actual,
@@ -49,7 +53,11 @@ public:
         uint64_t s_updated_by,
         DocLinkTargetType doc_link_target_type_,
         std::vector<Doc> docs_ = {})
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
+        : ResourceAbstract(
+              Subsystem::DOCUMENTS,
+              GenSubsystemType::NOTGEN,
+              ResourceType::DOC_LINK,
+              s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
         , doc_link_target_type (doc_link_target_type_)
         , docs                 (std::move(docs_)) {}
 

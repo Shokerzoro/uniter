@@ -21,7 +21,11 @@ namespace uniter::contract::design {
  */
 class Project : public ResourceAbstract {
 public:
-    Project() = default;
+    Project()
+        : ResourceAbstract(
+              Subsystem::DESIGN,
+              GenSubsystemType::NOTGEN,
+              ResourceType::PROJECT) {}
     Project(
         uint64_t s_id,
         bool actual,
@@ -34,7 +38,11 @@ public:
         QString  designation_,
         uint64_t root_assembly_id_,
         std::optional<uint64_t> pdm_project_id_ = std::nullopt)
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
+        : ResourceAbstract(
+              Subsystem::DESIGN,
+              GenSubsystemType::NOTGEN,
+              ResourceType::PROJECT,
+              s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
         , name              (std::move(name_))
         , description       (std::move(description_))
         , designation       (std::move(designation_))

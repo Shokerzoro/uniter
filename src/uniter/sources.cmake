@@ -115,6 +115,7 @@ set(RESOUCES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/pdmproject.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/snapshot.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/delta.h
+    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/diagnostic.h
 
     # --- Subsystem::DOCUMENTS --------------------------------------------
     ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doctypes.h

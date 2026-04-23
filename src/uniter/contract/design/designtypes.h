@@ -19,29 +19,6 @@ enum class AssemblyType : uint8_t {
     VIRTUAL = 1
 };
 
-/**
- * @brief Подпись на чертеже детали.
- *
- * Соответствует таблице `design_part_signatures` (прикладная таблица,
- * в структурной схеме не указана — см. docs/db/design.md).
- *
- * Материализуется в `std::vector<PartSignature>` внутри Part.
- *
- * TODO(на подумать): если понадобится CRUD по отдельной подписи — вынести
- * в отдельный ресурс PartSignature (наследник ResourceAbstract) со своим
- * ResourceType.
- */
-struct PartSignature {
-    QString   role;   // "Разработал", "Проверил", ...
-    QString   name;   // ФИО
-    QDateTime date;   // Дата подписи
-
-    friend bool operator==(const PartSignature& a, const PartSignature& b) {
-        return a.role == b.role && a.name == b.name && a.date == b.date;
-    }
-    friend bool operator!=(const PartSignature& a, const PartSignature& b) { return !(a == b); }
-};
-
 // ----------------------------------------------------------------------------
 // Ссылочные структуры для AssemblyConfig (материализация join-таблиц).
 // Сами структуры живут не в отдельных таблицах, а в join-таблицах
@@ -84,30 +61,37 @@ struct AssemblyConfigChildRef {
 };
 
 /**
- * @brief Ссылка на стандартное изделие (composite Instance — болт, шайба, ...).
+ * @brief Ссылка на стандартное изделие (болт, шайба, заклёпка и т.п.).
  * Соответствует строке join-таблицы `design_assembly_config_standard_products`.
  *
- * По ЕСКД стандартные изделия идентифицируются двухчастным обозначением
- * «название / ГОСТ» — это структурный composite.
+ * По ЕСКД стандартное изделие полностью описывается ОДНИМ стандартом
+ * (Например ГОСТ 7798-70 на болт с шестигранной головкой): то есть
+ * это **simple** Instance. «Составной» Composite Template/Instance
+ * должен резервироваться строго для полуфабрикатов вида «сортамент +
+ * марка вещества» (напр. «лист / сталь 09З2С»).
  */
 struct AssemblyConfigStandardRef {
-    uint64_t instance_composite_id = 0;  // FK → material_instances_composite.id
-    uint32_t quantity              = 1;
+    uint64_t instance_simple_id = 0;     // FK → material_instances_simple.id
+    uint32_t quantity           = 1;
 
     friend bool operator==(const AssemblyConfigStandardRef& a, const AssemblyConfigStandardRef& b) {
-        return a.instance_composite_id == b.instance_composite_id
-            && a.quantity              == b.quantity;
+        return a.instance_simple_id == b.instance_simple_id
+            && a.quantity           == b.quantity;
     }
     friend bool operator!=(const AssemblyConfigStandardRef& a, const AssemblyConfigStandardRef& b) { return !(a == b); }
 };
 
 /**
- * @brief Ссылка на материал (simple Instance — лист, пруток, провод, ...).
+ * @brief Ссылка на материал в исполнении сборки (лист, пруток, провод и т.п.).
  * Соответствует строке join-таблицы `design_assembly_config_materials`.
  *
- * По ЕСКД листовой/прутковый материал — одночастное обозначение с
- * сегментами ГОСТа, это simple. Количество зависит от DimensionType
- * шаблона: items (штуки), length (м), area (м²).
+ * По ЕСКД «материал» в спецификации — это конкретная позиция,
+ * описанная одним стандартом (напр. «Провод МГ 1,5 ГОСТ 6323-79»), это
+ * **simple** Instance. Полуфабрикаты вида «сортамент + марка стали»
+ * (composite) — отдельный кейс, но тоже редкий и здесь не учитывается.
+ *
+ * Количество зависит от DimensionType шаблона: items (штуки),
+ * length (м), area (м²).
  */
 struct AssemblyConfigMaterialRef {
     uint64_t instance_simple_id = 0;     // FK → material_instances_simple.id

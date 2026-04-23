@@ -22,7 +22,8 @@ namespace uniter::contract::manager {
 class Plant : public ResourceAbstract
 {
 public:
-    Plant() = default;
+    Plant()
+        : ResourceAbstract(Subsystem::MANAGER, GenSubsystemType::NOTGEN, ResourceType::PRODUCTION) {}
 
     Plant(
         uint64_t s_id,
@@ -35,7 +36,8 @@ public:
         QString description_,
         PlantType type_,
         QString location_)
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
+        : ResourceAbstract(Subsystem::MANAGER, GenSubsystemType::NOTGEN, ResourceType::PRODUCTION,
+                           s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
         name(std::move(name_)),
         description(std::move(description_)),
         type(type_),

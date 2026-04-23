@@ -78,7 +78,8 @@ struct EmployeeAssignment {
  */
 class Employee : public ResourceAbstract {
 public:
-    Employee() = default;
+    Employee()
+        : ResourceAbstract(Subsystem::MANAGER, GenSubsystemType::NOTGEN, ResourceType::EMPLOYEES) {}
 
     Employee(
         uint64_t s_id,
@@ -92,7 +93,8 @@ public:
         QString patronymic_,
         QString email_,
         std::vector<EmployeeAssignment> assignments_)
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
+        : ResourceAbstract(Subsystem::MANAGER, GenSubsystemType::NOTGEN, ResourceType::EMPLOYEES,
+                           s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
         name(std::move(name_)),
         surname(std::move(surname_)),
         patronymic(std::move(patronymic_)),

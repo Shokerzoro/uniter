@@ -37,7 +37,11 @@ namespace uniter::contract::documents {
  */
 class Doc : public ResourceAbstract {
 public:
-    Doc() = default;
+    Doc()
+        : ResourceAbstract(
+              Subsystem::DOCUMENTS,
+              GenSubsystemType::NOTGEN,
+              ResourceType::DOC) {}
     Doc(
         uint64_t s_id,
         bool actual,
@@ -53,7 +57,11 @@ public:
         QString  mime_type_  = QString(),
         QString  description_ = QString(),
         std::optional<QString> local_path_ = std::nullopt)
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
+        : ResourceAbstract(
+              Subsystem::DOCUMENTS,
+              GenSubsystemType::NOTGEN,
+              ResourceType::DOC,
+              s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by)
         , doc_type    (doc_type_)
         , name        (std::move(name_))
         , object_key  (std::move(object_key_))

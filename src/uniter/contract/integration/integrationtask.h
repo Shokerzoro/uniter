@@ -31,7 +31,9 @@ namespace uniter::contract::integration {
 class IntegrationTask : public ResourceAbstract
 {
 public:
-    IntegrationTask() = default;
+    IntegrationTask()
+        : ResourceAbstract(Subsystem::GENERATIVE, GenSubsystemType::INTERGATION,
+                           ResourceType::INTEGRATION_TASK) {}
 
     IntegrationTask(
         uint64_t s_id,
@@ -44,7 +46,9 @@ public:
         contract::Subsystem target_subsystem_,
         contract::ResourceType target_resource_type_,
         uint64_t any_resource_id_)
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
+        : ResourceAbstract(Subsystem::GENERATIVE, GenSubsystemType::INTERGATION,
+                           ResourceType::INTEGRATION_TASK,
+                           s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
           integration_id(integration_id_),
           target_subsystem(target_subsystem_),
           target_resource_type(target_resource_type_),

@@ -1,6 +1,7 @@
 #ifndef PRODUCTIONSTOCK_H
 #define PRODUCTIONSTOCK_H
 
+#include "../uniterprotocol.h"
 #include "../resourceabstract.h"
 #include <cstdint>
 #include <optional>
@@ -24,7 +25,9 @@ namespace uniter::contract::production {
 class ProductionStock : public ResourceAbstract
 {
 public:
-    ProductionStock() = default;
+    ProductionStock()
+        : ResourceAbstract(Subsystem::GENERATIVE, GenSubsystemType::PRODUCTION,
+                           ResourceType::PRODUCTION_STOCK) {}
     ProductionStock(
         uint64_t s_id,
         bool actual,
@@ -38,7 +41,9 @@ public:
         int      quantity_items_  = 0,
         double   quantity_length_ = 0.0,
         double   quantity_area_   = 0.0)
-        : ResourceAbstract(s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
+        : ResourceAbstract(Subsystem::GENERATIVE, GenSubsystemType::PRODUCTION,
+                           ResourceType::PRODUCTION_STOCK,
+                           s_id, actual, c_created_at, s_updated_at, s_created_by, s_updated_by),
           plant_id(plant_id_),
           instance_simple_id(instance_simple_id_),
           instance_composite_id(instance_composite_id_),
