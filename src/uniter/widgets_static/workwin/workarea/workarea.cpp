@@ -1,5 +1,6 @@
 
 #include "../contract/unitermessage.h"
+#include "../../../../contract_qt/qt_compat.h"
 #include "../../../widgets_generative/subsystemtab.h"
 #include "workarea.h"
 #include <QWidget>

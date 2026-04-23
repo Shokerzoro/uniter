@@ -1,5 +1,6 @@
 
 #include "serverconnector.h"
+#include "../contract_qt/qt_compat.h"
 
 #include "../contract/unitermessage.h"
 #include "../contract/manager/employee.h"

@@ -1,5 +1,6 @@
 
 #include "appmanager.h"
+#include "../contract_qt/qt_compat.h"
 #include "configmanager.h"
 #include "../contract/unitermessage.h"
 #include "../contract/manager/employee.h"

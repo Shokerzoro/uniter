@@ -2,6 +2,7 @@
 #include "../../../control/appmanager.h"
 #include "../../../control/uimanager.h"
 #include "../contract/unitermessage.h"
+#include "../../../../contract_qt/qt_compat.h"
 #include "../../../widgets_generative/subsystemicon.h"
 #include "workbar.h"
 #include <QWidget>

@@ -1,5 +1,6 @@
 
 #include "workwidget.h"
+#include "../../contract_qt/qt_compat.h"
 #include "../../control/uimanager.h"
 #include "../../control/configmanager.h"
 #include "../contract/unitermessage.h"
