@@ -1,4 +1,5 @@
 #include "kafkaconnector.h"
+#include "../contract_qt/qt_compat.h"
 
 #include <QDebug>
 #include <QRandomGenerator>
