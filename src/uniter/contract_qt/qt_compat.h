@@ -23,6 +23,7 @@
 #include <QString>
 #include <QDateTime>
 #include <QDebug>
+#include <QTimeZone>
 
 #include "../contract/uniterprotocol.h"
 
