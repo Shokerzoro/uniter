@@ -1,7 +1,7 @@
 #ifndef WORKAREA_H
 #define WORKAREA_H
 
-#include <uniter/contract/unitermessage.h>
+#include "../contract/unitermessage.h"
 #include "../../../widgets_generative/subsystemtab.h"
 #include <QWidget>
 #include <QStackedLayout>

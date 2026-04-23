@@ -1,8 +1,7 @@
 # Google Tests — остаётся через FetchContent (объявлен в корневом CMakeLists.txt).
 # Здесь только описываем таргет UniterTests.
 
-# Таргеты uniter::contract и uniter::database уже определены в src/uniter/CMakeLists.txt,
-# который обрабатывается раньше tests/ — повторное включение sources.cmake не нужно.
+include(../src/uniter/contract/sources.cmake)
 include(../src/uniter/sources.cmake)
 
 add_executable(UniterTests
@@ -43,8 +42,6 @@ endif()
 target_link_libraries(UniterTests
     PRIVATE
         uniter_common
-        uniter::contract    # submodule src/uniter/contract
-        uniter::database    # submodule src/uniter/database
         GTest::gtest_main
         GTest::gmock_main
 )
@@ -54,6 +51,7 @@ devkit_finalize(UniterTests)
 target_include_directories(UniterTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/common
     ${CMAKE_SOURCE_DIR}/src/uniter
+    ${CONTRACT_INCLUDE_DIR}
 )
 
 include(GoogleTest)

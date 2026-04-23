@@ -2,8 +2,8 @@
 #ifndef APPMANAGER_H
 #define APPMANAGER_H
 
-#include <uniter/contract/unitermessage.h>
-#include <uniter/contract/manager/employee.h>
+#include "../contract/unitermessage.h"
+#include "../contract/manager/employee.h"
 #include <QObject>
 #include <QByteArray>
 #include <optional>

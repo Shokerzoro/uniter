@@ -106,19 +106,6 @@ endif()
 #===============================================================================
 # 7. ПОДПРОЕКТЫ
 #===============================================================================
-
-# --- 7.0 tinyxml2 stub для submodule contract -----------------------------------
-#
-# uniter-contract (submodule в src/uniter/contract) зависит от tinyxml2.
-# DevKit предоставит реальный tinyxml2-таргет внутри src/uniter/CMakeLists.txt
-# через devkit_use_tinyxml2_*. На этапе конфигурации корневого CMakeLists
-# DevKit ещё может не создал tinyxml2 — создаём INTERFACE-stub.
-# Реальные пути доставит DevKit при обработке таргета Uniter.
-if(NOT TARGET tinyxml2 AND NOT TARGET tinyxml2::tinyxml2)
-    add_library(tinyxml2 INTERFACE)
-    message(STATUS "[Uniter] tinyxml2 target not yet defined — created INTERFACE stub for uniter-contract.")
-endif()
-
 add_subdirectory(src/common)
 add_subdirectory(src/uniter)
 add_subdirectory(src/updater)

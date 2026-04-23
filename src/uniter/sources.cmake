@@ -72,103 +72,10 @@ set(NETWORK_SOURCES
 
 # = = = = = = = = common sources = = = = = = = = #
 
-# Qt-адаптеры к std-ресурсам из uniter-contract.
+# Qt-адаптеры к std-ресурсам из contract.
 # Используются строго на границе "контракт ↔ Qt-код клиента".
 set(CONTRACT_QT_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract_qt/qt_compat.h
 )
 
-# DATABASE_SOURCES отсюда удален: теперь слой базы данных является
-# отдельным submodule `extern/uniter-database` и линкуется через target
-# uniter::database в src/uniter/CMakeLists.txt.
-
-# Старые блоки MESSAGES_SOURCES / RESOUCES_SOURCES / CONTRACT_SOURCES удалены:
-# весь контракт теперь поставляется submodule-ом `extern/uniter-contract`
-# через target `uniter::contract`.
-
-# Заглушка ниже оставлена для обратной совместимости с возможными сторонними
-# референсами в src/uniter/CMakeLists.txt (пустой список).
-set(CONTRACT_SOURCES)
-
-# Заполнитель-заглушка, сохраняется раньшего имени MESSAGES_SOURCES на случай,
-# если внешний скрипт на него ссылается.
-set(MESSAGES_SOURCES)
-set(RESOUCES_SOURCES)
-set(DATABASE_SOURCES)
-
-# --- Оставшиеся старые contract-списки ниже больше не подключаются к сборке,
-#     но оставлены в файле закомментированными как историческая справка.
-# (удалите, когда убедитесь, что всё собирается через submodules)
-
-if(FALSE)
-# Старый MESSAGES_SOURCES располагался здесь, обращался к src/uniter/contract/.
-set(__LEGACY_MESSAGES_SOURCES
-    ${CMAKE_CURRENT_LIST_DIR}/contract/unitermessage.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/contract/unitermessage.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/resourceabstract.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/uniterprotocol.h
-)
-
-
-# Ресурсы сгруппированы по подсистемам.
-# Сериализация удалена: у ресурсов остались только заголовочные файлы.
-# Исключение: instance/instancesimple.cpp содержит setPrefixValue/Suffix-логику.
-set(__LEGACY_RESOUCES_SOURCES
-    # --- Subsystem::MATERIALS --------------------------------------------
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/segment.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatebase.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatesimple.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/material/templatecomposite.h
-
-    # --- Subsystem::INSTANCES --------------------------------------------
-    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancebase.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancesimple.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancesimple.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/contract/instance/instancecomposite.h
-
-    # --- Subsystem::DESIGN -----------------------------------------------
-    ${CMAKE_CURRENT_LIST_DIR}/contract/design/designtypes.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/design/project.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/design/assembly.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/design/assemblyconfig.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/design/part.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/design/partconfig.h
-
-    # --- Subsystem::PDM --------------------------------------------------
-    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/pdmtypes.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/pdmproject.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/snapshot.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/delta.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/pdm/diagnostic.h
-
-    # --- Subsystem::DOCUMENTS --------------------------------------------
-    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doctypes.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doc.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/documents/doclink.h
-
-    # --- Subsystem::MANAGER (employee, plant, integration) ---------------
-    ${CMAKE_CURRENT_LIST_DIR}/contract/manager/managertypes.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/manager/permissions.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/manager/employee.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/manager/plant.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/manager/integration.h
-
-    # --- Subsystem::PURCHASES --------------------------------------------
-    ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchase.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchasecomplex.h
-
-    # --- Subsystem::GENERATIVE / GenSubsystem::PRODUCTION ----------------
-    ${CMAKE_CURRENT_LIST_DIR}/contract/production/productiontypes.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/production/productiontask.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/production/productionstock.h
-    ${CMAKE_CURRENT_LIST_DIR}/contract/production/productionsupply.h
-
-    # --- Subsystem::GENERATIVE / GenSubsystem::INTERGATION ---------------
-    ${CMAKE_CURRENT_LIST_DIR}/contract/integration/integrationtask.h
-)
-
-set(__LEGACY_CONTRACT_SOURCES
-    ${__LEGACY_MESSAGES_SOURCES}
-    ${__LEGACY_RESOUCES_SOURCES}
-)
-endif() # FALSE (legacy)
+# CONTRACT_SOURCES устанавливается в contract/sources.cmake (включается в CMakeLists.txt до этого файла).

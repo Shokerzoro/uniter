@@ -1,7 +1,7 @@
 #ifndef SUBSYSTEMICON_H
 #define SUBSYSTEMICON_H
 
-#include <uniter/contract/unitermessage.h>
+#include "../contract/unitermessage.h"
 #include <QMouseEvent>
 #include <QWidget>
 #include <QString>

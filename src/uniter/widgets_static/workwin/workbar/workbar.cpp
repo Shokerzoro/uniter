@@ -1,7 +1,7 @@
 
 #include "../../../control/appmanager.h"
 #include "../../../control/uimanager.h"
-#include <uniter/contract/unitermessage.h>
+#include "../contract/unitermessage.h"
 #include "../../../widgets_generative/subsystemicon.h"
 #include "workbar.h"
 #include <QWidget>

@@ -6,7 +6,7 @@
 #include <QDir>
 #include <map>
 #include <memory>
-#include <uniter/contract/unitermessage.h>
+#include "../contract/unitermessage.h"
 
 namespace uniter::net {
 

@@ -1,7 +1,7 @@
 #ifndef AUTHWDG_H
 #define AUTHWDG_H
 
-#include <uniter/contract/unitermessage.h>
+#include "../contract/unitermessage.h"
 //#include <qtkeychain/keychain.h> TODO: добавить безопасное хранение логина и пароля
 #include <QWidget>
 #include <QLineEdit>

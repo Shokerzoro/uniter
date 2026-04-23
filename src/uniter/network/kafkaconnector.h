@@ -5,7 +5,7 @@
 #include <QString>
 #include <QByteArray>
 #include <memory>
-#include <uniter/contract/unitermessage.h>
+#include "../contract/unitermessage.h"
 
 namespace uniter::net {
 

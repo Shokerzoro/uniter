@@ -2,7 +2,7 @@
 #ifndef ISUBSWDG_H
 #define ISUBSWDG_H
 
-#include <uniter/contract/unitermessage.h>
+#include "../contract/unitermessage.h"
 #include <cstdint>
 #include <QWidget>
 

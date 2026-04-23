@@ -1,6 +1,6 @@
 
-#include <uniter/contract/unitermessage.h>
-#include <uniter/contract/manager/employee.h>
+#include "../contract/unitermessage.h"
+#include "../contract/manager/employee.h"
 #include "configmanager.h"
 #include "../contract_qt/qt_compat.h"
 #include <QObject>

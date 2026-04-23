@@ -1,10 +1,8 @@
 project(uniter_app LANGUAGES CXX)
 
-# ─── Submodule: контракт и слой БД ────────────────────────────────────────────
-# Определяет таргеты uniter::contract и uniter::database.
-# tinyxml2 должен быть доступен к этому моменту (stub или реальный от DevKit).
+# ─── Submodule: контракт (sources.cmake устанавливает CONTRACT_SOURCES) ────────
+# contract/sources.cmake устанавливает CONTRACT_SOURCES и CONTRACT_INCLUDE_DIR.
 include(contract/sources.cmake)
-include(database/sources.cmake)
 
 include(sources.cmake)
 
@@ -24,13 +22,16 @@ add_executable(Uniter WIN32
     ${CONTROL_SOURCES}
     # Net layer
     ${NETWORK_SOURCES}
-    # Qt-адаптеры к std-ресурсам из uniter-contract
+    # Qt-адаптеры к std-ресурсам из contract
     ${CONTRACT_QT_SOURCES}
+    # Contract (client/server shared: protocol + resources)
+    ${CONTRACT_SOURCES}
 )
 
 target_include_directories(Uniter
     PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
+        ${CONTRACT_INCLUDE_DIR}  # корень submodule contract/ — для #include "design/assembly.h" и т.п.
 )
 
 # ─── Зависимости через DevKit ────────────────────────────────────────────────
@@ -53,8 +54,6 @@ endif()
 target_link_libraries(Uniter
     PRIVATE
         uniter_common
-        uniter::contract    # общий с сервером контракт (submodule src/uniter/contract)
-        uniter::database    # общий с сервером слой БД   (submodule src/uniter/database)
 )
 
 # ОБЯЗАТЕЛЬНО последним — добавляет HarfBuzz+FreeType если подключён MuPDF,
