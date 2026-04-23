@@ -1,5 +1,11 @@
 project(uniter_app LANGUAGES CXX)
 
+# ─── Submodule: контракт и слой БД ────────────────────────────────────────────
+# Определяет таргеты uniter::contract и uniter::database.
+# tinyxml2 должен быть доступен к этому моменту (stub или реальный от DevKit).
+include(contract/sources.cmake)
+include(database/sources.cmake)
+
 include(sources.cmake)
 
 # WIN32 — скрываем консольное окно (эквивалент qt_add_executable WIN32)
@@ -47,8 +53,8 @@ endif()
 target_link_libraries(Uniter
     PRIVATE
         uniter_common
-        uniter::contract    # общий с сервером контракт (submodule extern/uniter-contract)
-        uniter::database    # общий с сервером слой БД   (submodule extern/uniter-database)
+        uniter::contract    # общий с сервером контракт (submodule src/uniter/contract)
+        uniter::database    # общий с сервером слой БД   (submodule src/uniter/database)
 )
 
 # ОБЯЗАТЕЛЬНО последним — добавляет HarfBuzz+FreeType если подключён MuPDF,

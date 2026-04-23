@@ -1,6 +1,6 @@
-[submodule "extern/uniter-contract"]
-	path = extern/uniter-contract
+[submodule "src/uniter/contract"]
+	path = src/uniter/contract
 	url = https://github.com/Shokerzoro/uniter-contract.git
-[submodule "extern/uniter-database"]
-	path = extern/uniter-database
+[submodule "src/uniter/database"]
+	path = src/uniter/database
 	url = https://github.com/Shokerzoro/uniter-database.git
