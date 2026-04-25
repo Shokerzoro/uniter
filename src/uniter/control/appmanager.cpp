@@ -465,7 +465,7 @@ namespace uniter::control {
             message->status  == contract::MessageStatus::RESPONSE)
         {
             if (message->error == contract::ErrorCode::SUCCESS && message->resource) {
-                m_user = std::dynamic_pointer_cast<contract::employees::Employee>(message->resource);
+                m_user = std::dynamic_pointer_cast<contract::manager::Employee>(message->resource);
                 qDebug() << "AppManager: auth SUCCESS";
                 ProcessEvent(Events::AUTH_SUCCESS);
             } else {

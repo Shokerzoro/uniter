@@ -112,7 +112,7 @@ namespace uniter::control {
 
         // Временные данные
         std::shared_ptr<contract::UniterMessage> m_authMessage;
-        std::shared_ptr<contract::employees::Employee> m_user;
+        std::shared_ptr<contract::manager::Employee> m_user;
         QString m_lastKafkaOffset;     // последний offset от KafkaConnector
 
         // Основная точка обработки события
@@ -215,7 +215,7 @@ namespace uniter::control {
         // === К менеджерам ===
         void signalFindAuthData();                   // AuthWidget: дай логин/пароль
         void signalLoadResources(QByteArray userhash);
-        void signalConfigProc(std::shared_ptr<contract::employees::Employee> User);
+        void signalConfigProc(std::shared_ptr<contract::manager::Employee> User);
         void signalClearResources();                 // logout-очистка (кеш/обзерверы)
         void signalClearDatabase();                  // DBCLEAR: полная очистка таблиц БД
 

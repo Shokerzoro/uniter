@@ -95,8 +95,8 @@ public:
         authMessageSuccess->status    = contract::MessageStatus::RESPONSE;
         authMessageSuccess->error     = contract::ErrorCode::SUCCESS;
 
-        std::vector<contract::employees::EmployeeAssignment> assignments;
-        auto employee = std::make_shared<contract::employees::Employee>(
+        std::vector<contract::manager::EmployeeAssignment> assignments;
+        auto employee = std::make_shared<contract::manager::Employee>(
             12345, true,
             QDateTime::currentDateTime(), QDateTime::currentDateTime(),
             0, 0,
@@ -175,10 +175,10 @@ class MockConfigManager : public QObject {
     Q_OBJECT
 public:
     MockConfigManager() = default;
-    std::shared_ptr<contract::employees::Employee> m_User;
+    std::shared_ptr<contract::manager::Employee> m_User;
     void emitConfigured() { emit signalConfigured(); }
 public slots:
-    void onConfigProc(std::shared_ptr<contract::employees::Employee> User) {
+    void onConfigProc(std::shared_ptr<contract::manager::Employee> User) {
         m_User = std::move(User);
     }
     void onClearResources() {

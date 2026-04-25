@@ -19,7 +19,7 @@ ConfigManager::ConfigManager() : QObject(nullptr) {
 }
 
 
-void ConfigManager::onConfigProc(std::shared_ptr<contract::employees::Employee> user_)
+void ConfigManager::onConfigProc(std::shared_ptr<contract::manager::Employee> user_)
 {
     qDebug() << "ConfigManager::onConfigProc() - START";
 
@@ -42,7 +42,7 @@ void ConfigManager::onConfigProc(std::shared_ptr<contract::employees::Employee> 
              << uniter::qt_compat::toQ(user->name)
              << "Subsystems:" << subsystemList.join(", ");
 
-    for (const contract::employees::EmployeeAssignment& assign : user->assignments) {
+    for (const contract::manager::EmployeeAssignment& assign : user->assignments) {
 
         bool created = true;
         contract::Subsystem subsystem = assign.subsystem;
@@ -82,7 +82,7 @@ void ConfigManager::onClearResources()
              << "Subsystems:" << subsystemList.join(", ");
 
     // Для каждой назначенной подсистемы отправляем событие с created = false
-    for (const contract::employees::EmployeeAssignment& assign : user->assignments) {
+    for (const contract::manager::EmployeeAssignment& assign : user->assignments) {
 
         bool created = false; // ← в отличие от onConfigProc()
         contract::Subsystem subsystem = assign.subsystem;

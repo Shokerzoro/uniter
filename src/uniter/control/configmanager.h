@@ -25,7 +25,7 @@ private:
     ConfigManager& operator=(ConfigManager&&) = delete;
 
     // Текущая конфигурация
-    std::shared_ptr<contract::employees::Employee> user;
+    std::shared_ptr<contract::manager::Employee> user;
 
 public:
     // Единственная точка доступа к синглтону
@@ -35,7 +35,7 @@ public:
 
 public slots:
     // Генерация конфигурации по данным пользователя
-    void onConfigProc(std::shared_ptr<contract::employees::Employee> User);
+    void onConfigProc(std::shared_ptr<contract::manager::Employee> User);
     void onClearResources();
 signals:
     // Уведомление AppManager о завершении конфигурирования

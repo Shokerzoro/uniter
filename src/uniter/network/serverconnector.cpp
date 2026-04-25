@@ -16,10 +16,10 @@ namespace {
 // Создание мок-пользователя со ВСЕМИ подсистемами и полными правами.
 // Stub: в реальной системе пользователя формирует сервер по БД компании.
 // --------------------------------------------------------------------------
-std::shared_ptr<uniter::contract::employees::Employee> makeFullAccessUser()
+std::shared_ptr<uniter::contract::manager::Employee> makeFullAccessUser()
 {
     namespace C = uniter::contract;
-    namespace E = uniter::contract::employees;
+    namespace E = uniter::contract::manager;
     using C::Subsystem;
     using C::GenSubsystemType;
     using E::EmployeeAssignment;
@@ -42,7 +42,7 @@ std::shared_ptr<uniter::contract::employees::Employee> makeFullAccessUser()
     );
 
     // Набор прав по каждой статической подсистеме (enum uint8_t значения).
-    // Берём по максимальному значению из uniter::contract::employees::*Permission —
+    // Берём по максимальному значению из uniter::contract::manager::*Permission —
     // заполняем ВСЕ значения. Это гарантирует «полные права».
     auto makePerms = [](uint8_t count) {
         std::vector<uint8_t> v;
