@@ -6,7 +6,7 @@
 namespace uniter::genwdg {
 
 SubsystemTab::SubsystemTab(contract::Subsystem subsystem,
-                   contract::GenSubsystemType genType,
+                   contract::GenSubsystem genType,
                    uint64_t genId,
                    QWidget* parent)
     : QWidget(parent), subsystem(subsystem), genType(genType), genId(genId) {
@@ -15,10 +15,10 @@ SubsystemTab::SubsystemTab(contract::Subsystem subsystem,
 
     if (subsystem == contract::Subsystem::GENERATIVE) {
         switch (genType) {
-        case contract::GenSubsystemType::INTERGATION:
+        case contract::GenSubsystem::INTERGATION:
             fullName = "Integration";
             break;
-        case contract::GenSubsystemType::PRODUCTION:
+        case contract::GenSubsystem::PRODUCTION:
             fullName = "Production";
             break;
         default:

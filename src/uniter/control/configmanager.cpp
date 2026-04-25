@@ -46,7 +46,7 @@ void ConfigManager::onConfigProc(std::shared_ptr<contract::manager::Employee> us
 
         bool created = true;
         contract::Subsystem subsystem = assign.subsystem;
-        contract::GenSubsystemType genType = contract::GenSubsystemType::NOTGEN;
+        contract::GenSubsystem genType = contract::GenSubsystem::NOTGEN;
         std::optional<uint64_t> genId = std::nullopt;
 
         if (subsystem == contract::Subsystem::GENERATIVE) {
@@ -86,7 +86,7 @@ void ConfigManager::onClearResources()
 
         bool created = false; // ← в отличие от onConfigProc()
         contract::Subsystem subsystem = assign.subsystem;
-        contract::GenSubsystemType genType = contract::GenSubsystemType::NOTGEN;
+        contract::GenSubsystem genType = contract::GenSubsystem::NOTGEN;
         std::optional<uint64_t> genId = std::nullopt;
 
         if (subsystem == contract::Subsystem::GENERATIVE) {

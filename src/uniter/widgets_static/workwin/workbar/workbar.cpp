@@ -45,7 +45,7 @@ WorkBar::WorkBar(QWidget* parent) : QWidget(parent) {
 }
 
 void WorkBar::addSubsystem(contract::Subsystem subsystem,
-                           contract::GenSubsystemType genType,
+                           contract::GenSubsystem genType,
                            uint64_t genId,
                            int index) {
 

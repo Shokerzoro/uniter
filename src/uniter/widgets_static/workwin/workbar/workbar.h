@@ -18,7 +18,7 @@ public:
     explicit WorkBar(QWidget* parent = nullptr);
 
     void addSubsystem(contract::Subsystem subsystem,
-                      contract::GenSubsystemType genType,
+                      contract::GenSubsystem genType,
                       uint64_t genId,
                       int index);
     void removeSubsystem(int index);

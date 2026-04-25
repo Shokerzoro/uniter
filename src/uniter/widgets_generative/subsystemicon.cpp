@@ -9,7 +9,7 @@
 namespace uniter::genwdg {
 
 SubsystemIcon::SubsystemIcon(contract::Subsystem subsystem,
-                             contract::GenSubsystemType genType,
+                             contract::GenSubsystem genType,
                              uint64_t genId,
                              int index,
                              QWidget* parent)
@@ -18,10 +18,10 @@ SubsystemIcon::SubsystemIcon(contract::Subsystem subsystem,
     QString name;
     if (subsystem == contract::Subsystem::GENERATIVE) {
         switch (genType) {
-        case contract::GenSubsystemType::INTERGATION:
+        case contract::GenSubsystem::INTERGATION:
             name = "IGR";
             break;
-        case contract::GenSubsystemType::PRODUCTION:
+        case contract::GenSubsystem::PRODUCTION:
             name = "PRD";
             break;
         default:

@@ -19,7 +19,7 @@ WorkArea::WorkArea(QWidget* parent) : QWidget(parent) {
 }
 
 void WorkArea::addSubsystem(contract::Subsystem subsystem,
-                            contract::GenSubsystemType genType,
+                            contract::GenSubsystem genType,
                             uint64_t genId,
                             int index) {
 

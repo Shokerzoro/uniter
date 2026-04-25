@@ -14,7 +14,7 @@ class SubsystemIcon : public QWidget {
 
 public:
     explicit SubsystemIcon(contract::Subsystem subsystem,
-                           contract::GenSubsystemType genType,
+                           contract::GenSubsystem genType,
                            uint64_t genId,
                            int index,
                            QWidget* parent = nullptr);

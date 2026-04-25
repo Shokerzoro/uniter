@@ -98,8 +98,8 @@ inline QDebug operator<<(QDebug debug, uniter::contract::Subsystem v) {
     return debug << QString::fromStdString(uniter::contract::subsystemToString(v));
 }
 
-inline QDebug operator<<(QDebug debug, uniter::contract::GenSubsystemType v) {
-    return debug << QString::fromStdString(uniter::contract::genSubsystemTypeToString(v));
+inline QDebug operator<<(QDebug debug, uniter::contract::GenSubsystem v) {
+    return debug << QString::fromStdString(uniter::contract::GenSubsystemToString(v));
 }
 
 inline QDebug operator<<(QDebug debug, uniter::contract::CrudAction v) {

@@ -41,7 +41,7 @@ PK/FK и основные столбцы).
 |---------------------------|---------|----------------------------------------------|
 | `id`                      | PK      |                                              |
 | `subsystem`               | INT     | `contract::Subsystem`                        |
-| `gensubsystem`            | INT     | `contract::GenSubsystemType` (`NOTGEN` / `PRODUCTION` / `INTERGATION`) |
+| `gensubsystem`            | INT     | `contract::GenSubsystem` (`NOTGEN` / `PRODUCTION` / `INTERGATION`) |
 | `gensubsystem_id`         | BIGINT? | id генеративной подсистемы (NULL, если `gensubsystem = NOTGEN`) |
 | + поля `ResourceAbstract` | …       |                                              |
 

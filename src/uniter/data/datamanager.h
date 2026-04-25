@@ -54,7 +54,7 @@ public slots:
     void onClearDatabase();
     void onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> message);
     void onSubsystemGenerate(contract::Subsystem subsystem,
-                             contract::GenSubsystemType genType,
+                             contract::GenSubsystem genType,
                              std::optional<uint64_t> genId,
                              bool created);
 

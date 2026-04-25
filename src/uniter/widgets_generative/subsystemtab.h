@@ -14,7 +14,7 @@ class SubsystemTab : public QWidget {
 
 public:
     explicit SubsystemTab(contract::Subsystem subsystem,
-                     contract::GenSubsystemType genType,
+                     contract::GenSubsystem genType,
                      uint64_t genId,
                      QWidget* parent = nullptr);
 
@@ -30,7 +30,7 @@ public slots:
 
 private:
     contract::Subsystem subsystem;
-    contract::GenSubsystemType genType;
+    contract::GenSubsystem genType;
     uint64_t genId;
 };
 

@@ -55,7 +55,7 @@ void WorkWdg::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> messa
 }
 
 void WorkWdg::onSubsystemAdded(contract::Subsystem subsystem,
-                               contract::GenSubsystemType genType,
+                               contract::GenSubsystem genType,
                                std::optional<uint64_t> genId,
                                bool created) {
 
@@ -69,7 +69,7 @@ void WorkWdg::onSubsystemAdded(contract::Subsystem subsystem,
 }
 
 void WorkWdg::addSubsystem(contract::Subsystem subsystem,
-                           contract::GenSubsystemType genType,
+                           contract::GenSubsystem genType,
                            std::optional<uint64_t> genId) {
 
     qDebug() << "WorkWdg::addSubsystem():" << subsystem;
@@ -90,7 +90,7 @@ void WorkWdg::addSubsystem(contract::Subsystem subsystem,
 }
 
 void WorkWdg::removeSubsystem(contract::Subsystem subsystem,
-                              contract::GenSubsystemType genType,
+                              contract::GenSubsystem genType,
                               std::optional<uint64_t> genId) {
     int index = -1;
     uint64_t genId_ = (genId == std::nullopt) ? 0 : genId.value();
@@ -103,7 +103,7 @@ void WorkWdg::removeSubsystem(contract::Subsystem subsystem,
 }
 
 bool WorkWdg::findIndex(contract::Subsystem subsystem,
-                        contract::GenSubsystemType genType,
+                        contract::GenSubsystem genType,
                         std::optional<uint64_t> genId,
                         int& outIndex) const {
     uint64_t genId_ = (genId == std::nullopt) ? 0 : genId.value();
