@@ -78,94 +78,87 @@ DML используется executors.
 
 ## Чего не хватает в IDataBase
 
-Текущий `IDataBase` умеет только `Open()`, `Close()`, приватный `ExecInstruction()` и базовые транзакционные hooks. Этого недостаточно для пунктов 1-2 DataManager, но расширять его до владельца DDL подсистем не нужно.
+Текущий `IDataBase` должен остаться минимальным дескриптором БД. Расширять его до владельца DDL подсистем не нужно.
 
-Минимально нужен такой уровень интерфейса:
-
-```cpp
-struct DataBaseConfig {
-    std::string baseDirectory;
-    std::string userHash;
-    std::string databaseName;
-    bool createIfMissing = true;
-};
-
-enum class DataBaseOpenStatus {
-    Opened,
-    Created,
-    Error
-};
-
-struct DataBaseStatus {
-    bool ok = false;
-    std::string message;
-};
-```
-
-В `IDataBase`:
+Утвержденный минимальный интерфейс:
 
 ```cpp
-virtual DataBaseStatus Open(const DataBaseConfig& config) = 0;
+virtual void Open(const std::string& database_path) = 0;
 virtual void Close() = 0;
-virtual bool IsOpen() const = 0;
 
-virtual DataBaseStatus InitializeStorage() = 0;
-virtual DataBaseStatus DropAllData() = 0;
+virtual void SetUserContext(const std::string& user_hash) = 0;
 
-virtual DataBaseStatus CheckTableExists(const std::string& tableName) = 0;
-
-virtual SqlResult Exec(const std::string& instruction) = 0;
+virtual SqlResult ExecInstruction(const std::string& instruction) = 0; // private, friend IResExecutor
+virtual void BeginTransaction() = 0;   // private, friend Transaction
+virtual void CommitTransaction() = 0;  // private, friend Transaction
+virtual void RollbackTransaction() = 0;// private, friend Transaction
 ```
 
-Важно: `InitializeStorage()` здесь означает подготовку физического хранилища, а не создание таблиц подсистем. Для SQLite это создание каталога/файла, открытие соединения и engine pragmas. Создание таблиц выполняют executors.
+`Open()` принимает только путь к файлу/подключению. Подготовка пути, выбор имени файла и передача `userHash` - ответственность `DataManager` и конкретной реализации, которая находится в клиентском проекте.
 
-`CheckTableExists()` допустим как низкоуровневая engine-specific проверка, но решение, какие таблицы обязательны, остается в executor-е подсистемы.
+`SetUserContext()` - единственное расширение поверх старой модели. Это не знание структуры БД: метод только задает текущего логического пользователя для открытого connection. Как именно этот контекст используется, решают executors через свои DDL/DML.
 
 Практичный вариант доступа:
 
-- `IResExecutor` использует protected/static доступ к `Exec`.
+- `IResExecutor` использует protected/static доступ к `ExecInstruction`.
 - `Transaction` остается friend и вызывает `BeginTransaction`, `CommitTransaction`, `RollbackTransaction`.
 
 ## Чего не хватает в SqliteDataBase
 
-SQLite-реализация должна покрыть пункты 1-2 DataManager.
+SQLite-реализация должна лежать в основном клиентском проекте, например `src/uniter/data/`, потому что это часть приложения Uniter, а не общий с сервером слой `database/` / `contract/`.
 
 Нужно реализовать:
 
 1. Формирование пути к файлу БД.
-   - На вход приходит `userHash`.
-   - Файл должен иметь предсказуемое имя, например `uniter_<userHash>.sqlite`.
+   - `DataManager` передает в `Open()` путь к общему локальному файлу БД.
    - Каталог должен создаваться, если его нет.
-   - Нужна валидация `userHash`, чтобы он не мог стать путем.
+   - `userHash` не должен использоваться как имя файла, если выбрана стратегия одного файла на всех пользователей.
 
 2. Открытие соединения.
    - Открыть SQLite database file.
    - Включить `PRAGMA foreign_keys = ON`.
    - Настроить разумные pragmas: например `journal_mode = WAL`, `busy_timeout`.
 
-3. Служебная подготовка движка.
-   - Создать файл БД и каталог, если их нет.
-   - Включить обязательные SQLite pragmas.
-   - Подготовить соединение к выполнению SQL.
+3. Контекст пользователя.
+   - `SetUserContext(userHash)` должен задать текущего логического пользователя для connection.
+   - Для SQLite можно хранить этот контекст во внутреннем поле `SqlDataBase` и/или во временной connection-local таблице.
+   - Подбирать `userHash` действительно сложно, но это не полноценная модель безопасности. Это локальная изоляция данных в клиентской БД, а не замена серверной авторизации.
 
-4. Проверка схемы.
-   - Предоставить primitive `CheckTableExists`.
-   - Для SQLite выполнить `PRAGMA foreign_key_check`, если executor или DataManager запрашивает общую проверку.
-   - Не хранить в `IDataBase` список обязательных таблиц подсистем.
+4. Выполнение SQL.
+   - `ExecInstruction()` должен выполнять произвольную DDL/DML-инструкцию, полученную от executor-а.
+   - Возвращать `SqlResult` с данными и ошибкой.
 
-5. Очистка данных.
-   - Полная очистка файла/хранилища может быть engine-level операцией.
-   - Очистка ресурсных таблиц по подсистемам должна выполняться executors, потому что только они знают порядок удаления с учетом FK.
-
-6. Транзакции.
+5. Транзакции.
    - `BeginTransaction()` должен реально выполнять `BEGIN IMMEDIATE` или `BEGIN`.
    - `CommitTransaction()` должен выполнять `COMMIT`.
    - `RollbackTransaction()` должен выполнять `ROLLBACK`.
    - Мьютекс сам по себе не является транзакцией.
 
-7. Ошибки.
+6. Ошибки.
    - `SqlResult` должен нести ошибку: message/code.
    - Сейчас `SqlResult` имеет `success`, но не имеет текста ошибки.
+
+## Изоляция данных пользователей
+
+Идея "один файл БД, но разные пользователи видят свои данные" правильна как клиентская локальная изоляция, но в SQLite нет встроенных пользователей, схем и `search_path`, как в PostgreSQL. Поэтому это нельзя реализовать только средствами `IDataBase`, не зная таблиц.
+
+Принятая модель:
+
+- физический файл БД один;
+- `IDataBase::SetUserContext(userHash)` задает текущий логический user context;
+- executors создают DDL так, чтобы данные были user-scoped;
+- DML executors обращается к своей подсистеме с учетом текущего user context.
+
+Для SQLite практичный вариант:
+
+1. Физические таблицы содержат технический столбец `user_hash` или `local_user_id`.
+2. Executor создает реальные таблицы и, при необходимости, connection-local views/triggers для текущего пользователя.
+3. `SqlDataBase::SetUserContext()` обновляет текущий контекст connection.
+4. Executor гарантирует, что CRUD работает только с текущим user context.
+
+Вариант с одинаковыми именами таблиц "как будто у каждого пользователя своя схема" в SQLite можно эмулировать только через views/triggers или через префиксы таблиц. Простое создание `manager_employees` отдельно для каждого пользователя в одном SQLite-файле невозможно: имена таблиц в одном database namespace глобальны.
+
+Отдельные файлы на пользователя технически проще, но пока это не выбранная модель.
 
 ## DataManager после подготовки интерфейсов
 
@@ -179,10 +172,12 @@ std::unordered_map<contract::Subsystem, std::unique_ptr<database::IResExecutor>>
 Инициализация DataManager:
 
 1. Создать `SqliteDataBase`.
-2. Вызвать `Open(config)` с `userHash`.
-3. Создать/зарегистрировать executors.
-4. Вызвать DDL-инициализацию каждого executor-а.
-5. Перейти в состояние `LOADED`.
+2. Сформировать путь к общему локальному файлу БД.
+3. Вызвать `Open(databasePath)`.
+4. Вызвать `SetUserContext(userHash)`.
+5. Создать/зарегистрировать executors.
+6. Вызвать DDL-инициализацию каждого executor-а.
+7. Перейти в состояние `LOADED`.
 
 Очистка данных:
 
@@ -232,10 +227,11 @@ CodeGen нужен после стабилизации интерфейсов `I
 ## Порядок работ
 
 1. [x] Утвердить и локально разложить структуру каталогов.
-2. Утвердить минимальный интерфейс `IDataBase`.
-3. Добавить `SqliteDataBase` с открытием пользовательского файла, транзакциями и базовой проверкой схемы.
+2. [x] Утвердить минимальный интерфейс `IDataBase`.
+3. Добавить `SqliteDataBase` с открытием общего файла БД, транзакциями и user context.
 4. Уточнить базовый интерфейс executor-а: DDL-инициализация, очистка данных, CRUD-маршрутизация.
 5. Перенести DDL/DML SQL в разделенные `.sql` файлы внутри подсистем.
 6. Реализовать `DataManager` на уровне инициализации, очистки и маршрутизации в executor.
 7. Реализовать `ManagerExecutor` как первый рабочий executor.
 8. После этого внедрять CodeGen и DataGrip-процесс.
+9. Реализовать фактическую изоляцию данных пользователей в DDL/DML executors: `SetUserContext()` сейчас только задает контекст, но сам по себе не фильтрует и не разделяет данные.

@@ -43,6 +43,8 @@ set(DATA_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/data/datamanager.cpp
     ${CMAKE_CURRENT_LIST_DIR}/data/idataobserver.h
     ${CMAKE_CURRENT_LIST_DIR}/data/idataobserver.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/data/sqlitedatabase.h
+    ${CMAKE_CURRENT_LIST_DIR}/data/sqlitedatabase.cpp
 )
 
 
