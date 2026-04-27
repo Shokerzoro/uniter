@@ -2,12 +2,14 @@
 #define DATAMANAGER_H
 
 #include "../contract/unitermessage.h"
-#include "../contract/resourceabstract.h"
-#include "idataobserver.h"
+#include "../database/common/commonexecutor.h"
+#include "../database/idatabase.h"
+#include "../database/manager/managerexecutor.h"
 #include <QObject>
 #include <QByteArray>
 #include <memory>
-#include <vector>
+#include <optional>
+#include <string>
 
 
 namespace uniter::data {
@@ -31,13 +33,17 @@ private:
     DBState state = DBState::IDLE;
     void setState(DBState newState);
 
-    // Списки обзерверов
-    std::vector<std::weak_ptr<IDataObserver>> treeObservers;
-    std::vector<std::weak_ptr<IDataObserver>> listObservers;
-    std::vector<std::weak_ptr<IDataObserver>> resourceObservers;
+    std::unique_ptr<database::IDataBase> db_;
+    database::CommonExecutor commonExecutor_;
+    database::ManagerExecutor managerExecutor_;
+    QByteArray userHash_;
+    QString databasePath_;
 
-    // Очистка устаревших weak_ptr
-    void cleanupObservers();
+    QString resolveDatabasePath(const QByteArray& userhash) const;
+    bool initializeDatabase(const QByteArray& userhash);
+    bool initializeExecutor(database::IResExecutor& executor);
+    bool clearExecutorData(database::IResExecutor& executor);
+    std::optional<database::ExecutorResult> routeManagerMessage(const contract::UniterMessage& message);
 
 public:
     // Публичный статический метод получения экземпляра
@@ -57,29 +63,6 @@ public slots:
                              contract::GenSubsystem genType,
                              std::optional<uint64_t> genId,
                              bool created);
-
-    // Подписки на ресурсы
-    void onSubscribeToResourceList(contract::Subsystem subsystem,
-                                   contract::ResourceType type,
-                                   QObject* observer);
-    void onSubscribeToResourceTree(contract::Subsystem subsystem,
-                                   contract::ResourceType type,
-                                   QObject* observer);
-    void onSubscribeToResource(contract::Subsystem subsystem,
-                               contract::ResourceType type,
-                               std::optional<uint64_t> resId,
-                               QObject* observer);
-
-    // Отписки от ресурсов
-    void onUnsubscribeFromResourceList(QObject* observer);
-    void onUnsubscribeFromResourceTree(QObject* observer);
-    void onUnsubscribeFromResource(QObject* observer);
-
-    // Получить ресурс
-    void onGetResource(contract::Subsystem subsystem,
-                       contract::ResourceType type,
-                       std::optional<uint64_t> resourceId,
-                       QObject* observer);
 
 signals:
     void signalResourcesLoaded();  // Менеджеру приложения: БД загружена

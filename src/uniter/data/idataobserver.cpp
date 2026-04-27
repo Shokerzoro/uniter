@@ -1,5 +1,4 @@
 #include "idataobserver.h"
-#include "datamanager.h"
 
 namespace uniter::data {
 
@@ -8,26 +7,7 @@ IDataObserver::IDataObserver(QObject* parent)
     , resourceData(nullptr)
     , treeData(nullptr)
 {
-    // Подключение сигналов к слотам DataManager
-    auto* dm = DataManager::instance();
-
-    connect(this, &IDataObserver::subscribeToResource,
-            dm, &DataManager::onSubscribeToResource);
-
-    connect(this, &IDataObserver::subscribeToResourceList,
-            dm, &DataManager::onSubscribeToResourceList);
-
-    connect(this, &IDataObserver::subscribeToResourceTree,
-            dm, &DataManager::onSubscribeToResourceTree);
-
-    connect(this, &IDataObserver::unsubscribeFromResource,
-            dm, &DataManager::onUnsubscribeFromResource);
-
-    connect(this, &IDataObserver::unsubscribeFromResourceList,
-            dm, &DataManager::onUnsubscribeFromResourceList);
-
-    connect(this, &IDataObserver::unsubscribeFromResourceTree,
-            dm, &DataManager::onUnsubscribeFromResourceTree);
+    // Subscription routing will be reintroduced with the UI-facing DataManager API.
 }
 
 void IDataObserver::setResourceData(std::shared_ptr<contract::ResourceAbstract> resource)
