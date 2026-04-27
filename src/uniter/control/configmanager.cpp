@@ -38,8 +38,8 @@ void ConfigManager::onConfigProc(std::shared_ptr<contract::manager::Employee> us
     }
 
     qDebug() << "ConfigManager::onConfigProc() - User:"
-             << uniter::qt_compat::toQ(user->surname)
-             << uniter::qt_compat::toQ(user->name)
+             << uniter::qt_compat::toQ(user->first_name)
+             << uniter::qt_compat::toQ(user->last_name)
              << "Subsystems:" << subsystemList.join(", ");
 
     for (const contract::manager::EmployeeAssignment& assign : user->assignments) {
@@ -77,8 +77,8 @@ void ConfigManager::onClearResources()
     }
 
     qDebug() << "ConfigManager::onClearResources() - Clearing user:"
-             << uniter::qt_compat::toQ(user->surname)
-             << uniter::qt_compat::toQ(user->name)
+             << uniter::qt_compat::toQ(user->first_name)
+             << uniter::qt_compat::toQ(user->last_name)
              << "Subsystems:" << subsystemList.join(", ");
 
     // Для каждой назначенной подсистемы отправляем событие с created = false

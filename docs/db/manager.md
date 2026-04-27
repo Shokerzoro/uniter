@@ -42,7 +42,7 @@ PK/FK и основные столбцы).
 | `id`                      | PK      |                                              |
 | `subsystem`               | INT     | `contract::Subsystem`                        |
 | `gensubsystem`            | INT     | `contract::GenSubsystem` (`NOTGEN` / `PRODUCTION` / `INTERGATION`) |
-| `gensubsystem_id`         | BIGINT? | id генеративной подсистемы (NULL, если `gensubsystem = NOTGEN`) |
+| `gensubsystem_id`         | INTEGER? | id генеративной подсистемы (NULL, если `gensubsystem = NOTGEN`) |
 | + поля `ResourceAbstract` | …       |                                              |
 
 ### `manager/permissions` — `ResourceType::PERMISSION`

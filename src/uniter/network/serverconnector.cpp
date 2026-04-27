@@ -28,16 +28,18 @@ std::shared_ptr<uniter::contract::manager::Employee> makeFullAccessUser()
     const auto now_tp = std::chrono::system_clock::now();
 
     auto user = std::make_shared<Employee>(
-        /*sid*/ 1,
-        /*actual*/ true,
+        1,
+        true,
         now_tp,
         now_tp,
-        /*created_by*/ 0,
-        /*updated_by*/ 0,
+        0,
+        0,
+        std::string("Test"),
+        std::string("test.user@example.com"),
+        std::string("..."),                 // или "", или хэш, как в БД
         std::string("Test"),
         std::string("User"),
-        std::string("Stub"),
-        std::string("test.user@example.com"),
+        std::nullopt,                       // phone может быть NULL в БД
         std::vector<EmployeeAssignment>{}
     );
 
