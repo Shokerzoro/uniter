@@ -18,31 +18,31 @@ class WorkArea : public QWidget {
 public:
     explicit WorkArea(QWidget* parent = nullptr);
 
-    // Вызывается WorkWdg при добавлении подсистемы
+    // Called by WorkWdg when adding a subsystem
     void addSubsystem(contract::Subsystem subsystem,
                       contract::GenSubsystem genType,
                       uint64_t genId,
                       int index);
 
-    // Вызывается WorkWdg при удалении подсистемы
+    // Called by WorkWdg when a subsystem is removed
     void removeSubsystem(int index);
 
 signals:
-    // Проксирует сообщения вверх в сеть
+    // Proxies messages up into the network
     void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
 
 public slots:
-    // Получает сигнал от StatusBar через WorkWdg
+    // Receives a signal from StatusBar via WorkWdg
     void onSwitchTab(int index);
 
-    // Получает сообщения из WorkWdg
+    // Receives messages from WorkWdg
     void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
 
 private:
-    // Хранит виджеты подсистем (index -> SubsWdg)
+    // Stores subsystem widgets (index -> SubsWdg)
     std::map<int, genwdg::SubsystemTab*> subsystemWidgets;
 
-    // StackedLayout для переключения между вкладками
+    // StackedLayout for switching between tabs
     QStackedLayout* stackedLayout;
 };
 

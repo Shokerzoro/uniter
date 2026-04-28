@@ -3,21 +3,21 @@
 
 /**
  * @file qt_compat.h
- * @brief Адаптеры между std-типами контракта и Qt-типами клиентского кода.
+ * @brief Adapters between contract std types and client code Qt types.
  *
- * Контракт (uniter-contract) собирается без Qt и использует
+ * The contract (unit-contract) is assembled without Qt and uses
  * std::string / std::chrono::system_clock::time_point / std::map<...>.
- * Клиент использует QString / QDateTime / QVariantMap в UI и сигналах.
+ * The client uses QString/QDateTime/QVariantMap in the UI and signals.
  *
- * Этот заголовок предоставляет набор inline-функций-конверторов, которые
- * применяются строго на границе "контракт ↔ клиентский Qt-код":
+ * This header provides a set of inline converter functions that
+ * are applied strictly at the “contract ↔ client Qt code” boundary:
  *
- *   - вход: пользовательский ввод из QLineEdit / QLabel → std::string →
- *     в поле ResourceAbstract-наследника.
- *   - выход: значение из ResourceAbstract → QString → в QLabel / qDebug.
+ * - input: user input from QLineEdit/QLabel -> std::string ->
+ * in the ResourceAbstract-successor field.
+ * - output: value from ResourceAbstract -> QString -> in QLabel/qDebug.
  *
- * Внутренняя бизнес-логика (data/, control/) должна постепенно переходить
- * на std::string напрямую, без посредников.
+ * Internal business logic (data/, control/) should gradually transition
+ * to std::string directly, without intermediaries.
  */
 
 #include <QString>
@@ -75,8 +75,8 @@ inline QString addDataGet(const std::map<std::string, std::string>& m,
 }
 
 // ---------------------------------------------------------------------------
-// QDebug-совместимый вывод std::string
-// (в Qt ≥ 5.14 уже есть, но дублируем для совместимости со старыми сборками)
+// QDebug-compatible std::string output
+// (in Qt ≥ 5.14 it already exists, but we duplicate it for compatibility with older builds)
 // ---------------------------------------------------------------------------
 
 inline QDebug operator<<(QDebug debug, const std::string& s) {
@@ -86,12 +86,12 @@ inline QDebug operator<<(QDebug debug, const std::string& s) {
 } // namespace uniter::qt_compat
 
 // ---------------------------------------------------------------------------
-// QDebug operator<< для enum'ов из uniterprotocol.h
+// QDebug operator<< for enums from uniterprotocol.h
 //
-// Контракт использует std::string и std::ostream — Qt не знает об этих enum'ах.
-// Операторы ниже делегируют в toString-функции контракта и живут вне
-// namespace uniter::qt_compat, чтобы находиться через ADL при вызове
-// qDebug() << value из любого места, где подключён этот заголовок.
+// The contract uses std::string and std::ostream - Qt does not know about these enums.
+// The statements below delegate to the contract's toString functions and live outside
+// namespace uniter::qt_compat to be via ADL when called
+// qDebug() << value from wherever this header is included.
 // ---------------------------------------------------------------------------
 
 inline QDebug operator<<(QDebug debug, uniter::contract::Subsystem v) {
@@ -184,7 +184,7 @@ inline QDebug operator<<(QDebug debug, uniter::contract::ResourceType v) {
     }
 }
 
-// Глобальные сокращения (опционально; использовать только в .cpp клиента).
-// Намеренно не using namespace — чтобы точка подключения была явной.
+// Global abbreviations (optional; only used in client .cpp).
+// Intentionally not using namespace - so that the connection point is explicit.
 
 #endif // UNITER_CONTRACT_QT_COMPAT_H

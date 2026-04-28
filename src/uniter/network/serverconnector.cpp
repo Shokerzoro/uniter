@@ -13,8 +13,8 @@
 namespace {
 
 // --------------------------------------------------------------------------
-// Создание мок-пользователя со ВСЕМИ подсистемами и полными правами.
-// Stub: в реальной системе пользователя формирует сервер по БД компании.
+// Creating a mock user with ALL subsystems and full rights.
+// Stub: in the user’s real system, a server is created based on the company’s database.
 // --------------------------------------------------------------------------
 std::shared_ptr<uniter::contract::manager::Employee> makeFullAccessUser()
 {
@@ -36,16 +36,16 @@ std::shared_ptr<uniter::contract::manager::Employee> makeFullAccessUser()
         0,
         std::string("Test"),
         std::string("test.user@example.com"),
-        std::string("..."),                 // или "", или хэш, как в БД
+        std::string("..."),                 // or "", or hash, as in the database
         std::string("Test"),
         std::string("User"),
-        std::nullopt,                       // phone может быть NULL в БД
+        std::nullopt,                       // phone can be NULL in the database
         std::vector<EmployeeAssignment>{}
     );
 
-    // Набор прав по каждой статической подсистеме (enum uint8_t значения).
-    // Берём по максимальному значению из uniter::contract::manager::*Permission —
-    // заполняем ВСЕ значения. Это гарантирует «полные права».
+    // A set of rights for each static subsystem (enum uint8_t values).
+    // We take the maximum value from uniter::contract::manager::*Permission —
+    // fill in ALL values. This guarantees "full rights".
     auto makePerms = [](uint8_t count) {
         std::vector<uint8_t> v;
         v.reserve(count);
@@ -68,7 +68,7 @@ std::shared_ptr<uniter::contract::manager::Employee> makeFullAccessUser()
     assignments.push_back(makeAssign(Subsystem::INSTANCES, makePerms(3)));
     assignments.push_back(makeAssign(Subsystem::DESIGN,    makePerms(5)));
     assignments.push_back(makeAssign(Subsystem::PURCHASES, makePerms(4)));
-    // PDM: выделенного enum нет — даём разумный набор «всех флагов».
+    // PDM: there is no dedicated enum - we give a reasonable set of “all flags”.
     assignments.push_back(makeAssign(Subsystem::PDM,       makePerms(5)));
     assignments.push_back(makeAssign(Subsystem::DOCUMENTS, makePerms(5)));
 
@@ -79,7 +79,7 @@ std::shared_ptr<uniter::contract::manager::Employee> makeFullAccessUser()
 }
 
 // --------------------------------------------------------------------------
-// Формирование ответа на протокольный AUTH — всегда успех.
+// Generating a response to a protocol AUTH is always a success.
 // --------------------------------------------------------------------------
 std::shared_ptr<uniter::contract::UniterMessage>
 makeProtocolAuthResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request)
@@ -96,8 +96,8 @@ makeProtocolAuthResponse(const std::shared_ptr<uniter::contract::UniterMessage>&
 }
 
 // --------------------------------------------------------------------------
-// CRUD-ответ: всегда положительный. RESPONSE/SUCCESS, сохраняя тело
-// исходного запроса для клиента.
+// CRUD response: always positive. RESPONSE/SUCCESS, preserving the body
+// original request for the client.
 // --------------------------------------------------------------------------
 std::shared_ptr<uniter::contract::UniterMessage>
 makeCrudResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request)
@@ -111,7 +111,7 @@ makeCrudResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request
 }
 
 // --------------------------------------------------------------------------
-// Имитация broadcast через Kafka: тот же CUD, но статус NOTIFICATION.
+// Imitation of broadcast via Kafka: the same CUD, but NOTIFICATION status.
 // --------------------------------------------------------------------------
 std::shared_ptr<uniter::contract::UniterMessage>
 makeCrudNotification(const std::shared_ptr<uniter::contract::UniterMessage>& request)
@@ -125,7 +125,7 @@ makeCrudNotification(const std::shared_ptr<uniter::contract::UniterMessage>& req
 }
 
 // --------------------------------------------------------------------------
-// Ответ на GET_KAFKA_CREDENTIALS: всегда подтверждаем актуальность offset.
+// Answer to GET_KAFKA_CREDENTIALS: we always confirm the relevance of offset.
 // --------------------------------------------------------------------------
 std::shared_ptr<uniter::contract::UniterMessage>
 makeKafkaOffsetCheckResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request)
@@ -138,7 +138,7 @@ makeKafkaOffsetCheckResponse(const std::shared_ptr<uniter::contract::UniterMessa
     response->subsystem = Subsystem::PROTOCOL;
     response->error     = ErrorCode::SUCCESS;
 
-    // Echo offset для прозрачности в логах.
+    // Echo offset for transparency in logs.
     std::string offset_echo;
     auto it = request->add_data.find("offset");
     if (it != request->add_data.end()) {
@@ -154,7 +154,7 @@ makeKafkaOffsetCheckResponse(const std::shared_ptr<uniter::contract::UniterMessa
 }
 
 // --------------------------------------------------------------------------
-// Ответ на FULL_SYNC: мгновенное SUCCESS без стрима данных.
+// Answer to FULL_SYNC: instant SUCCESS without data streaming.
 // --------------------------------------------------------------------------
 std::shared_ptr<uniter::contract::UniterMessage>
 makeFullSyncDoneResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request)
@@ -191,14 +191,14 @@ ServerConnector::ServerConnector()
 
 ServerConnector::~ServerConnector() = default;
 
-// === Слоты ===
+// === Slots ===
 
 void ServerConnector::onMakeConnection()
 {
-    // Stub: подключение всегда мгновенное и успешное.
+    // Stub: connection is always instant and successful.
     connected_ = true;
     qDebug() << "ServerConnector::onMakeConnection() — stub connected";
-    // Через event loop, чтобы не дёргать FSM из того же стека.
+    // Through an event loop, so as not to pull FSM from the same stack.
     QTimer::singleShot(0, this, [this]() {
         emit signalConnectionUpdated(true);
     });
@@ -226,7 +226,7 @@ void ServerConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mes
         return;
     }
 
-    // --- PROTOCOL: проверка актуальности offset Kafka ---
+    // --- PROTOCOL: checking if Kafka offset is up to date ---
     if (message->subsystem == Subsystem::PROTOCOL &&
         message->protact   == ProtocolAction::GET_KAFKA_CREDENTIALS)
     {
@@ -236,7 +236,7 @@ void ServerConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mes
         return;
     }
 
-    // --- PROTOCOL: запрос полной синхронизации ---
+    // --- PROTOCOL: full synchronization request ---
     if (message->subsystem == Subsystem::PROTOCOL &&
         message->protact   == ProtocolAction::FULL_SYNC &&
         message->status    == MessageStatus::REQUEST)
@@ -247,9 +247,9 @@ void ServerConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mes
         return;
     }
 
-    // --- PROTOCOL: запрос presigned URL у сервера ---
-    // Перекидываем MinIOConnector-у через временный прямой connect.
-    // MinIOConnector ответит через onMinioPresignedUrlReady, ниже.
+    // --- PROTOCOL: request presigned URL from the server ---
+    // We pass the MinIOConnector through a temporary direct connect.
+    // MinIOConnector will respond via onMinioPresignedUrlReady, below.
     if (message->subsystem == Subsystem::PROTOCOL &&
         message->protact   == ProtocolAction::GET_MINIO_PRESIGNED_URL &&
         message->status    == MessageStatus::REQUEST)
@@ -264,21 +264,21 @@ void ServerConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mes
         qDebug() << "ServerConnector: forwarding MinIO presigned URL request, key="
                  << object_key << " op=" << minio_operation;
 
-        // Сохраняем копию запроса, чтобы сохранить correlation
-        // (request_sequence_id, add_data и т.п.).
+        // Save a copy of the request to save the correlation
+        // (request_sequence_id, add_data, etc.).
         auto requestCopy = std::make_shared<UniterMessage>(*message);
         emit signalRequestMinioPresignedUrl(requestCopy, object_key, minio_operation);
         return;
     }
 
-    // --- CRUD: отвечаем RESPONSE/SUCCESS и шлём NOTIFICATION через KafkaConnector ---
+    // --- CRUD: respond RESPONSE/SUCCESS and send NOTIFICATION via KafkaConnector ---
     if (message->crudact != CrudAction::NOTCRUD) {
         auto response = makeCrudResponse(message);
         ++seq_id_received_;
         emit signalRecvMessage(response);
 
-        // TEMP broadcast: имитируем Kafka-уведомление об этой CUD операции.
-        // На реальном сервере Kafka-сообщение публикует сам сервер, без участия клиента.
+        // TEMP broadcast: simulate Kafka notification about this CUD operation.
+        // On a real Kafka server, the Kafka message is published by the server itself, without the participation of the client.
         auto notification = makeCrudNotification(message);
         emit signalEmitKafkaNotification(notification);
         return;
@@ -295,7 +295,7 @@ void ServerConnector::onMinioPresignedUrlReady(std::shared_ptr<contract::UniterM
                                                QString object_key,
                                                QString presigned_url)
 {
-    // Формируем RESPONSE для исходного запроса GET_MINIO_PRESIGNED_URL.
+    // We form a RESPONSE for the initial request GET_MINIO_PRESIGNED_URL.
     auto response = std::make_shared<UniterMessage>();
     if (requestCopy) {
         *response = *requestCopy;
@@ -307,7 +307,7 @@ void ServerConnector::onMinioPresignedUrlReady(std::shared_ptr<contract::UniterM
     response->add_data.clear();
     response->add_data.emplace("object_key",    object_key.toStdString());
     response->add_data.emplace("presigned_url", presigned_url.toStdString());
-    // url_expires_at опускаем — в stub URL «бессрочный».
+    // url_expires_at is omitted - the stub URL is “indefinite”.
 
     qDebug() << "ServerConnector: returning presigned URL for key=" << object_key;
     ++seq_id_received_;

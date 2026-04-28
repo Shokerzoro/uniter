@@ -15,7 +15,7 @@ ConfigManager* ConfigManager::instance() {
 }
 
 ConfigManager::ConfigManager() : QObject(nullptr) {
-    // Инициализация, если нужна
+    // Initialization, if necessary
 }
 
 
@@ -31,7 +31,7 @@ void ConfigManager::onConfigProc(std::shared_ptr<contract::manager::Employee> us
 
     user = std::move(user_);
 
-    // Собираем список подсистем для лога
+    // Collecting a list of subsystems for the log
     QStringList subsystemList;
     for (const auto& assign : user->assignments) {
         subsystemList << uniter::qt_compat::toQ(contract::subsystemToString(assign.subsystem));
@@ -70,7 +70,7 @@ void ConfigManager::onClearResources()
         return;
     }
 
-    // Собираем список подсистем для лога
+    // Collecting a list of subsystems for the log
     QStringList subsystemList;
     for (const auto& assign : user->assignments) {
         subsystemList << uniter::qt_compat::toQ(contract::subsystemToString(assign.subsystem));
@@ -81,10 +81,10 @@ void ConfigManager::onClearResources()
              << uniter::qt_compat::toQ(user->last_name)
              << "Subsystems:" << subsystemList.join(", ");
 
-    // Для каждой назначенной подсистемы отправляем событие с created = false
+    // For each designated subsystem, we send an event with created = false
     for (const contract::manager::EmployeeAssignment& assign : user->assignments) {
 
-        bool created = false; // ← в отличие от onConfigProc()
+        bool created = false; // ← unlike onConfigProc()
         contract::Subsystem subsystem = assign.subsystem;
         contract::GenSubsystem genType = contract::GenSubsystem::NOTGEN;
         std::optional<uint64_t> genId = std::nullopt;
@@ -97,7 +97,7 @@ void ConfigManager::onClearResources()
         emit signalSubsystemAdded(subsystem, genType, genId, created);
     }
 
-    // Освобождаем пользователя
+    // Release the user
     user.reset();
 
     qDebug() << "ConfigManager::onClearResources() - DONE, user cleared";

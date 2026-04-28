@@ -19,30 +19,30 @@ namespace uniter::staticwdg {
 
 WorkWdg::WorkWdg(QWidget* parent) : QWidget(parent) {
 
-    // Создаём виджеты
+    // Creating widgets
     workbar = new WorkBar(this);
     workArea = new WorkArea(this);
 
-    // Компоновка - ГОРИЗОНТАЛЬНАЯ для размещения workbar слева
+    // Layout - HORIZONTAL to place the workbar on the left
     auto* layout = new QHBoxLayout(this);
-    layout->addWidget(workbar, 0);      // Слева, без растяжения
-    layout->addWidget(workArea, 1);     // Справа, растягивается
+    layout->addWidget(workbar, 0);      // Left, no stretch
+    layout->addWidget(workArea, 1);     // Right, stretched
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
-    // Коннекты WorkBar → WorkArea
+    // Connections WorkBar → WorkArea
     connect(workbar, &WorkBar::signalSwitchTab,
             workArea, &WorkArea::onSwitchTab);
 
-    // Коннекты WorkBar → WorkWdg (сообщения идут вверх в сеть)
+    // Connections WorkBar → WorkWdg (messages go up to the network)
     connect(workbar, &WorkBar::signalSendUniterMessage,
             this, &WorkWdg::signalSendUniterMessage);
 
-    // Коннекты WorkArea → WorkWdg (сообщения идут вверх в сеть)
+    // Connections WorkArea → WorkWdg (messages go up to the network)
     connect(workArea, &WorkArea::signalSendUniterMessage,
             this, &WorkWdg::signalSendUniterMessage);
 
-    // Коннект с ConfigManager
+    // Connection with ConfigManager
     auto ConMgr = control::ConfigManager::instance();
     connect(ConMgr, &control::ConfigManager::signalSubsystemAdded,
             this, &WorkWdg::onSubsystemAdded);
@@ -74,18 +74,18 @@ void WorkWdg::addSubsystem(contract::Subsystem subsystem,
 
     qDebug() << "WorkWdg::addSubsystem():" << subsystem;
 
-    // Выделяем индекс для новой подсистемы
+    // Allocating an index for the new subsystem
     int index = nextIndex++;
     uint64_t genId_ = (genId == std::nullopt) ? 0 : genId.value();
 
-    // Добавляем в map активных подсистем
+    // Adding active subsystems to the map
     indexToSubsystem.insert_or_assign(
         index,
         ActiveSubsystem{subsystem, genType, genId_}
     );
 
-    // Вызываем методы WorkBar и WorkArea для добавления подсистемы
-    workbar->addSubsystem(subsystem, genType, genId_, index);  // TODO: получить правильное имя
+    // Calling the WorkBar and WorkArea methods to add a subsystem
+    workbar->addSubsystem(subsystem, genType, genId_, index);  // TODO: get the correct name
     workArea->addSubsystem(subsystem, genType, genId_, index);
 }
 

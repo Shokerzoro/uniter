@@ -12,158 +12,158 @@
 namespace uniter::control {
 
     /*
-     * AppManager — главный FSM приложения.
+     * AppManager is the main FSM of the application.
      *
-     * Ключевая семантика состояний (см. docs/FSM-AppManager.pdf):
-     *   — Название состояния отражает ДЕЙСТВИЕ при входе, а не событие.
-     *   — Сетевые состояния имеют зеркальное offline. При потере сети entry-
-     *     action не повторяется: снимается NetState и UI блокируется.
-     *     При возврате сети online — для сетевых состояний entry-action
-     *     повторяется (чтобы завершить действие), для локальных — нет.
-     *   — Локальные состояния (DBLOADING, CONFIGURATING, KCONNECTOR, DBCLEAR)
-     *     не зависят от сети: потеря сети меняет только NetState, но не
-     *     прерывает их; возврат сети не дёргает entry повторно.
+     * Key state semantics (see docs/FSM-AppManager.pdf):
+     * — The name of the state reflects the ACTION upon entry, not the event.
+     * — Network states are mirrored offline. If the network is lost entry-
+     * action is not repeated: NetState is removed and the UI is blocked.
+     * When the network returns online - for network states entry-action
+     * repeats (to complete the action), for local ones - not.
+     * — Local states (DBLOADING, CONFIGURATING, KCONNECTOR, DBCLEAR)
+     * network independent: network loss only changes NetState, not
+     * interrupts them; the network return does not pull entry again.
      *
-     * Укрупнённая последовательность (golden path):
+     * Enlarged sequence (golden path):
      *   IDLE → STARTED → AUTHENIFICATION → IDLE_AUTHENIFICATION
      *        → DBLOADING → CONFIGURATING → KCONNECTOR → KAFKA
      *        → (DBCLEAR → SYNC →) READY
-     *   SHUTDOWN — достижим из любого состояния.
+     * SHUTDOWN - reachable from any state.
      *
      * Entry-actions:
-     *   STARTED           — signalMakeConnection (Network: установить соединение)
-     *   AUTHENIFICATION   — signalFindAuthData (AuthWidget) либо, если данные
-     *                       уже в буфере, сразу UniterMessage AUTH REQUEST
-     *   IDLE_AUTHENIFICATION — ждём ответ от сервера (нет действий)
-     *   DBLOADING         — signalLoadResources(userhash) в DataManager
-     *   CONFIGURATING     — signalConfigProc(User) в ConfigManager
-     *   KCONNECTOR        — signalInitKafkaConnector(userhash) в KafkaConnector
+     * STARTED - signalMakeConnection (Network: establish connection)
+     * AUTHENIFICATION - signalFindAuthData (AuthWidget) or if data
+     * already in the buffer, immediately UniterMessage AUTH REQUEST
+     * IDLE_AUTHENIFICATION - waiting for a response from the server (no action)
+     * DBLOADING - signalLoadResources(userhash) in DataManager
+     * CONFIGURATING - signalConfigProc(User) in ConfigManager
+     * KCONNECTOR - signalInitKafkaConnector(userhash) in KafkaConnector
      *   KAFKA             — UniterMessage GET_KAFKA_CREDENTIALS REQUEST
-     *                       (с offset в add_data) в сеть
-     *   DBCLEAR           — signalClearDatabase() в DataManager
-     *   SYNC              — UniterMessage FULL_SYNC REQUEST в сеть
+     * (with offset in add_data) to the network
+     * DBCLEAR - signalClearDatabase() in DataManager
+     * SYNC - UniterMessage FULL_SYNC REQUEST to the network
      *   READY             — signalSubscribeKafka (KafkaConnector)
-     *   SHUTDOWN          — сохранение настроек и буферов сообщений
+     * SHUTDOWN - saving settings and message buffers
      *
-     * Сетевые состояния (имеют offline-зеркало, entry повторяется при
-     * возврате online): AUTHENIFICATION, IDLE_AUTHENIFICATION, KAFKA, SYNC,
+     * Network states (have an offline mirror, entry is repeated when
+     * return online): AUTHENIFICATION, IDLE_AUTHENIFICATION, KAFKA, SYNC,
      * READY.
-     * Локальные состояния (offline-зеркала нет, entry не повторяется):
+     * Local states (there is no offline mirror, entry is not repeated):
      * DBLOADING, CONFIGURATING, KCONNECTOR, DBCLEAR.
      */
     class AppManager : public QObject {
         Q_OBJECT
 
     public:
-        // События FSM
+        // FSM Events
         enum class Events {
-            START,                  // Запуск приложения
-            NET_CONNECTED,          // Сеть подключена
-            NET_DISCONNECTED,       // Сеть отключена
-            AUTH_DATA_READY,        // Виджет прислал логин/пароль (AUTHENIFICATION → IDLE_AUTHENIFICATION)
-            AUTH_SUCCESS,           // Успешная аутентификация от сервера
-            AUTH_FAIL,              // Неудачная аутентификация (остаёмся в AUTHENIFICATION)
-            DB_LOADED,              // БД загружена
-            CONFIG_DONE,            // Локальная конфигурация завершена
-            OFFSET_RECEIVED,        // KafkaConnector прислал offset → KCONNECTOR → KAFKA
-            OFFSET_ACTUAL,          // Сервер подтвердил актуальность offset → READY
-            OFFSET_STALE,           // Сервер: offset устарел → DBCLEAR
-            DB_CLEARED,             // DataManager подтвердил очистку БД → SYNC
-            SYNC_DONE,              // Full-sync завершён → READY
-            LOGOUT,                 // Деавторизация → IDLE_AUTHENIFICATION
-            SHUTDOWN                // Завершение работы
+            START,                  // Launching the application
+            NET_CONNECTED,          // Network connected
+            NET_DISCONNECTED,       // Network disabled
+            AUTH_DATA_READY,        // Widget sent login/password (AUTHENIFICATION → IDLE_AUTHENIFICATION)
+            AUTH_SUCCESS,           // Successful authentication from server
+            AUTH_FAIL,              // Failed authentication (remain in AUTHENIFICATION)
+            DB_LOADED,              // DB loaded
+            CONFIG_DONE,            // Local configuration complete
+            OFFSET_RECEIVED,        // KafkaConnector sent offset → KCONNECTOR → KAFKA
+            OFFSET_ACTUAL,          // The server confirmed the relevance of offset → READY
+            OFFSET_STALE,           // Server: offset is deprecated → DBCLEAR
+            DB_CLEARED,             // DataManager confirmed DB cleanup → SYNC
+            SYNC_DONE,              // Full-sync completed → READY
+            LOGOUT,                 // Deauthorization → IDLE_AUTHENIFICATION
+            SHUTDOWN                // Shutdown
         };
 
-        // Состояния приложения (публичный enum — нужен тестам/отладке)
+        // Application states (public enum - needed for tests/debugging)
         enum class AppState {
-            IDLE,                   // offline, стартовое
-            STARTED,                // ждём соединения
-            AUTHENIFICATION,        // ждём ввод логина/пароля
-            IDLE_AUTHENIFICATION,   // отправили запрос авторизации, ждём ответа
-            DBLOADING,              // [local] инициализация БД
-            CONFIGURATING,          // [local] локальная конфигурация
-            KCONNECTOR,             // [local] инициализация KafkaConnector
-            KAFKA,                  // проверка актуальности offset у сервера
-            DBCLEAR,                // [local] полная очистка БД перед sync
-            SYNC,                   // full-sync с сервером
-            READY,                  // рабочее состояние (подписка на Kafka)
-            SHUTDOWN                // финальное
+            IDLE,                   // offline, starting
+            STARTED,                // waiting for connection
+            AUTHENIFICATION,        // wait for your login/password to be entered
+            IDLE_AUTHENIFICATION,   // We have sent an authorization request, we are waiting for a response
+            DBLOADING,              // [local] database initialization
+            CONFIGURATING,          // [local] local configuration
+            KCONNECTOR,             // [local] initializing KafkaConnector
+            KAFKA,                  // checking the server offset is up to date
+            DBCLEAR,                // [local] full database cleanup before sync
+            SYNC,                   // full-sync with server
+            READY,                  // working state (subscription to Kafka)
+            SHUTDOWN                // final
         };
 
-        // Состояние сети (ортогональное AppState)
+        // Network state (orthogonal to AppState)
         enum class NetState {
             ONLINE,
             OFFLINE
         };
 
     private:
-        // Приватный конструктор для синглтона
+        // Private constructor for singleton
         AppManager();
 
-        // Запрет копирования и перемещения
+        // Prohibition of copying and moving
         AppManager(const AppManager&) = delete;
         AppManager& operator=(const AppManager&) = delete;
         AppManager(AppManager&&) = delete;
         AppManager& operator=(AppManager&&) = delete;
 
-        // Текущие состояния
+        // Current states
         AppState m_appState = AppState::IDLE;
         NetState m_netState = NetState::OFFLINE;
 
-        // Временные данные
+        // Temporary data
         std::shared_ptr<contract::UniterMessage> m_authMessage;
         std::shared_ptr<contract::manager::Employee> m_user;
-        QString m_lastKafkaOffset;     // последний offset от KafkaConnector
+        QString m_lastKafkaOffset;     // last offset from KafkaConnector
 
-        // Основная точка обработки события
+        // Main point of event processing
         void ProcessEvent(Events event);
 
-        // Entry-actions для состояний (side-effects)
+        // Entry-actions for states (side-effects)
         void enterStarted();
         void enterAuthenification();
         void enterIdleAuthenification();
         void enterDbLoading();
         void enterConfigurating();
         void enterKafkaConnector();   // KCONNECTOR
-        void enterKafka();            // KAFKA (сетевой запрос актуальности offset)
+        void enterKafka();            // KAFKA (offset relevance network query)
         void enterDbClear();          // DBCLEAR
-        void enterSync();             // SYNC (сетевой запрос FULL_SYNC)
+        void enterSync();             // SYNC (network request FULL_SYNC)
         void enterReady();
         void enterShutdown();
 
-        // Повторный запуск entry-action для сетевых состояний при возврате online.
-        // Для локальных состояний — no-op.
+        // Re-run entry-action for online states when returning online.
+        // For local states - no-op.
         void reenterOnReconnect();
 
-        // Маршрутизация входящих сообщений (см. docs/appmanager_routing.md).
+        // Routing of incoming messages (see docs/appmanager_routing.md).
         void handleInitProtocolMessage(std::shared_ptr<contract::UniterMessage> message);
         void handleReadyProtocolMessage(std::shared_ptr<contract::UniterMessage> message);
         void handleReadyCrudMessage(std::shared_ptr<contract::UniterMessage> message);
 
-        // Маршрутизация исходящих сообщений на основе subsystem/protact.
+        // Outgoing message routing based on subsystem/protact.
         void dispatchOutgoing(std::shared_ptr<contract::UniterMessage> message);
 
-        // Вспомогательное
-        static bool isNetworkDependent(AppState s); // имеет ли состояние offline-зеркало
+        // Auxiliary
+        static bool isNetworkDependent(AppState s); // does the state have an offline mirror?
         static bool isInsideUiLockedArea(AppState s);
 
-        // Формирование hash пользователя (сейчас stub: id → ASCII)
+        // Formation of user hash (now stub: id → ASCII)
         QByteArray makeUserHash() const;
 
     public:
-        // Публичный статический метод получения экземпляра
+        // Public static method to get an instance
         static AppManager* instance();
 
         ~AppManager() override = default;
 
         void start_run();
 
-        // Для тестирования/отладки
+        // For testing/debugging
         AppState currentState() const { return m_appState; }
         NetState currentNetState() const { return m_netState; }
 
-        // Сброс состояния синглтона — только для unit-тестов.
-        // В продакшене AppManager существует один раз на весь lifecycle процесса.
+        // Resetting the singleton state is only for unit tests.
+        // In production, AppManager exists once for the entire lifecycle of the process.
         void resetForTest() {
             m_appState = AppState::IDLE;
             m_netState = NetState::OFFLINE;
@@ -173,14 +173,14 @@ namespace uniter::control {
         }
 
     public:
-        // Helper: тип MinIO-действия (для тестов/диагностики).
+        // Helper: type of MinIO action (for tests/diagnostics).
         static bool isMinioProtocolAction(contract::ProtocolAction a);
 
     public slots:
-        // От сетевого класса
+        // From network class
         void onConnectionUpdated(bool state);
 
-        // От менеджеров / переходы между состояниями
+        // From managers / transitions between states
         void onResourcesLoaded();                   // DBLOADING → CONFIGURATING
         void onConfigured();                        // CONFIGURATING → KCONNECTOR
         void onDatabaseCleared();                   // DBCLEAR → SYNC
@@ -190,46 +190,46 @@ namespace uniter::control {
         // Kafka / KafkaConnector
         void onKafkaOffsetReceived(QString offset); // KCONNECTOR → KAFKA
 
-        // Единая точка входа входящих UniterMessage
-        // от всех трёх сетевых классов (Server/Kafka/Minio → AppManager).
+        // Single entry point for incoming UniterMessage
+        // from all three network classes (Server/Kafka/Minio → AppManager).
         void onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
 
-        // Единая точка входа исходящих UniterMessage
-        // от FileManager и UI-виджетов (в рантайме), а также от самой FSM
+        // Single point of entry for outgoing UniterMessage
+        // from FileManager and UI widgets (in runtime), as well as from FSM itself
         // (enterAuthenification/enterKafka/enterSync).
         void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
 
     signals:
-        // === Внешние (сеть) ===
-        void signalMakeConnection();                 // Network: установить соединение
+        // === External (network) ===
+        void signalMakeConnection();                 // Network: establish a connection
 
         // === KafkaConnector ===
-        void signalInitKafkaConnector(QByteArray userhash); // KCONNECTOR: init под пользователя
-        void signalSubscribeKafka();                        // READY: подписка на broadcast
+        void signalInitKafkaConnector(QByteArray userhash); // KCONNECTOR: init per user
+        void signalSubscribeKafka();                        // READY: broadcast subscription
 
         // === UI ===
-        void signalConnectionUpdated(bool state);    // online/offline индикация
-        void signalAuthed(bool result);              // результат аутентификации
-        void signalLoggedOut();                      // подтверждение логаута
+        void signalConnectionUpdated(bool state);    // online/offline indication
+        void signalAuthed(bool result);              // authentication result
+        void signalLoggedOut();                      // logout confirmation
 
-        // === К менеджерам ===
-        void signalFindAuthData();                   // AuthWidget: дай логин/пароль
+        // === To managers ===
+        void signalFindAuthData();                   // AuthWidget: give me your login/password
         void signalLoadResources(QByteArray userhash);
         void signalConfigProc(std::shared_ptr<contract::manager::Employee> User);
-        void signalClearResources();                 // logout-очистка (кеш/обзерверы)
-        void signalClearDatabase();                  // DBCLEAR: полная очистка таблиц БД
+        void signalClearResources();                 // logout cleanup (cache/browsers)
+        void signalClearDatabase();                  // DBCLEAR: complete clearing of database tables
 
-        // === Маршрутизация UniterMessage ===
-        // Входящий трафик (onRecvUniterMessage) раскладывается по двум сигналам:
-        //   signalRecvUniterMessage     → DataManager (в READY: CRUD над ресурсами)
-        //   signalForwardToFileManager  → FileManager (в READY: MINIO-протоколизмы)
+        // === UniterMessage Routing ===
+        // Incoming traffic (onRecvUniterMessage) is decomposed into two signals:
+        // signalRecvUniterMessage → DataManager (in READY: CRUD over resources)
+        // signalForwardToFileManager → FileManager (in READY: MINIO protocols)
         void signalRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
         void signalForwardToFileManager(std::shared_ptr<contract::UniterMessage> Message);
 
-        // Исходящий трафик (onSendUniterMessage) диспетчеризуется на два
-        // отдельных сигнала, подключаемых в main.cpp:
+        // Outgoing traffic (onSendUniterMessage) is dispatched into two
+        // separate signals connected in main.cpp:
         //   signalSendToServer  → ServerConnector (AUTH, GET_KAFKA_CREDENTIALS,
-        //                          FULL_SYNC, GET_MINIO_PRESIGNED_URL, CRUD в READY)
+        // FULL_SYNC, GET_MINIO_PRESIGNED_URL, CRUD in READY)
         //   signalSendToMinio   → MinIOConnector  (GET_MINIO_FILE, PUT_MINIO_FILE)
         void signalSendToServer(std::shared_ptr<contract::UniterMessage> Message);
         void signalSendToMinio(std::shared_ptr<contract::UniterMessage> Message);

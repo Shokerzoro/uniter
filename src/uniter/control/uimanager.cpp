@@ -18,7 +18,7 @@ UIManager::UIManager() {
     settings = std::make_unique<QSettings>(env.appname, "Application");
 }
 
-// Управление главным окном
+// Managing the Main Window
 
 void UIManager::applyMainWinSettings(QWidget* window) {
     if (!window || !settings) return;
@@ -30,7 +30,7 @@ void UIManager::applyMainWinSettings(QWidget* window) {
     QSize size = settings->value("MainWindow/size", mainWinConstr.minSize).toSize();
     bool isMaximized = settings->value("MainWindow/maximized", false).toBool();
 
-    // Валидация
+    // Validation
     QScreen* screen = QApplication::primaryScreen();
     QRect screenRect = screen->availableGeometry();
 
@@ -66,7 +66,7 @@ void UIManager::saveMainWinState(QWidget* window) {
     settings->sync();
 }
 
-// Управление workbar и workwdg и виджетов
+// Manage workbar and workwdg and widgets
 
 void UIManager::applyWorkBarSettings(QWidget* bar) {
     if (!bar) return;
@@ -89,11 +89,11 @@ void UIManager::applyWorkWdgSettings(QWidget* workWdg) {
 void UIManager::applySubsIconSettings(QWidget* icon) {
     if (!icon) return;
 
-    // Устанавливаем строго фиксированный размер
+    // We set a strictly fixed size
     icon->setFixedSize(subsIconConstr.size, subsIconConstr.size);
     icon->setAutoFillBackground(false);
 
-    // Находим QLabel внутри виджета и применяем стиль текста
+    // Find the QLabel inside the widget and apply the text style
     QLabel* label = icon->findChild<QLabel*>();
     if (label) {
         QPalette palette = label->palette();
@@ -116,7 +116,7 @@ void UIManager::applyGenerativeTabSettings(QWidget* tab) {
     palette.setColor(QPalette::Window, genTabConstr.bgColor);
     tab->setPalette(palette);
 
-    // Находим QLabel внутри виджета и применяем стиль текста
+    // Find the QLabel inside the widget and apply the text style
     QLabel* label = tab->findChild<QLabel*>();
     if (label) {
         QPalette labelPalette = label->palette();

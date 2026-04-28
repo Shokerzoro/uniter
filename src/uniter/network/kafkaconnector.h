@@ -10,31 +10,31 @@
 namespace uniter::net {
 
 /*
- * KafkaConnector — заглушка consumer-канала Kafka.
+ * KafkaConnector - Kafka consumer channel stub.
  *
- * Роль в целевой архитектуре (см. docs/fsm_appmanager.md и uniter-target-state):
- *   — одностороннее broadcast-чтение подтверждённых CUD операций от сервера;
- *   — хранение offset последнего обработанного сообщения в OS Secure Storage;
- *   — после подтверждения актуальности offset сервером — подписка на топик.
+ * Role in target architecture (see docs/fsm_appmanager.md and uniter-target-state):
+ * — one-way broadcast reading of confirmed CUD operations from the server;
+ * — storing the offset of the last processed message in OS Secure Storage;
+ * — after confirming the relevance of offset by the server — subscription to the topic.
  *
- * В stub-варианте KafkaConnector:
- *   — onInitConnection(hash): через event-loop отдаёт произвольный offset.
- *   — onSubscribeKafka(): no-op + signalKafkaSubscribed(true) через event-loop.
- *   — onShutdown(): сбрасывает состояние.
- *   — onServerNotification(msg): вход от ServerConnector (TEMP connect) —
- *     принимает CUD-сообщения как имитацию broadcast-очереди Kafka,
- *     пересылает их вверх (AppManager → DataManager) как signalRecvMessage.
- *     Допустимые типы: UniterMessage с CrudAction != NOTCRUD и
+ * In the stub version of KafkaConnector:
+ * — onInitConnection(hash): gives an arbitrary offset via event-loop.
+ * - onSubscribeKafka(): no-op + signalKafkaSubscribed(true) via event-loop.
+ * - onShutdown(): resets the state.
+ * - onServerNotification(msg): input from ServerConnector (TEMP connect) -
+ * accepts CUD messages as an imitation of a Kafka broadcast queue,
+ * forwards them up (AppManager -> DataManager) as signalRecvMessage.
+ * Valid types: UniterMessage with CrudAction != NOTCRUD and
  *     MessageStatus == NOTIFICATION.
  *
- * Реальная реализация (librdkafka + OS Secure Storage) — отдельный этап.
+ * The actual implementation (librdkafka + OS Secure Storage) is a separate stage.
  */
 class KafkaConnector : public QObject
 {
     Q_OBJECT
 
 private:
-    // Синглтон
+    // Singleton
     KafkaConnector();
 
     KafkaConnector(const KafkaConnector&) = delete;
@@ -51,35 +51,35 @@ public:
     ~KafkaConnector() override = default;
 
 public slots:
-    // От AppManager (вход в KCONNECTOR): инициализироваться под пользователя
-    // и прислать сохранённый offset.
+    // From AppManager (login to KCONNECTOR): initialize for user
+    // and send the saved offset.
     void onInitConnection(QByteArray userhash);
 
-    // От AppManager (вход в READY): подписаться на broadcast-топик Kafka.
+    // From AppManager (login to READY): subscribe to the Kafka broadcast topic.
     void onSubscribeKafka();
 
-    // От AppManager: общий shutdown/logout — сбросить состояние.
+    // From AppManager: general shutdown/logout - reset state.
     void onShutdown();
 
-    // TEMP connect: приходит от ServerConnector после подтверждения CUD.
-    // Пересылает сообщение вверх, только если оно удовлетворяет инварианту
-    // broadcast-очереди: CrudAction != NOTCRUD и status == NOTIFICATION.
-    // При инициализации мы ещё не подписаны — сообщения игнорируются
-    // (в реальной системе их не существует до подписки).
-    // Удалить при переходе на реальный Kafka.
+    // TEMP connect: comes from ServerConnector after CUD confirmation.
+    // Forwards a message up only if it satisfies the invariant
+    // broadcast queues: CrudAction != NOTCRUD and status == NOTIFICATION.
+    // During initialization, we are not yet subscribed - messages are ignored
+    // (in a real system they do not exist until subscription).
+    // Delete when migrating to real Kafka.
     void onServerNotification(std::shared_ptr<contract::UniterMessage> message);
 
 signals:
-    // offset последнего обработанного сообщения Kafka (после инициализации).
-    // Именно этот сигнал триггерит переход KCONNECTOR → KAFKA в FSM.
+    // offset of the last Kafka message processed (after initialization).
+    // It is this signal that triggers the KCONNECTOR → KAFKA transition in FSM.
     void signalOffsetReady(QString offset);
 
-    // Статус подписки на broadcast-топик (после READY).
+    // Subscription status for the broadcast topic (after READY).
     void signalKafkaSubscribed(bool ok);
 
-    // Входящее UniterMessage из Kafka (CRUD / NOTIFICATION) → AppManager.
-    // В целевой системе этот сигнал получает AppManager и через свой слот
-    // onRecvUniterMessage маршрутизирует его в DataManager.
+    // Incoming UniterMessage from Kafka (CRUD/NOTIFICATION) → AppManager.
+    // On the target system, this signal is received by AppManager and through its slot
+    // onRecvUniterMessage routes it to the DataManager.
     void signalRecvMessage(std::shared_ptr<contract::UniterMessage> message);
 };
 

@@ -45,17 +45,17 @@ SubsystemTab::SubsystemTab(contract::Subsystem subsystem,
         }
     }
 
-    // Создаем QLabel с полным текстом + "subsystem"
+    // Create a QLabel with full text + "subsystem"
     QLabel* nameLabel = new QLabel(fullName + " subsystem", this);
     nameLabel->setAlignment(Qt::AlignCenter);
 
-    // Создаем layout для центрирования
+    // Create a layout for centering
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(nameLabel);
     setLayout(layout);
 
-    // Применяем настройки UIManager
+    // Applying UIManager settings
     auto settings = control::UIManager::instance();
     settings->applyGenerativeTabSettings(this);
 }

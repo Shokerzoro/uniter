@@ -11,13 +11,13 @@
 namespace updater {
 namespace upfuncs {
 
-//Найти/определить тэг внутри .txt файла, возрат true - если это notice file
+//Find/define a tag inside a .txt file, return true if it's a notice file
 extern bool is_notice(const std::filesystem::path &file, QString & tag, QString & value);
 
-//Ожидание завершения родительского процесса
+//Waiting for parent process to complete
 extern void wait_for_process_exit(QString & parent_pid) noexcept;
 
-//Функция для сбора информации об обновлении
+//Function for collecting update information
 extern void get_update_data(QString & temp_dir,
                             QString & work_dir,
                             PathMapper & newdir_mapper,
@@ -26,7 +26,7 @@ extern void get_update_data(QString & temp_dir,
                             PathVector & delfile_vector,
                             PathVector & deldir_vector);
 
-//Фунции добавления файлов/каталогов, замены либо удаления файлов/каталогов
+//Functions for adding files/directories, replacing or deleting files/directories
 extern void addnew_dirs(PathMapper & newdir_mapper);
 extern void addnew_files(PathMapper & newfile_mapper);
 extern void replace_files(PathMapper & replace_mapper);

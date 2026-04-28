@@ -11,10 +11,10 @@ OfflineWdg::OfflineWdg(QWidget *parent)
 {
     auto *layout = new QVBoxLayout(this);
 
-    auto *label = new QLabel(tr("Соединение потеряно"), this);
+    auto *label = new QLabel(tr("Connection lost"), this);
     label->setAlignment(Qt::AlignCenter);
 
-    auto *btn = new QPushButton(tr("Подключиться"), this);
+    auto *btn = new QPushButton(tr("Connect"), this);
     layout->addWidget(label);
     layout->addWidget(btn);
     layout->addStretch();

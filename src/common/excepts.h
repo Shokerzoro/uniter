@@ -8,7 +8,7 @@
 namespace common {
 namespace excepts {
 
-    //Исключение, которое должно приводить к завершению программы / потока, как правиль
+    //An exception that should cause the program/thread to terminate, normally
     class unacceptable : public std::runtime_error
     {
     public:

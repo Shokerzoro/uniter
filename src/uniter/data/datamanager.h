@@ -19,10 +19,10 @@ class DataManager : public QObject
     Q_OBJECT
 
 private:
-    // Приватный конструктор для синглтона
+    // Private constructor for singleton
     DataManager();
 
-    // Запрет копирования и перемещения
+    // Prohibition of copying and moving
     DataManager(const DataManager&) = delete;
     DataManager& operator=(const DataManager&) = delete;
     DataManager(DataManager&&) = delete;
@@ -46,17 +46,17 @@ private:
     std::optional<database::ExecutorResult> routeManagerMessage(const contract::UniterMessage& message);
 
 public:
-    // Публичный статический метод получения экземпляра
+    // Public static method to get an instance
     static DataManager* instance();
 
     ~DataManager() override = default;
 
 public slots:
-    // От менеджера приложения
+    // From the application manager
     void onStartLoadResources(QByteArray userhash);
     void onClearResources();
-    // Полная очистка БД (DBCLEAR): дропнуть/опустошить все таблицы ресурсов,
-    // оставить структуру. По завершении — сигнал signalDatabaseCleared.
+    // Complete database cleanup (DBCLEAR): drop/empty all resource tables,
+    // leave the structure. Upon completion, the signal signalDatabaseCleared.
     void onClearDatabase();
     void onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> message);
     void onSubsystemGenerate(contract::Subsystem subsystem,
@@ -65,8 +65,8 @@ public slots:
                              bool created);
 
 signals:
-    void signalResourcesLoaded();  // Менеджеру приложения: БД загружена
-    void signalDatabaseCleared();  // Менеджеру приложения: БД полностью очищена (DBCLEAR)
+    void signalResourcesLoaded();  // Application manager: DB loaded
+    void signalDatabaseCleared();  // To the application manager: the database is completely cleared (DBCLEAR)
 };
 
 } // namespace uniter::data

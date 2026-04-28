@@ -18,14 +18,14 @@ public:
                      uint64_t genId,
                      QWidget* parent = nullptr);
 
-    // TODO: удалить конструкторы
+    // TODO: remove constructors
 
 signals:
-    // Проксирует сообщения вверх
+    // Proxies messages up
     void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
 
 public slots:
-    // Получает сообщения (от динамических виджетов)
+    // Receives messages (from dynamic widgets)
     void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
 
 private:

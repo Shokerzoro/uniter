@@ -1,27 +1,27 @@
-# Маршрутизация сообщений внутри AppManager
+# Routing messages inside AppManager
 
-Этот документ описывает правила диспетчеризации `UniterMessage`
-в классе `uniter::control::AppManager` — «выше» (к `DataManager` /
-`FileManager`) и «ниже» (в сетевые классы). Он дополняет
-[`docs/fsm_appmanager.md`](fsm_appmanager.md) и
-[`docs/add_data_convention.md`](add_data_convention.md), описывая поведение
-конкретно тех двух слотов, через которые проходит весь трафик AppManager.
+This document describes the `UniterMessage` dispatch rules
+in the class `uniter::control::AppManager` - “above” (to `DataManager` /
+`FileManager`) and "below" (into network classes). It complements
+[`docs/fsm_appmanager.md`](fsm_appmanager.md) and
+[`docs/add_data_convention.md`](add_data_convention.md), describing the behavior
+specifically those two slots through which all AppManager traffic passes.
 
 ---
 
-## Общая схема
+## General scheme
 
 ```
                  ┌─────────────────────────────────────────────────┐
                  │                 AppManager                      │
                  │                                                 │
    UI (AuthWidget/                                                 │
-   динамические  ──► onSendUniterMessage ──► dispatchOutgoing ──┬──│──► signalSendToServer   → ServerConnector
-   виджеты)                                                     │  │
+dynamic ──► onSendUniterMessage ──► dispatchOutgoing ──┬──│──► signalSendToServer → ServerConnector
+widgets) │ │
    FileManager   ──►                                            ├──│──► signalSendToMinio    → MinIOConnector
                                                                 │  │
    FSM (enter-*) ────────────────────────────────────────────── ├──│──► signalSendToServer   → ServerConnector
-                                                                │  │    (минуя onSendUniterMessage)
+│ │ (bypassing onSendUniterMessage)
                                                                 │  │
    ServerConnector ─┐                                           │  │
    KafkaConnector   ├─► onRecvUniterMessage                     │  │
@@ -34,180 +34,180 @@
                                                                    ▼
 ```
 
-Оба направления проходят через один слот — `onRecvUniterMessage` для
-входящих и `onSendUniterMessage` для исходящих; внутри каждого слота
-AppManager самостоятельно принимает решение, в какую шину направить
-сообщение. Сетевые и подсистемные классы не фильтруют трафик — это
-ответственность AppManager.
+Both directions pass through one slot - `onRecvUniterMessage` for
+incoming and `onSendUniterMessage` for outgoing; inside each slot
+AppManager independently decides which bus to send
+message. Network and subsystem classes do not filter traffic - they do
+AppManager's responsibility.
 
 ---
 
-## Состояния AppManager, важные для маршрутизации
+## AppManager states important for routing
 
-Подробное описание FSM — в [`fsm_appmanager.md`](fsm_appmanager.md). Для
-маршрутизации важны две оси:
+A detailed description of FSM is in [`fsm_appmanager.md`](fsm_appmanager.md). For
+There are two important routing axes:
 
 * `m_appState`:
   - `IDLE / NET_CONNECTING / IDLE_AUTHENIFICATION / AUTHENIFICATION /
-     KAFKA / SYNC` — **до READY** (инициализация);
-  - `READY` — штатная работа с пользователем;
-  - `SHUTDOWN` — ничего не маршрутизируется.
-* `m_netState`: `ONLINE / OFFLINE` — в `OFFLINE` AppManager глушит
-  обе шины.
+KAFKA / SYNC` - **before READY** (initialization);
+- `READY` - regular work with the user;
+- `SHUTDOWN` - nothing is routed.
+* `m_netState`: `ONLINE / OFFLINE` - in `OFFLINE` AppManager mutes
+both tires.
 
-В дальнейшем под «до READY» понимаются все состояния
-`m_appState != READY` (кроме SHUTDOWN, который обрабатывается отдельно).
+In the following, “before READY” refers to all states
+`m_appState != READY` (except SHUTDOWN, which is handled separately).
 
 ---
 
-## Сигналы и слоты AppManager
+## Signals and slots AppManager
 
-### Входящие сигналы от AppManager (вверх)
+### Incoming signals from AppManager (up)
 
-| Сигнал | Получатель | Условия эмита |
+| Signal | Recipient | Issuer terms |
 | --- | --- | --- |
 | `signalRecvUniterMessage(msg)` | `DataManager::onRecvUniterMessage` | `READY` + `subsystem != PROTOCOL` (CRUD) |
-| `signalForwardToFileManager(msg)` | `FileManager::onForwardUniterMessage` (TODO, пока не подключён в `main.cpp`) | `READY` + `subsystem == PROTOCOL` + `protact ∈ { GET_MINIO_PRESIGNED_URL, GET_MINIO_FILE, PUT_MINIO_FILE }` |
+| `signalForwardToFileManager(msg)` | `FileManager::onForwardUniterMessage` (TODO, not yet included in `main.cpp`) | `READY` + `subsystem == PROTOCOL` + `protact ∈ { GET_MINIO_PRESIGNED_URL, GET_MINIO_FILE, PUT_MINIO_FILE }` |
 
-### Исходящие сигналы от AppManager (вниз)
+### Outgoing signals from AppManager (down)
 
-| Сигнал | Получатель | Назначение |
+| Signal | Recipient | Destination |
 | --- | --- | --- |
-| `signalSendToServer(msg)` | `ServerConnector::onSendMessage` | AUTH, `GET_KAFKA_CREDENTIALS`, `FULL_SYNC`, `GET_MINIO_PRESIGNED_URL`, любые CRUD, `UPDATE_*` |
+| `signalSendToServer(msg)` | `ServerConnector::onSendMessage` | AUTH, `GET_KAFKA_CREDENTIALS`, `FULL_SYNC`, `GET_MINIO_PRESIGNED_URL`, any CRUD, `UPDATE_*` |
 | `signalSendToMinio(msg)` | `MinIOConnector::onSendMessage` | `GET_MINIO_FILE`, `PUT_MINIO_FILE` |
 
-Все постоянные подключения этих сигналов выполняются в `main.cpp`
-(раздел «AppManager ↔ Network Layer»).
+All persistent connections of these signals are made in `main.cpp`
+(section “AppManager ↔ Network Layer”).
 
-### Входной слот от сети
+### Mains input slot
 
-| Слот | Подписчики |
+| Slot | Followers |
 | --- | --- |
 | `onRecvUniterMessage(msg)` | `ServerConnector::signalRecvMessage`, `KafkaConnector::signalRecvMessage`, `MinIOConnector::signalRecvMessage` |
 
-### Входной слот от UI / подсистем
+### Input slot from UI/subsystems
 
-| Слот | Подписчики |
+| Slot | Followers |
 | --- | --- |
-| `onSendUniterMessage(msg)` | `AuthWidget` (до READY), динамические виджеты подсистем (в READY), `FileManager` (в READY) |
+| `onSendUniterMessage(msg)` | `AuthWidget` (before READY), dynamic subsystem widgets (in READY), `FileManager` (in READY) |
 
 ---
 
-## Правила маршрутизации «вверх» (`onRecvUniterMessage`)
+## Upward routing rules (`onRecvUniterMessage`)
 
-Источники сообщений: `ServerConnector` (ответы и ошибки сервера),
-`KafkaConnector` (CRUD-`NOTIFICATION`, а также подтверждения `SUCCESS`),
-`MinIOConnector` (ответы на GET/PUT файлов).
+Message sources: `ServerConnector` (server responses and errors),
+`KafkaConnector` (CRUD-`NOTIFICATION`, as well as `SUCCESS` confirmations),
+`MinIOConnector` (responses to GET/PUT files).
 
-Правила в порядке приоритета:
+Rules in order of priority:
 
-1. **`m_netState == OFFLINE`** — любое входящее игнорируется с логом.
+1. **`m_netState == OFFLINE`** - any incoming is ignored with the log.
 2. **`subsystem == PROTOCOL`**:
    - **`m_appState == READY`** → `handleReadyProtocolMessage(msg)`:
-     - если `protact` попадает в `isMinioProtocolAction(...)` —
-       эмитим `signalForwardToFileManager` (→ FileManager);
-     - иначе (обновление Kafka credentials, `UPDATE_*`) — пока
-       логируем и ничего не пересылаем (TODO).
+- if `protact` falls into `isMinioProtocolAction(...)` —
+issue `signalForwardToFileManager` (→ FileManager);
+- otherwise (updating Kafka credentials, `UPDATE_*`) - for now
+We log and do not send anything (TODO).
    - **`m_appState != READY`** → `handleInitProtocolMessage(msg)`:
-     часть процесса инициализации, пересылка наружу не нужна — FSM
-     сама реагирует на `AUTH RESPONSE`, `GET_KAFKA_CREDENTIALS RESPONSE`
-     и `FULL_SYNC SUCCESS`.
+part of the initialization process, no forwarding needed - FSM
+itself responds to `AUTH RESPONSE`, `GET_KAFKA_CREDENTIALS RESPONSE`
+and `FULL_SYNC SUCCESS`.
 3. **`subsystem != PROTOCOL`** (CRUD):
-   - **`m_appState == READY`** → `handleReadyCrudMessage(msg)` эмитит
-     `signalRecvUniterMessage` (→ DataManager). Как правило, источник —
-     `KafkaConnector` с `MessageStatus = NOTIFICATION / SUCCESS`.
-   - **`m_appState != READY`** — CRUD в инициализации быть не должен,
-     игнорируется с логом.
+- **`m_appState == READY`** → `handleReadyCrudMessage(msg)` issues
+`signalRecvUniterMessage` (→ DataManager). Typically the source is
+`KafkaConnector` with `MessageStatus = NOTIFICATION/SUCCESS`.
+- **`m_appState != READY`** — CRUD should not be in initialization,
+ignored with the log.
 
-Вспомогательная функция:
+Helper function:
 
 ```cpp
 static bool AppManager::isMinioProtocolAction(contract::ProtocolAction a);
-// true для GET_MINIO_PRESIGNED_URL, GET_MINIO_FILE, PUT_MINIO_FILE.
+// true for GET_MINIO_PRESIGNED_URL, GET_MINIO_FILE, PUT_MINIO_FILE.
 ```
 
 ---
 
-## Правила маршрутизации «вниз» (`onSendUniterMessage`)
+## Down routing rules (`onSendUniterMessage`)
 
-Источники сообщений:
+Message sources:
 
-* сама FSM в enter-actions `enterAuthenification` /
-  `enterKafka` / `enterSync` — использует `signalSendToServer` **напрямую**,
-  минуя этот слот;
-* `AuthWidget` — посылает AUTH REQUEST (до READY);
-* динамические виджеты подсистем и `FileManager` — CRUD и
-  `MINIO`-протокольные запросы в READY.
+* FSM itself in enter-actions `enterAuthenification` /
+`enterKafka` / `enterSync` - uses `signalSendToServer` **directly**,
+bypassing this slot;
+* `AuthWidget` - sends AUTH REQUEST (before READY);
+* dynamic subsystem widgets and `FileManager` - CRUD and
+`MINIO`-protocol requests in READY.
 
-### В состоянии `READY`
+### In `READY` state
 
-1. **`m_netState == OFFLINE`** — сообщение игнорируется (TODO: буферизация).
-2. Иначе вызывается `dispatchOutgoing(msg)`:
+1. **`m_netState == OFFLINE`** - the message is ignored (TODO: buffering).
+2. Otherwise, `dispatchOutgoing(msg)` is called:
    - `subsystem != PROTOCOL` (CRUD) → `signalSendToServer`;
    - `subsystem == PROTOCOL`:
-     - `protact == GET_MINIO_FILE` или `PUT_MINIO_FILE` →
+- `protact == GET_MINIO_FILE` or `PUT_MINIO_FILE` →
        `signalSendToMinio`;
      - `protact == GET_MINIO_PRESIGNED_URL` → `signalSendToServer`
-       (presigned URL выдаёт сервер, не MinIO);
-     - любое другое (`AUTH`, `GET_KAFKA_CREDENTIALS`, `FULL_SYNC`,
+(presigned URL is issued by the server, not MinIO);
+- any other (`AUTH`, `GET_KAFKA_CREDENTIALS`, `FULL_SYNC`,
        `UPDATE_*`) → `signalSendToServer`.
 
-### До `READY`
+### Before `READY`
 
-Пропускается **только** `AUTH REQUEST` от UI — он сохраняется как
-`m_authMessage`, и если FSM уже в `AUTHENIFICATION` и `ONLINE`, тут же
-эмитится `signalSendToServer` и `ProcessEvent(AUTH_DATA_READY)`.
+**only** `AUTH REQUEST` from UI is skipped - it is saved as
+`m_authMessage`, and if FSM is already in `AUTHENIFICATION` and `ONLINE`, immediately
+`signalSendToServer` and `ProcessEvent(AUTH_DATA_READY)` are issued.
 
-Любое другое сообщение до READY из этого слота **отклоняется с логом**.
-В частности, `GET_KAFKA_CREDENTIALS` и `FULL_SYNC` сюда не приходят — FSM
-формирует их внутри своих enter-actions и эмитит `signalSendToServer`
-напрямую.
-
----
-
-## Почему FSM обходит `onSendUniterMessage`
-
-До READY единственный внешний канал — AUTH REQUEST от `AuthWidget`;
-все остальные PROTOCOL-запросы инициируются самой FSM. Чтобы
-`onSendUniterMessage` остался «воротами UI» с простым и строгим
-инвариантом («до READY — только AUTH»), enter-actions FSM эмитят
-`signalSendToServer` напрямую. Это сохраняет однозначность слота:
-
-* **входная точка UI** — `onSendUniterMessage`;
-* **выходная шина к серверу** — `signalSendToServer`, к ней могут
-  обращаться и слот, и enter-actions FSM.
+Any other message before READY from this slot is **rejected with a log**.
+In particular, `GET_KAFKA_CREDENTIALS` and `FULL_SYNC` do not come here - FSM
+forms them inside its enter-actions and issues `signalSendToServer`
+directly.
 
 ---
 
-## Сводная таблица
+## Why does FSM bypass `onSendUniterMessage`
 
-| Направление | Источник | Состояние | `subsystem` | `protact` | Куда уходит |
+Before READY, the only external channel is AUTH REQUEST from `AuthWidget`;
+all other PROTOCOL requests are initiated by the FSM itself. To
+`onSendUniterMessage` remains the "UI gate" with a simple and strict
+invariant (“before READY – only AUTH”), enter-actions FSM are issued
+`signalSendToServer` directly. This keeps the slot unique:
+
+* **UI entry point** - `onSendUniterMessage`;
+* **output bus to the server** - `signalSendToServer`, they can
+handle both slot and enter-actions FSM.
+
+---
+
+## Pivot table
+
+| Direction | Source | State | `subsystem` | `protact` | Where does it go |
 | --- | --- | --- | --- | --- | --- |
-| Вверх | Server/Kafka/MinIO | OFFLINE | любой | любой | *drop* |
-| Вверх | Server | !READY | PROTOCOL | AUTH / GET_KAFKA_CREDENTIALS / FULL_SYNC | FSM (internal) |
-| Вверх | Kafka | READY | CRUD | — | DataManager |
-| Вверх | Server | READY | PROTOCOL | GET_MINIO_PRESIGNED_URL | FileManager |
-| Вверх | MinIO | READY | PROTOCOL | GET_MINIO_FILE / PUT_MINIO_FILE | FileManager |
-| Вверх | Server | READY | PROTOCOL | UPDATE_* / GET_KAFKA_CREDENTIALS | *log, TODO* |
-| Вниз | UI (AuthWidget) | AUTHENIFICATION+ONLINE | PROTOCOL | AUTH REQUEST | ServerConnector |
-| Вниз | UI / FileManager | READY+ONLINE | CRUD | — | ServerConnector |
-| Вниз | FileManager | READY+ONLINE | PROTOCOL | GET_MINIO_PRESIGNED_URL | ServerConnector |
-| Вниз | FileManager | READY+ONLINE | PROTOCOL | GET_MINIO_FILE / PUT_MINIO_FILE | MinIOConnector |
-| Вниз | UI | READY+ONLINE | PROTOCOL | UPDATE_* | ServerConnector |
-| Вниз | FSM (enter-actions) | !READY+ONLINE | PROTOCOL | GET_KAFKA_CREDENTIALS / FULL_SYNC / AUTH | ServerConnector (напрямую, минуя слот) |
+| Up | Server/Kafka/MinIO | OFFLINE | any | any | *drop* |
+| Up | Server | !READY | PROTOCOL | AUTH / GET_KAFKA_CREDENTIALS / FULL_SYNC | FSM (internal) |
+| Up | Kafka | READY | CRUD | — | DataManager |
+| Up | Server | READY | PROTOCOL | GET_MINIO_PRESIGNED_URL | FileManager |
+| Up | MinIO | READY | PROTOCOL | GET_MINIO_FILE / PUT_MINIO_FILE | FileManager |
+| Up | Server | READY | PROTOCOL | UPDATE_* / GET_KAFKA_CREDENTIALS | *log, TODO* |
+| Down | UI (AuthWidget) | AUTHENIFICATION+ONLINE | PROTOCOL | AUTH REQUEST | ServerConnector |
+| Down | UI/FileManager | READY+ONLINE | CRUD | — | ServerConnector |
+| Down | FileManager | READY+ONLINE | PROTOCOL | GET_MINIO_PRESIGNED_URL | ServerConnector |
+| Down | FileManager | READY+ONLINE | PROTOCOL | GET_MINIO_FILE / PUT_MINIO_FILE | MinIOConnector |
+| Down | UI | READY+ONLINE | PROTOCOL | UPDATE_* | ServerConnector |
+| Down | FSM (enter-actions) | !READY+ONLINE | PROTOCOL | GET_KAFKA_CREDENTIALS / FULL_SYNC / AUTH | ServerConnector (directly, bypassing the slot) |
 
 ---
 
-## Связанные файлы
+## Related files
 
-* `src/uniter/control/appmanager.h` — объявление сигналов и
-  `dispatchOutgoing` / `handle*` методов;
-* `src/uniter/control/appmanager.cpp` — реализация правил, этот
-  документ дословно воспроизводит комментарии над методами;
-* `src/uniter/main.cpp` — постоянные `QObject::connect` между
-  AppManager и сетевым слоем;
-* `src/uniter/network/miniconnector.cpp` — обработчик исходящих
+* `src/uniter/control/appmanager.h` - declaration of signals and
+`dispatchOutgoing` / `handle*` methods;
+* `src/uniter/control/appmanager.cpp` - implementation of the rules, this
+the document reproduces the comments above the methods verbatim;
+* `src/uniter/main.cpp` - constant `QObject::connect` between
+AppManager and network layer;
+* `src/uniter/network/miniconnector.cpp` - outgoing handler
   `GET_MINIO_FILE` / `PUT_MINIO_FILE`;
-* `docs/add_data_convention.md` — контракты `add_data` для каждого
-  `ProtocolAction`, включая `PUT_MINIO_FILE`;
-* `docs/fsm_appmanager.md` — собственно FSM и enter-actions.
+* `docs/add_data_convention.md` - `add_data` contracts for each
+`ProtocolAction` including `PUT_MINIO_FILE`;
+* `docs/fsm_appmanager.md` - actual FSM and enter-actions.

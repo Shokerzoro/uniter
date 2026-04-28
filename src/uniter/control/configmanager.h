@@ -15,33 +15,33 @@ class ConfigManager : public QObject
     Q_OBJECT
 
 private:
-    // Приватный конструктор
+    // Private constructor
     ConfigManager();
 
-    // Запрет копирования и перемещения
+    // Prohibition of copying and moving
     ConfigManager(const ConfigManager&) = delete;
     ConfigManager& operator=(const ConfigManager&) = delete;
     ConfigManager(ConfigManager&&) = delete;
     ConfigManager& operator=(ConfigManager&&) = delete;
 
-    // Текущая конфигурация
+    // Current configuration
     std::shared_ptr<contract::manager::Employee> user;
 
 public:
-    // Единственная точка доступа к синглтону
+    // Singleton singleton access point
     static ConfigManager* instance();
 
     ~ConfigManager() override = default;
 
 public slots:
-    // Генерация конфигурации по данным пользователя
+    // Generating configuration according to user data
     void onConfigProc(std::shared_ptr<contract::manager::Employee> User);
     void onClearResources();
 signals:
-    // Уведомление AppManager о завершении конфигурирования
+    // Notify AppManager that configuration is complete
     void signalConfigured();
 
-    // Для каждой назначенной пользователю подсистемы
+    // For each user-assigned subsystem
     void signalSubsystemAdded(contract::Subsystem subsystem,
                               contract::GenSubsystem genType,
                               std::optional<uint64_t> genId,

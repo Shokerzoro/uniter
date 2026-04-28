@@ -46,17 +46,17 @@ SubsystemIcon::SubsystemIcon(contract::Subsystem subsystem,
         }
     }
 
-    // Создаем QLabel с текстом
+    // Create a QLabel with text
     nameLabel = new QLabel(name, this);
     nameLabel->setAlignment(Qt::AlignCenter);
 
-    // Создаем layout для центрирования
+    // Create a layout for centering
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(nameLabel);
     setLayout(layout);
 
-    // Применяем настройки UIManager
+    // Applying UIManager settings
     auto settings = control::UIManager::instance();
     settings->applySubsIconSettings(this);
 }
@@ -74,11 +74,11 @@ void SubsystemIcon::paintEvent(QPaintEvent* event) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    // Получаем constraints
+    // We get constraints
     auto settings = control::UIManager::instance();
     const auto& constr = settings->getSubsIconConstraints();
 
-    // Рисуем фон (дефолтный или hover)
+    // Draw the background (default or hover)
     if (isHovered) {
         painter.setBrush(constr.hoverBgColor);
     } else {

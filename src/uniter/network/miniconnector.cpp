@@ -21,9 +21,9 @@ MinIOConnector* MinIOConnector::instance()
 MinIOConnector::MinIOConnector()
     : QObject(nullptr)
 {
-    // Локальный bucket: <приложение>/minio_local.
-    // В stub-варианте храним рядом с исполняемым файлом, чтобы не требовать
-    // от пользователя прав на каталоги вне рабочего.
+    // Local bucket: <application>/minio_local.
+    // In the stub version, we store it next to the executable file so as not to require
+    // from the user of rights to directories outside the working one.
     const QString root = QCoreApplication::applicationDirPath().isEmpty()
                          ? QDir::currentPath()
                          : QCoreApplication::applicationDirPath();
@@ -38,8 +38,8 @@ MinIOConnector::MinIOConnector()
 
 QString MinIOConnector::generatePresignedUrl(const QString& object_key)
 {
-    // Stub-формат: file://<bucket_absolute_path>/<object_key>
-    // Реальный presigned URL имел бы временный токен и истечение.
+    // Stub format: file://<bucket_absolute_path>/<object_key>
+    // A real presigned URL would have a temporary token and expiration.
     const QString path = m_bucket.absoluteFilePath(object_key);
     const QString url  = QStringLiteral("file://") + path;
     m_presignedByKey[object_key] = url;
@@ -50,7 +50,7 @@ QString MinIOConnector::generatePresignedUrl(const QString& object_key)
 
 QString MinIOConnector::presignedUrlToLocalPath(const QString& presigned_url) const
 {
-    // В stub-формате: "file://<absolute path>".
+    // In stub format: "file://<absolute path>".
     const QString prefix = QStringLiteral("file://");
     if (!presigned_url.startsWith(prefix)) {
         return {};
@@ -62,10 +62,10 @@ void MinIOConnector::onRequestPresignedUrl(std::shared_ptr<contract::UniterMessa
                                            QString object_key,
                                            QString minio_operation)
 {
-    Q_UNUSED(minio_operation); // в stub операция не влияет на URL
+    Q_UNUSED(minio_operation); // in stub the operation does not affect the URL
     if (object_key.isEmpty()) {
         qDebug() << "MinIOConnector::onRequestPresignedUrl() — empty object_key, skip";
-        // Всё равно возвращаем пустой URL — сервер обработает как ошибку.
+        // We still return an empty URL - the server will treat it as an error.
         emit signalPresignedUrlReady(requestCopy, object_key, QString());
         return;
     }
@@ -86,7 +86,7 @@ void MinIOConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
 {
     if (!message) return;
 
-    // Нас интересуют только GET_MINIO_FILE и PUT_MINIO_FILE в статусе REQUEST.
+    // We are only interested in GET_MINIO_FILE and PUT_MINIO_FILE in the REQUEST status.
     if (message->subsystem != Subsystem::PROTOCOL ||
         message->status    != MessageStatus::REQUEST ||
         (message->protact != ProtocolAction::GET_MINIO_FILE &&
@@ -120,7 +120,7 @@ void MinIOConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
              << "url=" << presigned_url
              << "bucket_path=" << bucket_path;
 
-    // Ответ формируем на основе исходного запроса для сохранения correlation.
+    // We generate the response based on the original request to save the correlation.
     auto response = std::make_shared<UniterMessage>(*message);
     response->status  = MessageStatus::RESPONSE;
     response->add_data.clear();
@@ -136,7 +136,7 @@ void MinIOConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
     }
 
     if (is_put) {
-        // PUT: копируем файл по local_path_in → bucket_path.
+        // PUT: copy the file via local_path_in → bucket_path.
         if (local_path_in.isEmpty()) {
             response->status = MessageStatus::ERROR;
             response->error  = ErrorCode::BAD_REQUEST;
@@ -144,10 +144,10 @@ void MinIOConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
             emit signalRecvMessage(response);
             return;
         }
-        // Гарантируем каталог назначения.
+        // We guarantee the destination directory.
         QFileInfo dst(bucket_path);
         QDir().mkpath(dst.absolutePath());
-        // Перезаписываем, если файл уже есть.
+        // Overwrite if the file already exists.
         if (QFile::exists(bucket_path)) {
             QFile::remove(bucket_path);
         }
@@ -159,13 +159,13 @@ void MinIOConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mess
             return;
         }
         response->error = ErrorCode::SUCCESS;
-        // Для PUT возвращаем только object_key/presigned_url — локальный
-        // путь самого bucket_path FileManager-у не нужен.
+        // For PUT we return only object_key/presigned_url - local
+        // The FileManager bucket_path itself is not needed.
         emit signalRecvMessage(response);
         return;
     }
 
-    // GET: если файла нет — ERROR, иначе отдаём путь.
+    // GET: if there is no file - ERROR, otherwise we give the path.
     if (!QFile::exists(bucket_path)) {
         response->status = MessageStatus::ERROR;
         response->error  = ErrorCode::SERVICE_UNAVAILABLE;

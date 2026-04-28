@@ -11,30 +11,30 @@ namespace appfuncs {
 
 using Path = std::filesystem::path;
 
-// --- Логирование ---
+// ---Logging ---
 
-//Открывает log_stream
+//Opens log_stream
 extern void open_log(const QString & logfilepath);
-//Пишет в log_stream
+//Writes to log_stream
 extern void write_log(const QString & msg);
-//Пишет время и дату в log_stream
+//Writes time and date to log_stream
 extern void log_time(void);
-//Закрываем лог
+//Close the log
 extern void close_log(void);
 
-// --- Работа с реестром ---
+// --- Working with the registry ---
 
-extern void add_reg_key(void); //Добавить запись, только для тестирования остального
-extern QString get_reg_version(void); //Получить текущую версию
-extern void set_reg_new_version(void); //Для внесения изменений в реестр
+extern void add_reg_key(void); // Add an entry, just to test the rest
+extern QString get_reg_version(void); // Get current version
+extern void set_reg_new_version(void); // To make changes to the registry
 
-// - - - - - Работа с ядром приложения ###
+// - - - - - Working with the application core ###
 
 extern void embed_main_exe_core_data(void);
 extern bool is_single_instance(void);
 extern QString getFileSHA256(QFile & hashing_file);
 
-// - - - - - Работа с переменными среды ###
+// - - - - - Working with environment variables ###
 
 struct AppEnviroment {
     QString temp_dir;
@@ -50,14 +50,14 @@ struct AppEnviroment {
     QString new_version;
 };
 
-//Получаем данные для переменные среды
-//(для редактирования или сразу передаче следующей функции)
+//Getting data for environment variables
+//(for editing or immediately passing to the next function)
 extern AppEnviroment get_env_data(void);
-//Устанавливаем перед созданием процесса
+//Install before creating a process
 extern void set_env(const AppEnviroment & app_env);
-//Получаем переменные среды (в начале нового процесса)
+//Getting environment variables (at the start of a new process)
 extern AppEnviroment read_env(void);
-//Логирование переменных среды
+//Logging environment variables
 extern void write_env(void);
 
 } //namespace appfuncs

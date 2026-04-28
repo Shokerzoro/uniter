@@ -15,32 +15,32 @@ namespace uniter::staticwdg {
 
 WorkBar::WorkBar(QWidget* parent) : QWidget(parent) {
 
-    // Применяем UI настройки
+    // Applying UI settings
     auto settings = control::UIManager::instance();
     settings->applyWorkBarSettings(this);
 
-    // Создаём контейнер для иконок
+    // Creating a container for icons
     iconContainer = new QWidget(this);
     iconLayout = new QVBoxLayout(iconContainer);
     iconLayout->setContentsMargins(0, 0, 0, 0);
     iconLayout->setSpacing(8);
-    iconLayout->addStretch();  // Выталкиваем иконки вверх
+    iconLayout->addStretch();  // Push icons up
     iconContainer->setLayout(iconLayout);
 
-    // Создаём кнопку LogOut
+    // Create a LogOut button
     logoutButton = new QPushButton("LogOut", this);
     logoutButton->setFixedSize(70, 70);
 
-    // Подключаем сигнал кнопки
+    // Connecting the button signal
     auto AManager = control::AppManager::instance();
     connect(logoutButton, &QPushButton::clicked,
             AManager, &control::AppManager::onLogout);
 
-    // Основной layout WorkBar
+    // Main layout WorkBar
     auto* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->addWidget(iconContainer);      // Иконки подсистем
-    mainLayout->addWidget(logoutButton);       // Кнопка LogOut внизу
+    mainLayout->addWidget(iconContainer);      // Subsystem icons
+    mainLayout->addWidget(logoutButton);       // LogOut button at the bottom
     setLayout(mainLayout);
 }
 
@@ -51,16 +51,16 @@ void WorkBar::addSubsystem(contract::Subsystem subsystem,
 
     qDebug() << "WorkBar::addSubsystem():" << subsystem;
 
-    // Создаём новую иконку
+    // Creating a new icon
     auto* icon = new genwdg::SubsystemIcon(subsystem, genType, genId, index);
 
-    // Сохраняем в map
+    // Save to map
     subsystemIcons[index] = icon;
 
-    // Добавляем в layout перед stretch'ем
+    // Add to layout before stretch
     iconLayout->insertWidget(iconLayout->count() - 1, icon);
 
-    // Коннектим сигнал иконки к слоту WorkBar
+    // Connect the icon signal to the WorkBar slot
     connect(icon, &genwdg::SubsystemIcon::clicked,
             this, &WorkBar::onIconClicked);
 }
@@ -70,17 +70,17 @@ void WorkBar::removeSubsystem(int index) {
     if (it != subsystemIcons.end()) {
         genwdg::SubsystemIcon* icon = it->second;
 
-        // Отключаем сигнал
+        // Turn off the signal
         disconnect(icon, &genwdg::SubsystemIcon::clicked,
                    this, &WorkBar::onIconClicked);
 
-        // Удаляем из layout
+        // Remove from layout
         iconLayout->removeWidget(icon);
 
-        // Удаляем виджет
+        // Removing the widget
         icon->deleteLater();
 
-        // Удаляем из map
+        // Remove from map
         subsystemIcons.erase(it);
     }
 }
@@ -99,16 +99,16 @@ void WorkBar::paintEvent(QPaintEvent* event) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    // Получаем constraints
+    // We get constraints
     auto settings = control::UIManager::instance();
     const auto& constr = settings->getWorkBarConstraints();
 
-    // Рисуем тонкую светлую полоску справа
+    // Draw a thin light stripe on the right
     QPen pen(constr.borderColor);
     pen.setWidth(constr.borderWidth);
     painter.setPen(pen);
 
-    // Линия от верха до низа по правому краю
+    // Line from top to bottom on the right edge
     int x = width() - constr.borderWidth;
     painter.drawLine(x, 0, x, height());
 }

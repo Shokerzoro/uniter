@@ -1,5 +1,5 @@
 // updater/main.cpp
-// Собирается в отдельный бинарник
+// Collected into a separate binary
 
 #include <QCoreApplication>
 #include <QProcess>
@@ -25,20 +25,20 @@ using namespace updater;
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
-    //Получаем переменные среды и открываем лог файл
+    //Get environment variables and open the log file
     common::appfuncs::AppEnviroment app_env = common::appfuncs::read_env();
     common::appfuncs::open_log(app_env.logfile);
     common::appfuncs::write_log("Updater: starts routine");
     common::appfuncs::write_log(QString("Updater: performing update from %1 to %2")
                             .arg(app_env.version, app_env.new_version));
 
-    // Проверка существования путей
+    // Checking the existence of paths
     if (!QDir(app_env.temp_dir).exists() || !QDir(app_env.working_dir).exists())
     {
         common::appfuncs::write_log("Updater: wrong/unexisting working/temp dir paths");
         return 1;
     }
-    //Добавить проверку наличия main.exe recover.exe
+    //Add a check for the presence of main.exe recover.exe
     // (!QFile::exists(main_exe) || !QFile::exists(recover_exe))
     if (!QFile::exists(app_env.main_exe))
     {
@@ -46,65 +46,65 @@ int main(int argc, char **argv)
         return 2;
     }
 
-    // Ждём завершения родителя
+    // Waiting for the parent to complete
     upfuncs::wait_for_process_exit(app_env.pid);
 
-    //Контейнер для путей новых каталогов (пара temp_dir_path, target_dir_path)
+    //Container for new directory paths (temp_dir_path, target_dir_path pair)
     PathMapper newdir_mapper;
-    //Контейнер для путей новых файлов (пара temp_file_path, target_file_path)
+    //Container for new file paths (temp_file_path, target_file_path pair)
     PathMapper newfile_mapper;
-    //Для путей файлов, подлежащих замене (пара actual_file_path, old_file_path)
+    //For file paths to be replaced (pair actual_file_path, old_file_path)
     PathMapper replace_mapper;
-    //Для путей файлов, подлежащих удалению
+    //For file paths to be deleted
     PathVector delfile_vector;
-    //Для путей каталогов, подлежищих удалению
+    //For directory paths to be deleted
     PathVector deldir_vector;
 
-    try { //Блок вызова основных функций апдейтера
+    try { // Block for calling the main functions of the updater
 
-        //Получаем данные для обновлений
+        //Getting data for updates
         upfuncs::get_update_data(app_env.temp_dir, app_env.working_dir,
                                  newdir_mapper, newfile_mapper, replace_mapper,
                                  delfile_vector, deldir_vector);
 
-        //Вызываем функцию копирования новых каталогов
+        //Calling the function to copy new directories
         upfuncs::addnew_dirs(newdir_mapper);
-        //копирования новых файлов
+        //copying new files
         upfuncs::addnew_files(newfile_mapper);
-        //замены старых файлов на новые replace_mapper
+        //replacing old files with new ones replace_mapper
         upfuncs::replace_files(replace_mapper);
-        //удаления старых версий (помечены при замене) delfile_vector
+        //deleting old versions (marked when replaced) delfile_vector
         upfuncs::delete_files(delfile_vector);
-        //удаления элементов, подлежащих удалению deldir_vector
+        //deleting elements to be deleted deldir_vector
         upfuncs::delete_dirs(deldir_vector);
 
-        //Заменяем ключ реестра "HKEY_CURRENT_USER\\Software\\" + application_name
+        //Replace the registry key "HKEY_CURRENT_USER\\Software\\" + application_name
         QSettings settings(QString("HKEY_CURRENT_USER\\Software\\%1").arg(app_env.appname), QSettings::NativeFormat);
         settings.setValue("Version", app_env.new_version);
 
-        //Удаляем каталог temp_dir
+        //Removing the temp_dir directory
         std::filesystem::remove_all(app_env.temp_dir.toStdString());
 
-        // Успешное выполнение
+        // Successful completion
         common::appfuncs::write_log("Updater: update succeses!");
         common::appfuncs::log_time();
     }
     catch (std::runtime_error & ex)
     {
         common::appfuncs::write_log(QString("Updater: update error! ") + QString::fromUtf8(ex.what()));
-        //Тут по идее запуск recover.exe
+        //Here, in theory, launch recover.exe
         //QProcess::startDetached(app_env.recover_exe);
         return 3;
     }
     catch (std::exception & ex)
     {
         common::appfuncs::write_log(QString("Updater: update error! ") + QString::fromUtf8(ex.what()));
-        //Тут по идее запуск recover.exe
+        //Here, in theory, launch recover.exe
         //QProcess::startDetached(app_env.recover_exe);
         return 4;
     }
 
-    //Перезапуск основного бинарника main.exe
+    //Restarting the main binary main.exe
     if (!QProcess::startDetached(app_env.main_exe))
     {
         common::appfuncs::write_log("Updater: main_exe restart error");

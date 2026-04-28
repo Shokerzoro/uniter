@@ -20,7 +20,7 @@ using Path = std::filesystem::path;
 namespace common {
 namespace appfuncs {
 
-// --- Логирование ---
+// ---Logging ---
 
 static std::ofstream log_stream;
 
@@ -84,9 +84,9 @@ void close_log()
     qDebug() << "Log closed!";
 }
 
-// --- Работа с реестром ---
+// --- Working with the registry ---
 
-// Для тестирования на тестовом проекте
+// For testing on a test project
 void add_reg_key(void)
 {
     QString exePath = QCoreApplication::applicationFilePath();
@@ -106,7 +106,7 @@ void add_reg_key(void)
     reg.sync();
 }
 
-// Получить текущую версию из реестра (основываясь на данных ядра приложения)
+// Get the current version from the registry (based on application core data)
 QString get_reg_version(void)
 {
     QString app_name = QCoreApplication::applicationName();
@@ -125,7 +125,7 @@ QString get_reg_version(void)
     return version.toString();
 }
 
-// Изменяем версию в реестре, основываясь на переменных среды (вызывается из дочернего процесса)
+// Change the version in the registry based on environment variables (called from a child process)
 void set_reg_new_version(void)
 {
     QByteArray app_name_env = qgetenv("APP_NAME");
@@ -152,7 +152,7 @@ void set_reg_new_version(void)
     qDebug() << "Reg changed!";
 }
 
-// --- Работа с ядром приложения ---
+// --- Working with the application core ---
 
 void embed_main_exe_core_data()
 {
@@ -161,14 +161,14 @@ void embed_main_exe_core_data()
     QString app_name = exeInfo.baseName();
     QCoreApplication::setApplicationName(app_name);
 
-    qDebug() << "Имя приложения: " << app_name;
+    qDebug() << "Application name: " << app_name;
 
     QString version;
     try {
         version = get_reg_version();
     } catch (const std::runtime_error &) {
-        // Первый запуск без установки — создаём ключ с версией по умолчанию
-        qDebug() << "Версия в реестре не найдена, создаём запись 0.0.0";
+        // First launch without installation - create a key with the default version
+        qDebug() << "Version was not found in the registry; creating entry 0.0.0";
         QString reg_key = R"(HKEY_CURRENT_USER\Software\)" + app_name;
         QSettings reg(reg_key, QSettings::NativeFormat);
         reg.setValue("Version", "0.0.0");
@@ -177,12 +177,12 @@ void embed_main_exe_core_data()
     }
 
     QCoreApplication::setApplicationVersion(version);
-    qDebug() << "Текущая версия: " << version;
+    qDebug() << "Current version: " << version;
 }
 
 bool is_single_instance(void)
 {
-    // Если бы была винда, то можно было бы создать именнованый мьютекс
+    // If you had Windows, you could create a named mutex
     HANDLE UniqueSem = CreateSemaphoreW(nullptr, 1, 1, L"UniterApp");
 
     if(!UniqueSem)
@@ -207,7 +207,7 @@ bool is_single_instance(void)
 QString getFileSHA256(QFile & file)
 {
     if (!file.open(QIODevice::ReadOnly))
-        throw std::runtime_error("appfuncs: getFileSHA256: не удалось открыть файл для чтения при хэшировании");
+        throw std::runtime_error("appfuncs: getFileSHA256: failed to open file for reading while hashing");
 
     QCryptographicHash hash(QCryptographicHash::Sha256);
     while (!file.atEnd())
@@ -216,23 +216,23 @@ QString getFileSHA256(QFile & file)
     return hash.result().toHex();
 }
 
-// --- Работа с переменными среды ---
+// --- Working with environment variables ---
 
-//Получаем переменные среды (для редактирования или сразу вызов следующей функции)
+//We get environment variables (for editing or immediately calling the next function)
 AppEnviroment get_env_data(void)
 {
     AppEnviroment app_env;
 
-    // temp_dir - локальная папка данных приложения
+    // temp_dir - local application data folder
     app_env.temp_dir = QDir(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)).absolutePath();
 
-    // working_dir - каталог, где лежит исполняемый файл
+    // working_dir - directory where the executable file is located
     app_env.working_dir = QCoreApplication::applicationDirPath();
 
-    // основной исполняемый файл
+    // main executable
     app_env.main_exe = QCoreApplication::applicationFilePath();
 
-    // относительные пути от working_dir
+    // relative paths from working_dir
     app_env.recover_exe = QDir(app_env.working_dir).filePath("bin/recover.exe");
     app_env.updater_exe = QDir(app_env.working_dir).filePath("bin/updater.exe");
     app_env.logfile = QDir(app_env.working_dir).filePath("etc/log.txt");
@@ -246,7 +246,7 @@ AppEnviroment get_env_data(void)
     return app_env;
 }
 
-//Устанавливаем перед созданием процесса
+//Install before creating a process
 void set_env(const AppEnviroment & app_env)
 {
     qputenv("TEMP_DIR", app_env.temp_dir.toUtf8());
@@ -262,7 +262,7 @@ void set_env(const AppEnviroment & app_env)
     qputenv("NEW_VERSION", app_env.new_version.toUtf8());
 }
 
-//Читаем переменные среды (в начале нового процесса)
+//Reading environment variables (at the start of a new process)
 AppEnviroment read_env(void)
 {
     AppEnviroment app_env;
@@ -282,10 +282,10 @@ AppEnviroment read_env(void)
     return app_env;
 }
 
-//Логирование переменных среды
+//Logging environment variables
 void write_env()
 {
-    // Получаем переменные окружения через Qt
+    // Getting environment variables through Qt
     QString temp_dir = qEnvironmentVariable("TEMP_DIR");
     QString working_dir = qEnvironmentVariable("WORKING_DIR");
     QString appname = qEnvironmentVariable("APP_NAME");
@@ -298,7 +298,7 @@ void write_env()
     QString new_version = qEnvironmentVariable("NEW_VERSION");
     QString pid = qEnvironmentVariable("PARENT_PID");
 
-    // Записываем в лог с проверкой, чтобы не писать пустые строки
+    // We write to the log with a check so as not to write empty lines
     auto write_if_not_empty = [](const QString &name, const QString &value){
         write_log(name + " = " + (value.isEmpty() ? "<not set>" : value));
     };

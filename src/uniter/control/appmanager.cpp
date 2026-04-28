@@ -40,22 +40,22 @@ namespace uniter::control {
     void AppManager::enterAuthenification()
     {
         qDebug() << "AppManager: enter AUTHENIFICATION — requesting auth data from widget";
-        // Если данные от виджета уже в буфере — сразу отправляем.
+        // If the data from the widget is already in the buffer, we send it immediately.
         if (m_authMessage) {
             qDebug() << "AppManager: AUTHENIFICATION — stored authMessage present, sending";
             emit signalSendToServer(m_authMessage);
-            // Переходим в IDLE_AUTHENIFICATION: ждём ответ сервера
+            // Go to IDLE_AUTHENIFICATION: wait for the server response
             ProcessEvent(Events::AUTH_DATA_READY);
             return;
         }
-        // Иначе — просим виджет прислать логин/пароль
+        // Otherwise, we ask the widget to send its login/password
         emit signalFindAuthData();
     }
 
     void AppManager::enterIdleAuthenification()
     {
         qDebug() << "AppManager: enter IDLE_AUTHENIFICATION — waiting server response";
-        // Действий при входе нет: просто ждём ответ сервера.
+        // There are no login actions: we just wait for the server’s response.
     }
 
     void AppManager::enterDbLoading()
@@ -78,8 +78,8 @@ namespace uniter::control {
     void AppManager::enterKafkaConnector()
     {
         qDebug() << "AppManager: enter KCONNECTOR — init KafkaConnector";
-        // KafkaConnector инициализируется под пользователя, после чего
-        // пришлёт сохранённый offset через signalOffsetReady → onKafkaOffsetReceived.
+        // KafkaConnector is initialized for the user, after which
+        // will send the saved offset via signalOffsetReady → onKafkaOffsetReceived.
         if (!m_user) {
             qDebug() << "AppManager: KCONNECTOR entered without m_user (unexpected)";
             return;
@@ -90,8 +90,8 @@ namespace uniter::control {
     void AppManager::enterKafka()
     {
         qDebug() << "AppManager: enter KAFKA — requesting server offset actuality check";
-        // Сетевой запрос: GET_KAFKA_CREDENTIALS REQUEST с offset в add_data.
-        // В ответ сервер пришлёт RESPONSE с add_data["offset_actual"] = "true"|"false".
+        // Network request: GET_KAFKA_CREDENTIALS REQUEST with offset in add_data.
+        // In response, the server will send RESPONSE with add_data["offset_actual"] = "true"|"false".
         auto msg = std::make_shared<contract::UniterMessage>();
         msg->subsystem = contract::Subsystem::PROTOCOL;
         msg->protact   = contract::ProtocolAction::GET_KAFKA_CREDENTIALS;
@@ -103,17 +103,17 @@ namespace uniter::control {
     void AppManager::enterDbClear()
     {
         qDebug() << "AppManager: enter DBCLEAR — clearing database";
-        // Локальная операция: просим DataManager очистить все таблицы БД.
-        // DataManager в ответ пришлёт signalDatabaseCleared → onDatabaseCleared.
+        // Local operation: ask the DataManager to clear all database tables.
+        // DataManager will respond with signalDatabaseCleared → onDatabaseCleared.
         emit signalClearDatabase();
     }
 
     void AppManager::enterSync()
     {
         qDebug() << "AppManager: enter SYNC — requesting FULL_SYNC from server";
-        // Сетевой запрос: FULL_SYNC REQUEST (без параметров в add_data).
-        // В ответ сервер через Kafka пришлёт поток CRUD CREATE, а по окончании —
-        // FULL_SYNC SUCCESS в PROTOCOL.
+        // Network request: FULL_SYNC REQUEST (no parameters in add_data).
+        // In response, the server will send a CRUD CREATE stream via Kafka, and upon completion -
+        // FULL_SYNC SUCCESS in PROTOCOL.
         auto msg = std::make_shared<contract::UniterMessage>();
         msg->subsystem = contract::Subsystem::PROTOCOL;
         msg->protact   = contract::ProtocolAction::FULL_SYNC;
@@ -130,15 +130,15 @@ namespace uniter::control {
     void AppManager::enterShutdown()
     {
         qDebug() << "AppManager: enter SHUTDOWN — saving settings & message buffers";
-        // TODO: фактическое сохранение настроек и буферов сообщений.
+        // TODO: actual saving of settings and message buffers.
     }
 
     void AppManager::reenterOnReconnect()
     {
-        // Вызывается при NET_CONNECTED, если AppState уже внутри UI-блокируемой
-        // области и состояние ЗАВИСИТ от сети.
-        // Для локальных состояний ничего не делаем (при возврате сети они
-        // просто продолжают выполняться).
+        // Called on NET_CONNECTED if the AppState is already inside a UI-locked one
+        // areas and status DEPENDS on the network.
+        // For local states we do nothing (when the network is returned they
+        // just keep executing).
         switch (m_appState) {
             case AppState::AUTHENIFICATION:
                 enterAuthenification();
@@ -157,14 +157,14 @@ namespace uniter::control {
                 break;
             default:
                 // IDLE, STARTED, SHUTDOWN, DBLOADING, CONFIGURATING, KCONNECTOR,
-                // DBCLEAR — не перезапускаются.
+                // DBCLEAR - do not restart.
                 break;
         }
     }
 
     bool AppManager::isNetworkDependent(AppState s)
     {
-        // Состояния, у которых есть offline-зеркало на диаграмме.
+        // States that have an offline mirror on the diagram.
         switch (s) {
             case AppState::AUTHENIFICATION:
             case AppState::IDLE_AUTHENIFICATION:
@@ -179,8 +179,8 @@ namespace uniter::control {
 
     bool AppManager::isInsideUiLockedArea(AppState s)
     {
-        // «UI-блокируемая часть» (пунктирная рамка на диаграмме):
-        // все состояния начиная с AUTHENIFICATION до READY включительно.
+        // "UI-blockable part" (dotted box in diagram):
+        // all states from AUTHENIFICATION to READY inclusive.
         switch (s) {
             case AppState::AUTHENIFICATION:
             case AppState::IDLE_AUTHENIFICATION:
@@ -199,8 +199,8 @@ namespace uniter::control {
 
     QByteArray AppManager::makeUserHash() const
     {
-        // Stub: используем id пользователя в виде строки.
-        // В будущем здесь будет реальный хэш (employee id + salt).
+        // Stub: use the user id as a string.
+        // In the future there will be a real hash here (employee id + salt).
         if (!m_user) return {};
         return QByteArray::number(static_cast<qulonglong>(m_user->id));
     }
@@ -212,18 +212,18 @@ namespace uniter::control {
         qDebug() << "AppManager::ProcessEvent() state=" << static_cast<int>(m_appState)
                  << " event=" << static_cast<int>(event);
 
-        // ---------- Обработка SHUTDOWN из любого состояния ----------
+        // ---------- Handling SHUTDOWN from any state ----------
         if (event == Events::SHUTDOWN) {
             m_appState = AppState::SHUTDOWN;
             enterShutdown();
             return;
         }
 
-        // ---------- Обработка сетевых событий (онлайн/оффлайн) ----------
-        // Принцип: NetState ортогонален AppState. Потеря/возврат сети не
-        // меняет AppState (кроме STARTED → AUTHENIFICATION при первом коннекте).
-        // Для сетевых состояний при возврате online ПОВТОРЯЕТСЯ entry-action;
-        // для локальных — нет.
+        // ---------- Network event processing (online/offline) ----------
+        // Principle: NetState is orthogonal to AppState. Loss/return of network not
+        // changes AppState (except STARTED → AUTHENIFICATION on the first connection).
+        // For online states, when returning online, the entry-action is REPEATED;
+        // for local ones - no.
         if (event == Events::NET_DISCONNECTED) {
             if (m_netState == NetState::ONLINE) {
                 m_netState = NetState::OFFLINE;
@@ -237,20 +237,20 @@ namespace uniter::control {
             if (was_offline) {
                 emit signalConnectionUpdated(true);
             }
-            // STARTED → AUTHENIFICATION при первом подключении.
+            // STARTED → AUTHENIFICATION upon first connection.
             if (m_appState == AppState::STARTED) {
                 m_appState = AppState::AUTHENIFICATION;
                 enterAuthenification();
                 return;
             }
-            // Для сетевых состояний повторяем entry (продолжить начатое действие).
+            // For network states, repeat entry (continue the started action).
             if (was_offline && isNetworkDependent(m_appState)) {
                 reenterOnReconnect();
             }
             return;
         }
 
-        // ---------- Логические переходы (online) ----------
+        // ---------- Logical transitions (online) ----------
         switch (m_appState) {
             case AppState::IDLE:
                 if (event == Events::START) {
@@ -260,7 +260,7 @@ namespace uniter::control {
                 break;
 
             case AppState::STARTED:
-                // Все переходы STARTED обрабатываются в блоке NET_* выше
+                // All STARTED transitions are processed in the NET_* block above
                 break;
 
             case AppState::AUTHENIFICATION:
@@ -268,7 +268,7 @@ namespace uniter::control {
                     m_appState = AppState::IDLE_AUTHENIFICATION;
                     enterIdleAuthenification();
                 } else if (event == Events::AUTH_SUCCESS) {
-                    // Редкий путь: ответ пришёл очень быстро (буфер был готов).
+                    // A rare path: the response came very quickly (the buffer was ready).
                     m_appState = AppState::DBLOADING;
                     enterDbLoading();
                 }
@@ -301,11 +301,11 @@ namespace uniter::control {
                 break;
 
             case AppState::KCONNECTOR:
-                // offset от KafkaConnector → переход в KAFKA.
+                // offset from KafkaConnector → transition to KAFKA.
                 if (event == Events::OFFSET_RECEIVED) {
                     m_appState = AppState::KAFKA;
-                    // KAFKA — сетевое состояние: entry выполняем только если online.
-                    // Если offline, entry повторится при возврате сети через
+                    // KAFKA - network state: entry is executed only if online.
+                    // If offline, entry will be repeated when the network returns via
                     // reenterOnReconnect().
                     if (m_netState == NetState::ONLINE) {
                         enterKafka();
@@ -356,12 +356,12 @@ namespace uniter::control {
                 break;
 
             case AppState::SHUTDOWN:
-                // Финальное состояние
+                // Final state
                 break;
         }
     }
 
-    // ========== СЛОТЫ ==========
+    // ========== SLOTS ==========
 
     void AppManager::onConnectionUpdated(bool state)
     {
@@ -406,19 +406,19 @@ namespace uniter::control {
         ProcessEvent(Events::OFFSET_RECEIVED);
     }
 
-    // Маршрутизация входящих сообщений (см. docs/appmanager_routing.md — вверх).
+    // Routing of incoming messages (see docs/appmanager_routing.md - top).
     //
-    // Источники сообщений: ServerConnector (ответы сервера),
-    // KafkaConnector (CRUD NOTIFICATION), MinIOConnector (ответы GET/PUT).
+    // Message sources: ServerConnector (server responses),
+    // KafkaConnector (CRUD NOTIFICATION), MinIOConnector (GET/PUT responses).
     //
-    // Правила:
+    // Rules:
     //   READY + CRUD  (subsystem != PROTOCOL) → DataManager
     //                                           (signalRecvUniterMessage)
     //   READY + PROTOCOL + MinIO (GET_MINIO_PRESIGNED_URL / GET_MINIO_FILE
     //                              / PUT_MINIO_FILE)            → FileManager
     //                                           (signalForwardToFileManager)
-    //   !=READY + PROTOCOL → часть инициализации → FSM (handleInitProtocolMessage)
-    //   Остальное — игнорируется с диагностическим логом.
+    // !=READY + PROTOCOL → initialization part → FSM (handleInitProtocolMessage)
+    // The rest is ignored with the diagnostic log.
     void AppManager::onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> Message)
     {
         if (!Message) {
@@ -438,7 +438,7 @@ namespace uniter::control {
             return;
         }
 
-        // Все не-PROTOCOL сообщения (CRUD) актуальны только в READY.
+        // All non-PROTOCOL messages (CRUD) are relevant only in READY.
         if (m_appState == AppState::READY) {
             handleReadyCrudMessage(Message);
         } else {
@@ -446,7 +446,7 @@ namespace uniter::control {
         }
     }
 
-    // --- Вспомогательное: MinIO-протокольные действия ---
+    // --- Auxiliary: MinIO protocol actions ---
     bool AppManager::isMinioProtocolAction(contract::ProtocolAction a)
     {
         return a == contract::ProtocolAction::GET_MINIO_PRESIGNED_URL ||
@@ -454,13 +454,13 @@ namespace uniter::control {
                a == contract::ProtocolAction::PUT_MINIO_FILE;
     }
 
-    // Протокольные сообщения до READY:
+    // Protocol messages before READY:
     //   AUTH (RESPONSE)                 — AUTH_SUCCESS / AUTH_FAIL
     //   GET_KAFKA_CREDENTIALS (RESPONSE) — OFFSET_ACTUAL / OFFSET_STALE
     //   FULL_SYNC (SUCCESS)             — SYNC_DONE
     void AppManager::handleInitProtocolMessage(std::shared_ptr<contract::UniterMessage> message)
     {
-        // Авторизация
+        // Authorization
         if (message->protact == contract::ProtocolAction::AUTH &&
             message->status  == contract::MessageStatus::RESPONSE)
         {
@@ -475,8 +475,8 @@ namespace uniter::control {
             return;
         }
 
-        // Проверка актуальности offset — сервер возвращает
-        // GET_KAFKA_CREDENTIALS (RESPONSE) с add_data["offset_actual"] = "true"/"false".
+        // Checking the relevance of offset - the server returns
+        // GET_KAFKA_CREDENTIALS (RESPONSE) with add_data["offset_actual"] = "true"/"false".
         if (message->protact == contract::ProtocolAction::GET_KAFKA_CREDENTIALS &&
             message->status  == contract::MessageStatus::RESPONSE &&
             m_appState      == AppState::KAFKA)
@@ -487,8 +487,8 @@ namespace uniter::control {
             return;
         }
 
-        // Завершение FULL_SYNC — сервер шлёт FULL_SYNC (SUCCESS) после того
-        // как весь поток CREATE закончен.
+        // Completion of FULL_SYNC - the server sends FULL_SYNC (SUCCESS) after
+        // as the entire CREATE thread is finished.
         if (message->protact == contract::ProtocolAction::FULL_SYNC &&
             message->status  == contract::MessageStatus::SUCCESS &&
             m_appState      == AppState::SYNC)
@@ -502,8 +502,8 @@ namespace uniter::control {
                  << "status="  << message->status;
     }
 
-    // Протокольные сообщения в READY — путь к FileManager для MINIO,
-    // прочее (UPDATE_*, GET_KAFKA_CREDENTIALS refresh) пока логируем.
+    // Protocol messages in READY - path to FileManager for MINIO,
+    // other (UPDATE_*, GET_KAFKA_CREDENTIALS refresh) are currently being logged.
     void AppManager::handleReadyProtocolMessage(std::shared_ptr<contract::UniterMessage> message)
     {
         if (isMinioProtocolAction(message->protact)) {
@@ -513,7 +513,7 @@ namespace uniter::control {
 
         switch (message->protact) {
             case contract::ProtocolAction::GET_KAFKA_CREDENTIALS:
-                // Уведомления о замене credentials — TODO
+                // Notifications about replacing credentials - TODO
                 qDebug() << "AppManager: READY Kafka credentials update (not implemented)";
                 break;
 
@@ -533,23 +533,23 @@ namespace uniter::control {
 
     void AppManager::handleReadyCrudMessage(std::shared_ptr<contract::UniterMessage> message)
     {
-        // CRUD в READY приходит, как правило, из KafkaConnector (NOTIFICATION).
+        // CRUD in READY usually comes from KafkaConnector (NOTIFICATION).
         emit signalRecvUniterMessage(message);
     }
 
-    // Маршрутизация исходящих сообщений (см. docs/appmanager_routing.md — вниз).
+    // Routing outgoing messages (see docs/appmanager_routing.md - down).
     //
-    // Источники сообщений:
-    //   — сама FSM (enterAuthenification/enterKafka/enterSync) — до READY
-    //     с уже выбранным каналом signalSendToServer напрямую;
-    //   — UI/AuthWidget — AUTH REQUEST в AUTHENIFICATION;
-    //   — UI-виджеты и FileManager — в READY, CRUD/PROTOCOL-MINIO.
+    // Message sources:
+    // - FSM itself (enterAuthenification/enterKafka/enterSync) - before READY
+    // with the already selected signalSendToServer channel directly;
+    // - UI/AuthWidget - AUTH REQUEST in AUTHENIFICATION;
+    // - UI widgets and FileManager - in READY, CRUD/PROTOCOL-MINIO.
     //
-    // Правила диспетчеризации в READY:
+    // Dispatch rules in READY:
     //   CRUD (subsystem != PROTOCOL)                           → ServerConnector
     //   PROTOCOL + GET_MINIO_PRESIGNED_URL                     → ServerConnector
     //   PROTOCOL + GET_MINIO_FILE / PUT_MINIO_FILE             → MinIOConnector
-    //   PROTOCOL + иное (UPDATE_*, GET_KAFKA_CREDENTIALS refresh) → ServerConnector
+    // PROTOCOL + other (UPDATE_*, GET_KAFKA_CREDENTIALS refresh) → ServerConnector
     void AppManager::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message)
     {
         if (!Message) {
@@ -565,15 +565,15 @@ namespace uniter::control {
             return;
         }
 
-        // До READY: слот вызывается (а) от UI/AuthWidget — только AUTH REQUEST,
-        // (б) от самой FSM — GET_KAFKA_CREDENTIALS/FULL_SYNC через свои enter-actions
-        // (они пишут напрямую в signalSendToServer и сюда не попадают).
+        // Before READY: the slot is called (a) from UI/AuthWidget - only AUTH REQUEST,
+        // (b) from FSM itself - GET_KAFKA_CREDENTIALS/FULL_SYNC through its enter-actions
+        // (they write directly to signalSendToServer and do not end up here).
         if (Message->subsystem == contract::Subsystem::PROTOCOL &&
             Message->protact   == contract::ProtocolAction::AUTH &&
             Message->status    == contract::MessageStatus::REQUEST)
         {
-            // (1) Штатный путь: мы в AUTHENIFICATION и онлайн — шлём
-            // запрос и переходим в IDLE_AUTHENIFICATION ждать ответ.
+            // (1) Regular way: we at AUTHENIFICATION and online send
+            // request and go to IDLE_AUTHENIFICATION to wait for a response.
             if (m_appState == AppState::AUTHENIFICATION && m_netState == NetState::ONLINE) {
                 m_authMessage = Message;
                 qDebug() << "AppManager: auth request sent from AUTHENIFICATION";
@@ -582,11 +582,11 @@ namespace uniter::control {
                 return;
             }
 
-            // (2) Повторный логин после LOGOUT: мы в IDLE_AUTHENIFICATION
-            // (у него нет entry-action, поэтому авто-логина не будет),
-            // m_authMessage сброшен onLogout'ом. Разрешаем отправку.
-            // Если m_authMessage уже установлен — запрос «в полёте»,
-            // новый не принимаем (защита от спама).
+            // (2) Re-login after LOGOUT: we are in IDLE_AUTHENIFICATION
+            // (it does not have an entry-action, so there will be no auto-login),
+            // m_authMessage was reset by onLogout. We allow sending.
+            // If m_authMessage is already set - the request is “in flight”,
+            // We do not accept new ones (spam protection).
             if (m_appState == AppState::IDLE_AUTHENIFICATION &&
                 m_netState == NetState::ONLINE &&
                 !m_authMessage)
@@ -597,9 +597,9 @@ namespace uniter::control {
                 return;
             }
 
-            // (3) Иначе — буферизуем до перехода в AUTHENIFICATION
-            // (например, offline или ещё STARTED). enterAuthenification
-            // подхватит m_authMessage и отправит сам.
+            // (3) Otherwise - buffer before moving to AUTHENIFICATION
+            // (for example, offline or also STARTED). enterAuthenification
+            // will pick up m_authMessage and send it itself.
             m_authMessage = Message;
             qDebug() << "AppManager: auth request buffered (state="
                      << static_cast<int>(m_appState) << ")";
@@ -614,10 +614,10 @@ namespace uniter::control {
                  << ")";
     }
 
-    // Диспетчер исходящих в READY.
+    // Outbox Manager in READY.
     void AppManager::dispatchOutgoing(std::shared_ptr<contract::UniterMessage> message)
     {
-        // Не-протокольные — всегда на сервер.
+        // Non-protocol - always to the server.
         if (message->subsystem != contract::Subsystem::PROTOCOL) {
             emit signalSendToServer(message);
             return;
@@ -630,12 +630,12 @@ namespace uniter::control {
                 return;
 
             case contract::ProtocolAction::GET_MINIO_PRESIGNED_URL:
-                // Presigned URL выдаёт сервер, а не MinIO.
+                // Presigned URL is issued by the server, not MinIO.
                 emit signalSendToServer(message);
                 return;
 
             default:
-                // AUTH/GET_KAFKA_CREDENTIALS/FULL_SYNC/UPDATE_* — все на сервер.
+                // AUTH/GET_KAFKA_CREDENTIALS/FULL_SYNC/UPDATE_* - all to the server.
                 emit signalSendToServer(message);
                 return;
         }

@@ -1,103 +1,103 @@
-# Subsystem::DOCUMENTS — заметка по БД
+# Subsystem::DOCUMENTS - note on the database
 
-Схема-эталон: `DOCUMENTS.pdf` (концептуальная схема, показывает только
-PK/FK и основные столбцы).
+Reference diagram: `DOCUMENTS.pdf` (conceptual diagram, shows only
+PK/FK and main columns).
 
-## Классы в рантайме
+## Classes in runtime
 
-- `documents::DocLink` — «папка» документов, прикреплённая к одному
-  целевому ресурсу (Assembly, Part, Project, MaterialTemplate*).
-  Хранит **только** свой `id`, `DocLinkTargetType` и свёрнутый
-  `std::vector<Doc> docs`. Никаких связочных полей (target_id, role,
-  position, doc_id) в рантайм-классе нет.
-- `documents::Doc` — один файл в MinIO. Хранит **только** свои данные
+- `documents::DocLink` - “folder” of documents attached to one
+target resource (Assembly, Part, Project, MaterialTemplate*).
+Stores **only** its `id`, `DocLinkTargetType` and collapsed
+`std::vector<Doc> docs`. No link fields (target_id, role,
+position, doc_id) is not in the runtime class.
+- `documents::Doc` - one file in MinIO. Stores **only** your data
   (object_key, sha256, doc_type, name, size_bytes, mime_type,
-  description, optional local_path). Никаких FK / ссылок на DocLink в
-  рантайм-классе нет — связка видна снаружи как `DocLink::docs`.
+description, optional local_path). No FK/links to DocLink
+There is no runtime class - the link is visible from the outside as `DocLink::docs`.
 
-> Важно: PDF моделирует только концептуальную схему БД. Прочие поля
-> классов (name, size_bytes, mime_type, description и т.п.)
-> сохраняются в рантайме и в БД, даже если не показаны в PDF.
+> Important: PDF only models the conceptual schema of the database. Other fields
+> classes (name, size_bytes, mime_type, description, etc.)
+> are saved in runtime and in the database, even if not shown in the PDF.
 
-## Таблицы в БД
+## Tables in the database
 
 ### `documents/doc_link` — `ResourceType::DOC_LINK`
 
-| колонка                   | тип       | назначение                                     |
+| column | type | appointment |
 |---------------------------|-----------|------------------------------------------------|
-| `id`                      | PK        | серверный глобальный ID                        |
-| `doc_link_target_type`    | INTEGER   | `DocLinkTargetType` — тип целевого ресурса     |
-| + поля `ResourceAbstract` | …         | is_actual / created_at / updated_at / created_by / updated_by |
+| `id` | PK | server global ID |
+| `doc_link_target_type` | INTEGER | `DocLinkTargetType` - target resource type |
+| + fields `ResourceAbstract` | ... | is_actual/created_at/updated_at/created_by/updated_by |
 
-Обратная сторона связи — поле `doc_link_id` на стороне владельца
+The reverse side of the connection is the `doc_link_id` field on the owner’s side
 (Assembly, Part, Project, MaterialTemplateSimple,
-MaterialTemplateComposite). У самого `doc_link` колонки `target_id`
-нет: папка не знает, к кому именно она прикреплена.
+MaterialTemplateComposite). The `doc_link` itself has a `target_id` column
+no: the folder does not know who exactly it is attached to.
 
 ### `documents/doc` — `ResourceType::DOC`
 
-| колонка                   | тип              | назначение                                  |
+| column | type | appointment |
 |---------------------------|------------------|---------------------------------------------|
-| `id`                      | PK               | серверный глобальный ID                     |
-| `doc_link_id`             | FK               | ссылка на `doc_link.id` (1:M, только в БД)  |
+| `id` | PK | server global ID |
+| `doc_link_id` | FK | link to `doc_link.id` (1:M, only in the database) |
 | `doc_type`                | INTEGER          | `DocumentType`                              |
-| `name`                    | TEXT             | человекочитаемое имя                        |
-| `object_key`              | TEXT             | ключ объекта в MinIO                        |
-| `sha256`                  | TEXT             | SHA-256 содержимого                         |
-| `size_bytes`              | INTEGER          | размер файла                                |
-| `mime_type`               | TEXT             | MIME-тип                                    |
-| `description`             | TEXT             | комментарий                                 |
-| `local_path`              | TEXT? (nullable) | путь в локальном кэше клиента               |
-| + поля `ResourceAbstract` | …                | …                                           |
+| `name` | TEXT | human readable name |
+| `object_key` | TEXT | object key in MinIO |
+| `sha256` | TEXT | SHA-256 content |
+| `size_bytes` | INTEGER | file size |
+| `mime_type` | TEXT | MIME type |
+| `description` | TEXT | comment |
+| `local_path` | TEXT? (nullable) | path in the client's local cache |
+| + fields `ResourceAbstract` | ... | ... |
 
-**Связочной таблицы между doc_link и doc нет.** Отношение 1:M
-реализовано FK `doc_link_id` на стороне `doc`. Один и тот же файл
-не может входить в две папки; если это нужно — создаётся ещё один
-Doc с тем же `object_key`/`sha256`.
+**There is no link table between doc_link and doc.** ​​Relationship 1:M
+implemented FK `doc_link_id` on the `doc` side. Same file
+cannot be in two folders; if this is needed, another one is created
+Doc with the same `object_key`/`sha256`.
 
-## Сворачивание таблиц → класс
+## Collapse tables → class
 
-**Чтение `DocLink`:**
+**Reading `DocLink`:**
 
 ```sql
 SELECT * FROM doc_link WHERE id = :id;
 SELECT * FROM doc      WHERE doc_link_id = :id AND is_actual = 1;
 ```
 
-Две выборки объединяются: строки из `doc` складываются в
-`DocLink::docs` в рантайме. FK `doc_link_id` из строк `doc` в
-рантайм-Doc **не переносится** — он использован только для выборки.
+The two selections are combined: the lines from `doc` are added to
+`DocLink::docs` at runtime. FK `doc_link_id` from `doc` strings
+runtime-Doc **is not transferred** - it is used only for sampling.
 
-**Чтение `Doc` напрямую:** обычный SELECT из `doc`. Привязка к
-DocLink восстанавливается либо при чтении соответствующего DocLink,
-либо — если нужно именно «к какому DocLink относится этот Doc» —
-отдельной выборкой `SELECT doc_link_id FROM doc WHERE id = :id`.
+**Reading `Doc` directly:** normal SELECT from `doc`. Link to
+DocLink is restored either by reading the corresponding DocLink,
+or - if you need exactly “which DocLink this Doc belongs to” -
+a separate selection `SELECT doc_link_id FROM doc WHERE id = :id`.
 
-## Раскладывание класс → таблицы
+## Layout class → tables
 
-При изменении состава папки **не перезаписывается вся DocLink**.
-Клиент шлёт отдельные CRUD-сообщения:
+When you change the composition of the folder **the entire DocLink** is not overwritten.
+The client sends separate CRUD messages:
 
-- добавить файл       → `CrudAction::CREATE` с `ResourceType::DOC`
-                        (в полезной нагрузке — Doc + target doc_link_id)
-- изменить метаданные → `CrudAction::UPDATE` с `ResourceType::DOC`
-- убрать файл         → `CrudAction::DELETE` с `ResourceType::DOC`
-- изменить тип цели   → `CrudAction::UPDATE` с `ResourceType::DOC_LINK`
+- add file → `CrudAction::CREATE` with `ResourceType::DOC`
+(in payload - Doc + target doc_link_id)
+- change metadata → `CrudAction::UPDATE` from `ResourceType::DOC`
+- remove file → `CrudAction::DELETE` from `ResourceType::DOC`
+- change target type → `CrudAction::UPDATE` from `ResourceType::DOC_LINK`
 
-Поскольку FK `doc_link_id` в рантайм-Doc отсутствует, при CREATE/
-UPDATE сообщения Doc нужная привязка передаётся отдельным полем
-UniterMessage (например, через `add_data["doc_link_id"]`) — это
-учитывается при реализации сериализации подсистемы DOCUMENTS.
+Since FK `doc_link_id` is missing in runtime-Doc, when CREATE/
+UPDATE message Doc the required binding is transmitted as a separate field
+UniterMessage (for example, via `add_data["doc_link_id"]`) is
+taken into account when implementing serialization of the DOCUMENTS subsystem.
 
-Это позволяет синхронизировать папки между клиентами по Kafka без
-трансляции всей коллекции.
+This allows you to synchronize folders between clients via Kafka without
+broadcasts of the entire collection.
 
-## Связь с uniterprotocol.h
+## Communication with uniterprotocol.h
 
 ```
-ResourceType::DOC       = 90   (таблица doc)
-ResourceType::DOC_LINK  = 91   (таблица doc_link)
+ResourceType::DOC       = 90   (doc table)
+ResourceType::DOC_LINK  = 91   (doc_link table)
 ```
 
-Добавлений в `uniterprotocol.h` не требуется: обе таблицы уже имеют
-собственные `ResourceType`, связочных таблиц в подсистеме нет.
+No additions to `uniterprotocol.h` are required: both tables already have
+own `ResourceType`, there are no linked tables in the subsystem.

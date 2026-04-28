@@ -1,12 +1,12 @@
-# Конвенция add_data в UniterMessage
+# Convention add_data in UniterMessage
 
-`UniterMessage::add_data` (`std::map<QString, QString>`) — унифицированный механизм
-передачи параметров протокольных операций. Намеренно не типизирован жёстко,
-чтобы не плодить специализированные поля. В будущем планируется добавить
-вспомогательный интерфейс (адаптер/builder) для типобезопасной работы с этим полем.
+`UniterMessage::add_data` (`std::map<QString, QString>`) - unified mechanism
+transfer of parameters of protocol operations. Intentionally not strongly typed,
+so as not to create specialized fields. In the future it is planned to add
+auxiliary interface (adapter/builder) for type-safe work with this field.
 
-> **Важно:** Ключи ниже — единственный источник истины. Любой компонент,
-> формирующий или читающий UniterMessage, обязан использовать строго эти ключи.
+> **Important:** The keys below are the only source of truth. Any component
+> the person generating or reading the UniterMessage must strictly use these keys.
 
 ---
 
@@ -14,219 +14,219 @@
 
 ### AUTH
 
-| Направление | Ключ | Значение | Обязателен |
+| Direction | Key | Meaning | Required |
 |-------------|------|----------|-----------|
-| REQUEST | `"login"` | Логин пользователя | Да |
-| REQUEST | `"password_hash"` | SHA-256 от пароля (hex) | Да |
-| RESPONSE | — | Данные пользователя передаются в `resource` (Employee) | — |
+| REQUEST | `"login"` | User login | Yes |
+| REQUEST | `"password_hash"` | SHA-256 from password (hex) | Yes |
+| RESPONSE | — | User data is passed to `resource` (Employee) | — |
 
 ---
 
 ### GET_KAFKA_CREDENTIALS
 
-| Направление | Ключ | Значение | Обязателен |
+| Direction | Key | Meaning | Required |
 |-------------|------|----------|-----------|
-| REQUEST | — | Нет дополнительных параметров | — |
-| RESPONSE | `"bootstrap_servers"` | `"host:port"` или `"host1:port1,host2:port2"` | Да |
-| RESPONSE | `"topic"` | Название топика компании | Да |
-| RESPONSE | `"username"` | SASL username | Да |
-| RESPONSE | `"password"` | SASL password | Да |
-| RESPONSE | `"group_id"` | Consumer group ID (привязан к пользователю) | Да |
+| REQUEST | — | No additional options | — |
+| RESPONSE | `"bootstrap_servers"` | `"host:port"` or `"host1:port1,host2:port2"` | Yes |
+| RESPONSE | `"topic"` | Company topic name | Yes |
+| RESPONSE | `"username"` | SASL username | Yes |
+| RESPONSE | `"password"` | SASL password | Yes |
+| RESPONSE | `"group_id"` | Consumer group ID (linked to user) | Yes |
 
 ---
 
 ### GET_MINIO_PRESIGNED_URL
 
-| Направление | Ключ | Значение | Обязателен |
+| Direction | Key | Meaning | Required |
 |-------------|------|----------|-----------|
-| REQUEST | `"object_key"` | Путь объекта в MinIO bucket, напр. `"drawings/SB-001/Part-42.pdf"` | Да |
-| REQUEST | `"minio_operation"` | `"GET"` или `"PUT"` | Да |
-| RESPONSE | `"object_key"` | Эхо ключа из запроса (для сопоставления ответа с запросом) | Да |
-| RESPONSE | `"presigned_url"` | Временный URL с подписью | Да |
-| RESPONSE | `"url_expires_at"` | ISO 8601 UTC, напр. `"2026-04-18T20:00:00Z"` | Да |
+| REQUEST | `"object_key"` | Object path in MinIO bucket, e.g. `"drawings/SB-001/Part-42.pdf"` | Yes |
+| REQUEST | `"minio_operation"` | `"GET"` or `"PUT"` | Yes |
+| RESPONSE | `"object_key"` | Echo the key from the request (to match the response with the request) | Yes |
+| RESPONSE | `"presigned_url"` | Temporary URL with signature | Yes |
+| RESPONSE | `"url_expires_at"` | ISO 8601 UTC, e.g. `"2026-04-18T20:00:00Z"` | Yes |
 
 ---
 
 ### GET_MINIO_FILE
 
-Скачивание файла из MinIO по ранее полученному presigned URL.
+Downloading a file from MinIO using a previously received presigned URL.
 
-| Направление | Ключ | Значение | Обязателен |
+| Direction | Key | Meaning | Required |
 |-------------|------|----------|-----------|
-| REQUEST | `"presigned_url"` | URL, полученный из GET_MINIO_PRESIGNED_URL RESPONSE | Да |
-| REQUEST | `"object_key"` | Ключ объекта (для идентификации в callback) | Да |
-| REQUEST | `"expected_sha256"` | SHA-256 ожидаемого файла (hex), для верификации после скачивания | Нет |
-| RESPONSE | `"object_key"` | Эхо ключа | Да |
-| RESPONSE | `"local_path"` | Путь к скачанному файлу на диске | Да |
-| ERROR | `"object_key"` | Эхо ключа | Да |
-| ERROR | `"reason"` | Текстовое описание ошибки | Нет |
+| REQUEST | `"presigned_url"` | URL obtained from GET_MINIO_PRESIGNED_URL RESPONSE | Yes |
+| REQUEST | `"object_key"` | Object key (for identification in callback) | Yes |
+| REQUEST | `"expected_sha256"` | SHA-256 of the expected file (hex), for verification after downloading | No |
+| RESPONSE | `"object_key"` | Key Echo | Yes |
+| RESPONSE | `"local_path"` | Path to the downloaded file on disk | Yes |
+| ERROR | `"object_key"` | Key Echo | Yes |
+| ERROR | `"reason"` | Text description of the error | No |
 
 ---
 
 ### PUT_MINIO_FILE
 
-Загрузка файла в MinIO по ранее полученному presigned URL (`GET_MINIO_PRESIGNED_URL` с `minio_operation="PUT"`).
+Uploading a file to MinIO using the previously received presigned URL (`GET_MINIO_PRESIGNED_URL` with `minio_operation="PUT"`).
 
-| Направление | Ключ | Значение | Обязателен |
+| Direction | Key | Meaning | Required |
 |-------------|------|----------|-----------|
-| REQUEST | `"presigned_url"` | URL, полученный из GET_MINIO_PRESIGNED_URL RESPONSE (PUT-вариант) | Да |
-| REQUEST | `"object_key"` | Ключ объекта (для идентификации в callback) | Да |
-| REQUEST | `"local_path"` | Путь к локальному файлу, который загружается в MinIO | Да |
-| REQUEST | `"sha256"` | SHA-256 загружаемого файла (hex), для верификации на стороне MinIO | Нет |
-| RESPONSE | `"object_key"` | Эхо ключа | Да |
-| RESPONSE | `"presigned_url"` | Эхо исходного URL | Да |
-| ERROR | `"object_key"` | Эхо ключа | Да |
-| ERROR | `"reason"` | Текстовое описание ошибки | Нет |
+| REQUEST | `"presigned_url"` | URL obtained from GET_MINIO_PRESIGNED_URL RESPONSE (PUT option) | Yes |
+| REQUEST | `"object_key"` | Object key (for identification in callback) | Yes |
+| REQUEST | `"local_path"` | Path to the local file that is loaded into MinIO | Yes |
+| REQUEST | `"sha256"` | SHA-256 of the downloaded file (hex), for verification on the MinIO side | No |
+| RESPONSE | `"object_key"` | Key Echo | Yes |
+| RESPONSE | `"presigned_url"` | Echo original URL | Yes |
+| ERROR | `"object_key"` | Key Echo | Yes |
+| ERROR | `"reason"` | Text description of the error | No |
 
 ---
 
 ### FULL_SYNC
 
-| Направление | Ключ | Значение | Обязателен |
+| Direction | Key | Meaning | Required |
 |-------------|------|----------|-----------|
-| REQUEST | — | Нет параметров | — |
-| SUCCESS | — | Маркер завершения: `status=SUCCESS`, нет ключей в add_data | — |
+| REQUEST | — | No options | — |
+| SUCCESS | — | Completion marker: `status=SUCCESS`, no keys in add_data | — |
 
-> Тело FULL_SYNC — поток CRUD NOTIFICATION-сообщений через Kafka.
-> Сам FULL_SYNC REQUEST/SUCCESS идёт через ServerConnector (TCP).
+> The body of FULL_SYNC is a stream of CRUD NOTIFICATION messages via Kafka.
+> FULL_SYNC REQUEST/SUCCESS itself goes through ServerConnector (TCP).
 
 ---
 
 ### UPDATE_CHECK
 
-| Направление | Ключ | Значение | Обязателен |
+| Direction | Key | Meaning | Required |
 |-------------|------|----------|-----------|
-| REQUEST | `"current_version"` | Текущая версия приложения, напр. `"1.2.3"` | Да |
-| RESPONSE (обновление есть) | `"update_available"` | `"true"` | Да |
-| RESPONSE (обновление есть) | `"new_version"` | Версия обновления, напр. `"1.3.0"` | Да |
-| RESPONSE (обновление есть) | `"release_notes"` | Краткое описание изменений | Нет |
-| RESPONSE (нет обновления) | `"update_available"` | `"false"` | Да |
+| REQUEST | `"current_version"` | Current version of the application, e.g. `"1.2.3"` | Yes |
+| RESPONSE (update available) | `"update_available"` | `"true"` | Yes |
+| RESPONSE (update available) | `"new_version"` | Update version, e.g. `"1.3.0"` | Yes |
+| RESPONSE (update available) | `"release_notes"` | Brief description of changes | No |
+| RESPONSE (no update) | `"update_available"` | `"false"` | Yes |
 
 ---
 
 ### UPDATE_CONSENT
 
-| Направление | Ключ | Значение | Обязателен |
+| Direction | Key | Meaning | Required |
 |-------------|------|----------|-----------|
-| (клиентское действие) | `"accepted"` | `"true"` или `"false"` | Да |
+| (client action) | `"accepted"` | `"true"` or `"false"` | Yes |
 
-> UPDATE_CONSENT — **чисто клиентское действие** (согласие пользователя на установку).
-> На сервер не отправляется. Это сигнал от UI → UpdaterWorker через AppManager.
-> Если пользователь согласился — UpdaterWorker инициирует UPDATE_DOWNLOAD REQUEST.
+> UPDATE_CONSENT - **purely client action** (user consent to installation).
+> It is not sent to the server. This is a signal from UI → UpdaterWorker via AppManager.
+> If the user has agreed, the UpdaterWorker initiates an UPDATE_DOWNLOAD REQUEST.
 
 ---
 
 ### UPDATE_DOWNLOAD
 
-Протокол передачи файлов обновления:
+Update file transfer protocol:
 
-**Инициация (клиент → сервер):**
+**Initiation (client → server):**
 ```
 subsystem: PROTOCOL
 protact:   UPDATE_DOWNLOAD
 status:    REQUEST
-add_data:  { "version": "1.3.0" }   // версия, которую хотим скачать
+add_data:  { "version": "1.3.0" }   // version we want to download
 ```
 
-**Сервер присылает каждый файл обновления отдельным сообщением:**
+**The server sends each update file as a separate message:**
 ```
 subsystem: PROTOCOL
 protact:   UPDATE_DOWNLOAD
 status:    NOTIFICATION
 add_data:
-  "file_path":   "uniter_setup_1.3.0.exe"   // имя файла с расширением (полное, как сохранять)
-  "presigned_url": "https://minio.../..."   // временный URL для скачивания
-  "file_size":   "15728640"                 // размер в байтах (для прогресс-бара)
-  "sha256":      "a3f1..."                  // SHA-256 для верификации после скачивания
-  "file_index":  "1"                        // порядковый номер файла в пакете обновления
-  "files_total": "3"                        // всего файлов в пакете
+  "file_path":   "uniter_setup_1.3.0.exe"   // file name with extension (full, how to save)
+  "presigned_url": "https:// minio.../..." // temporary download URL
+  "file_size":   "15728640"                 // size in bytes (for progress bar)
+  "sha256":      "a3f1..."                  // SHA-256 for post-download verification
+  "file_index":  "1"                        // serial number of the file in the update package
+  "files_total": "3"                        // total files in the package
 ```
 
-**После отправки всех файлов сервер закрывает поток:**
+**After all files have been sent, the server closes the stream:**
 ```
 subsystem: PROTOCOL
 protact:   UPDATE_DOWNLOAD
 status:    SUCCESS
 add_data:
   "version":     "1.3.0"
-  "files_total": "3"                        // итоговое число (для сверки с полученным)
+  "files_total": "3"                        // final number (for comparison with the received one)
 ```
 
-**Клиент скачивает каждый файл через MinIOConnector по presigned_url.**
-Верификация: SHA-256 скачанного файла == `add_data["sha256"]` из NOTIFICATION.
-При несовпадении — повторный запрос (новый UPDATE_DOWNLOAD REQUEST для конкретного файла).
+**The client downloads each file via MinIOConnector via presigned_url.**
+Verification: SHA-256 of the downloaded file == `add_data["sha256"]` from NOTIFICATION.
+If there is a discrepancy, a repeated request is made (a new UPDATE_DOWNLOAD REQUEST for a specific file).
 
-| Направление | Ключ | Обязателен |
+| Direction | Key | Required |
 |-------------|------|-----------|
-| REQUEST | `"version"` | Да |
-| NOTIFICATION | `"file_path"` | Да |
-| NOTIFICATION | `"presigned_url"` | Да |
-| NOTIFICATION | `"file_size"` | Нет |
-| NOTIFICATION | `"sha256"` | Да |
-| NOTIFICATION | `"file_index"` | Да |
-| NOTIFICATION | `"files_total"` | Да |
-| SUCCESS | `"version"` | Да |
-| SUCCESS | `"files_total"` | Да |
+| REQUEST | `"version"` | Yes |
+| NOTIFICATION | `"file_path"` | Yes |
+| NOTIFICATION | `"presigned_url"` | Yes |
+| NOTIFICATION | `"file_size"` | No |
+| NOTIFICATION | `"sha256"` | Yes |
+| NOTIFICATION | `"file_index"` | Yes |
+| NOTIFICATION | `"files_total"` | Yes |
+| SUCCESS | `"version"` | Yes |
+| SUCCESS | `"files_total"` | Yes |
 
 ---
 
-## Kafka-сообщения (KafkaConnector → AppManager)
+## Kafka messages (KafkaConnector → AppManager)
 
-Все сообщения из Kafka имеют `subsystem != PROTOCOL` и один из статусов:
+All messages from Kafka have `subsystem != PROTOCOL` and one of the statuses:
 
-| MessageStatus | Смысл | Кто получает | add_data |
+| MessageStatus | Meaning | Who receives | add_data |
 |--------------|-------|-------------|---------|
-| `NOTIFICATION` | Изменение, сделанное **другим** пользователем | DataManager | `"kafka_offset"`: текущий offset (строка) |
-| `SUCCESS` | Подтверждение **своей** CUD-операции, прошедшей через сервер | DataManager | `"kafka_offset"`: текущий offset; `"request_id"`: эхо из исходного запроса |
+| `NOTIFICATION` | Change made by **other** user | DataManager | `"kafka_offset"`: current offset (string) |
+| `SUCCESS` | Confirmation of **your** CUD operation through the server | DataManager | `"kafka_offset"`: current offset; `"request_id"`: echo from the original request |
 
-> `"kafka_offset"` добавляется KafkaConnector автоматически к каждому сообщению.
-> DataManager использует его только для диагностики; постоянное хранение offset — 
-> ответственность KafkaConnector (OS Secure Storage).
-
----
-
-## Правила работы с add_data
-
-1. Ключи — строго из этого документа. Строковые литералы в коде — источник ошибок.
-   В будущем все ключи будут вынесены в `contract/add_data_keys.h` как `constexpr`.
-2. Значения — всегда `QString`. Числа сериализуются `QString::number(x)`,
-   булевы — `"true"` / `"false"`.
-3. Отсутствующий необязательный ключ означает "не указано" — не ошибка.
+> `"kafka_offset"` is added automatically by KafkaConnector to each message.
+> DataManager uses it only for diagnostics; permanent storage offset -
+> responsibility of KafkaConnector (OS Secure Storage).
 
 ---
 
-## Subsystem::GENERATIVE — CRUD на ресурсах генеративных подсистем
+## Rules for working with add_data
 
-Контекст сообщения определяется тройкой: `subsystem=GENERATIVE`, `GenSubsystem`, `GenSubsystemId`.
+1. Keys - strictly from this document. String literals in code are a source of errors.
+In the future, all keys will be placed in `contract/add_data_keys.h` as `constexpr`.
+2. Values ​​are always `QString`. Numbers are serialized by `QString::number(x)`,
+Boolean - `"true"` / `"false"`.
+3. A missing optional key means "not specified" - not an error.
 
-### Создание генеративной подсистемы (Subsystem::MANAGER)
+---
+
+## Subsystem::GENERATIVE - CRUD based on the resources of generative subsystems
+
+The context of the message is determined by the triple: `subsystem=GENERATIVE`, `GenSubsystem`, `GenSubsystemId`.
+
+### Creating a generative subsystem (Subsystem::MANAGER)
 
 ```
 subsystem=MANAGER, crudact=CREATE, resource_type=PRODUCTION | INTEGRATION
 ```
-Сервер возвращает ресурс с заполненным `id`. Kafka рассылает NOTIFICATION всем участникам.
-DataManager регистрирует новую подсистему, ConfigManager генерирует вкладку UI.
+The server returns the resource with the `id` filled in. Kafka sends out a NOTIFICATION to all participants.
+DataManager registers the new subsystem, ConfigManager generates the UI tab.
 
 ---
 
 ### GenSubsystem::PRODUCTION
 
-**Производственное задание (`PRODUCTION_TASK`):**
+**Production task (`PRODUCTION_TASK`):**
 ```
 subsystem=GENERATIVE, GenSubsystem=PRODUCTION, GenSubsystemId=<id>
 crudact=CREATE|UPDATE|DELETE, resource_type=PRODUCTION_TASK
 ```
-Опциональные ключи `add_data` при CREATE:
+Optional `add_data` keys for CREATE:
 
-| Ключ | Значение |
+| Key | Meaning |
 |------|---------|
-| `"snapshot_id"` | ID снимка PDM::Snapshot, из которого берётся состав |
-| `"snapshot_version"` | Версия снимка |
+| `"snapshot_id"` | ID of the PDM::Snapshot from which the composition is taken |
+| `"snapshot_version"` | Photo version |
 
-**Позиция склада (`PRODUCTION_STOCK`):**
+**Stock position (`PRODUCTION_STOCK`):**
 
-`ProductionStock` — отдельный ресурс, содержащий ссылку на `MaterialInstance` по id и количество.
-Хранится в таблице `production_stock(id, production_id, material_instance_id, quantity)`.
+`ProductionStock` is a separate resource containing a link to `MaterialInstance` by id and quantity.
+Stored in the table `production_stock(id, production_id, material_instance_id, quantity)`.
 
 ```
 subsystem=GENERATIVE, GenSubsystem=PRODUCTION, GenSubsystemId=<id>
@@ -239,8 +239,8 @@ resource = ProductionStock { id, material_instance_id, quantity }
 
 ### GenSubsystem::INTERGATION
 
-Подсистема интеграции не содержит склада материалов.
-Единственный ресурс — `INTEGRATION_TASK`, описывающий что и с кем интегрируется.
+The integration subsystem does not contain a materials warehouse.
+The only resource is `INTEGRATION_TASK`, which describes what is being integrated and with whom.
 
 ```
 subsystem=GENERATIVE, GenSubsystem=INTERGATION, GenSubsystemId=<id>

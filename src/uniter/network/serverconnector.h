@@ -9,36 +9,36 @@
 namespace uniter::net {
 
 /*
- * ServerConnector — заглушка основного сервера (authorization + CRUD backend).
+ * ServerConnector - stub of the main server (authorization + CRUD backend).
  *
- * Роль в целевой архитектуре (см. uniter-target-state):
- *   — TCP/SSL соединение с самописным сервером.
- *   — Сериализация UniterMessage в XML и отправка на сервер.
- *   — Десериализация XML-ответов в UniterMessage.
- *   — Буферизация исходящих CUD запросов при отсутствии соединения.
- *   — Обработка таймаутов запросов.
+ * Role in target architecture (see uniter-target-state):
+ * — TCP/SSL connection with a self-written server.
+ * — Serialization of UniterMessage in XML and sending to the server.
+ * - Deserialization of XML responses in UniterMessage.
+ * — Buffering of outgoing CUD requests when there is no connection.
+ * — Processing request timeouts.
  *
- * Реализация в текущем виде — локальная заглушка для интеграционного тестирования:
- *   — Подключение мгновенное, успешное.
- *   — Авторизация всегда успешна; пользователь со всеми подсистемами и полными правами.
- *   — На запрос актуальности offset (GET_KAFKA_CREDENTIALS) — всегда "offset_actual=true".
- *   — На любой CUD-запрос отвечает RESPONSE/SUCCESS и дополнительно пересылает
- *     копию сообщения (MessageStatus::NOTIFICATION) через KafkaConnector — имитируя
- *     broadcast о подтверждённой модификации. Для этого задействован временный
- *     прямой signal/slot connect ServerConnector → KafkaConnector (main.cpp).
- *   — На GET_MINIO_PRESIGNED_URL делегирует MinIOConnector-у (также через временный
- *     прямой connect) и возвращает ответный UniterMessage через signalRecvMessage.
- *   — FULL_SYNC — подтверждает мгновенно как SUCCESS.
+ * The implementation in its current form is a local stub for integration testing:
+ * — Connection is instant and successful.
+ * — Authorization is always successful; a user with all subsystems and full rights.
+ * — When requesting relevance offset (GET_KAFKA_CREDENTIALS) — always “offset_actual=true”.
+ * — Any CUD request is answered with RESPONSE/SUCCESS and additionally forwarded
+ * a copy of the message (MessageStatus::NOTIFICATION) via KafkaConnector - simulating
+ * broadcast about a confirmed modification. For this purpose, a temporary
+ * direct signal/slot connect ServerConnector → KafkaConnector (main.cpp).
+ * — On GET_MINIO_PRESIGNED_URL delegates to MinIOConnector (also through temporary
+ * direct connect) and returns the response UniterMessage via signalRecvMessage.
+ * — FULL_SYNC — confirms instantly as SUCCESS.
  */
 class ServerConnector : public QObject
 {
     Q_OBJECT
 
 private:
-    // Приватный конструктор для синглтона
+    // Private constructor for singleton
     ServerConnector();
 
-    // Запрет копирования и перемещения
+    // Prohibition of copying and moving
     ServerConnector(const ServerConnector&) = delete;
     ServerConnector& operator=(const ServerConnector&) = delete;
     ServerConnector(ServerConnector&&) = delete;
@@ -46,30 +46,30 @@ private:
 
     bool connected_ = false;
 
-    // Счётчики для отладки
+    // Counters for debugging
     int seq_id_sent_ = 0;
     int seq_id_received_ = 0;
 
 public:
-    // Публичный статический метод получения экземпляра
+    // Public static method to get an instance
     static ServerConnector* instance();
 
     ~ServerConnector() override;
 
 public slots:
-    // Команда от AppManager: попытаться установить соединение.
-    // В stub-варианте подключаемся всегда успешно и мгновенно.
+    // Command from AppManager: try to establish a connection.
+    // In the stub version we always connect successfully and instantly.
     void onMakeConnection();
 
-    // Команда от AppManager: отправить сообщение на «сервер».
+    // Command from AppManager: send message to "server".
     void onSendMessage(std::shared_ptr<contract::UniterMessage> message);
 
-    // Завершение работы (если нужно дергать явно)
+    // Shutdown (if you need to pull explicitly)
     void onShutdown();
 
-    // TEMP connect: приходит из MinIOConnector — готовый presigned URL
-    // для object_key. Преобразуется в RESPONSE и уходит вверх (в AppManager).
-    // Удалить при переходе на реальную сеть — сервер будет отдавать URL сам.
+    // TEMP connect: comes from MinIOConnector - ready presigned URL
+    // for object_key. It is converted to RESPONSE and goes up (to AppManager).
+    // Delete when switching to a real network - the server will give the URL itself.
     void onMinioPresignedUrlReady(std::shared_ptr<contract::UniterMessage> requestCopy,
                                   QString object_key,
                                   QString presigned_url);
@@ -78,17 +78,17 @@ signals:
     // Network → AppManager
     void signalConnectionUpdated(bool state);
 
-    // Network → AppManager: входящее сообщение (RESPONSE, ERROR, SUCCESS)
+    // Network → AppManager: incoming message (RESPONSE, ERROR, SUCCESS)
     void signalRecvMessage(std::shared_ptr<contract::UniterMessage> message);
 
-    // TEMP: ServerConnector → KafkaConnector — после подтверждения CUD
-    // сервер имитирует broadcast, дублируя сообщение как NOTIFICATION.
-    // Удалить при переходе на реальную сеть — настоящий сервер будет сам
-    // отправлять NOTIFICATION в Kafka без вмешательства клиента.
+    // TEMP: ServerConnector → KafkaConnector - after CUD confirmation
+    // the server imitates a broadcast, duplicating the message as NOTIFICATION.
+    // Delete when switching to a real network - the real server itself will be
+    // send NOTIFICATION to Kafka without client intervention.
     void signalEmitKafkaNotification(std::shared_ptr<contract::UniterMessage> notification);
 
-    // TEMP: ServerConnector → MinIOConnector — запрос presigned URL по object_key.
-    // Удалить при переходе на реальную сеть — сервер сам общается с MinIO.
+    // TEMP: ServerConnector → MinIOConnector - request presigned URL by object_key.
+    // Delete when switching to a real network - the server itself communicates with MinIO.
     void signalRequestMinioPresignedUrl(std::shared_ptr<contract::UniterMessage> requestCopy,
                                         QString object_key,
                                         QString minio_operation);

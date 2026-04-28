@@ -30,7 +30,7 @@ void WorkArea::addSubsystem(contract::Subsystem subsystem,
     subsystemWidgets[index] = subsWdg;
     stackedLayout->addWidget(subsWdg);
 
-    // Коннектим сигнал SubsWdg к сигналу WorkArea
+    // Connect the SubsWdg signal to the WorkArea signal
     connect(subsWdg, &genwdg::SubsystemTab::signalSendUniterMessage,
             this, &WorkArea::signalSendUniterMessage);
 }

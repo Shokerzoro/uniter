@@ -15,15 +15,15 @@
         Q_OBJECT
 
     private:
-        // Состояния виджета
+        // Widget states
         enum class WidgetState {
-            AUTH_OFFLINE,    // OfflineWdg (нет сети, не авторизован)
-            AUTH_ONLINE,     // AuthWdg (есть сеть, не авторизован)
-            WORK_ONLINE,     // WorkWdg (есть сеть, авторизован)
-            WORK_OFFLINE     // OfflineWdg (нет сети, но был авторизован)
+            AUTH_OFFLINE,    // OfflineWdg (no network, not authorized)
+            AUTH_ONLINE,     // AuthWdg (there is a network, not authorized)
+            WORK_ONLINE,     // WorkWdg (there is a network, authorized)
+            WORK_OFFLINE     // OfflineWdg (no network, but was authorized)
         };
 
-        // События для FSM
+        // Events for FSM
         enum class WidgetEvents {
             NET_CONNECTED,
             NET_DISCONNECTED,
@@ -34,10 +34,10 @@
 
         WidgetState m_widgetState = WidgetState::AUTH_OFFLINE;
 
-        // FSM обработка событий
+        // FSM event processing
         void ProcessEvent(WidgetEvents event);
 
-        // Виджеты
+        // Widgets
         QStackedLayout* MLayout = nullptr;
         AuthWdg* AWdg = nullptr;
         OfflineWdg* OffWdg = nullptr;
@@ -51,13 +51,13 @@
         MainWidget& operator=(MainWidget&&) = delete;
 
     public slots:
-        // От менеджера приложения
+        // From the application manager
         void onConnectionUpdated(bool state);
         void onAuthed(bool result);
         void onFindAuthData();
         void onLoggedOut();
     signals:
-        // Для виджета аутентификации
+        // For the authentication widget
         void signalAuthed(bool result);
         void signalFindAuthData();
 };

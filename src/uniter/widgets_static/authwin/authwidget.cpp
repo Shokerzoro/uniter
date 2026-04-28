@@ -1,7 +1,7 @@
 
 #include "../../control/appmanager.h"
 #include "authwidget.h"
-//#include <qtkeychain/keychain.h> TODO: добавить безопасное хранение логина и пароля
+//#include <qtkeychain/keychain.h> TODO: add secure storage of login and password
 #include <QSettings>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -16,49 +16,49 @@ namespace uniter::staticwdg {
 AuthWdg::AuthWdg(QWidget* parent)
     : QWidget(parent)
 {
-    // Основной layout
+    // Main layout
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setSpacing(10);
     mainLayout->setContentsMargins(20, 20, 20, 20);
 
-    // Заголовок
+    // Heading
     QLabel* titleLabel = new QLabel("Login", this);
     mainLayout->addWidget(titleLabel);
 
-    // Поле логина
+    // Login field
     m_loginInput = new QLineEdit(this);
-    m_loginInput->setPlaceholderText("my@email.com");  // <- вместо setText
+    m_loginInput->setPlaceholderText("my@email.com");  // <- instead of setText
     m_loginInput->installEventFilter(this);
     mainLayout->addWidget(m_loginInput);
 
-    // Поле пароля
+    // Password field
     m_passwordInput = new QLineEdit(this);
-    m_passwordInput->setPlaceholderText("qwerty");  // <- вместо setText
+    m_passwordInput->setPlaceholderText("qwerty");  // <- instead of setText
     m_passwordInput->setEchoMode(QLineEdit::Password);
     m_passwordInput->installEventFilter(this);
     mainLayout->addWidget(m_passwordInput);
 
-    // Чекбокс "Запомнить"
+    // Checkbox "Remember"
     m_rememberCheckBox = new QCheckBox("Remember me", this);
     m_rememberCheckBox->setChecked(true);
     mainLayout->addWidget(m_rememberCheckBox);
 
-    // Кнопка входа
+    // Login button
     m_loginButton = new QPushButton("Login", this);
     mainLayout->addWidget(m_loginButton);
 
-    // Скрытое поле ошибки
+    // Hidden error field
     m_errorMessageLabel = new QLabel(this);
     m_errorMessageLabel->setStyleSheet("color: red;");
     m_errorMessageLabel->setVisible(false);
     mainLayout->addWidget(m_errorMessageLabel);
 
-    // Растягиваем пространство
+    // Stretch the space
     mainLayout->addStretch();
 
     this->setLayout(mainLayout);
 
-    // Подключаем сигналы
+    // Connecting signals
     auto AManager = control::AppManager::instance();
     connect(this, AuthWdg::signalSendUniterMessage,
             AManager, control::AppManager::onSendUniterMessage);

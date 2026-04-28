@@ -1,64 +1,64 @@
 # Subsystem::PURCHASES (supply)
 
-Подсистема закупок. В коде лежит в `src/uniter/contract/supply/`.
-Схема (структурная): `SUPPLY.pdf`.
+Procurement subsystem. The code is located in `src/uniter/contract/supply/`.
+Scheme (structural): `SUPPLY.pdf`.
 
-## Таблицы
+## Tables
 
-### `supply_purchase_complex` — Комплексная закупочная заявка
+### `supply_purchase_complex` - Complex purchasing application
 
-| Колонка | Тип | Описание |
+| Column | Type | Description |
 |---|---|---|
 | `id` | INTEGER PK | |
-| *общие поля ResourceAbstract* | | `actual, created_at, updated_at, created_by, updated_by` |
+| *general fields ResourceAbstract* | | `actual, created_at, updated_at, created_by, updated_by` |
 | `name` | TEXT | |
 | `description` | TEXT | |
 | `status` | INTEGER | `PurchStatus` (DRAFT/PLACED/CANCELLED) |
 
-Связь с простыми заявками — обратная, через FK `purchase_complex_id`
-в `supply_purchase_simple`. Отдельной join-таблицы нет: одна простая
-заявка принадлежит не более чем одной комплексной.
+Communication with simple requests is reverse, via FK `purchase_complex_id`
+in `supply_purchase_simple`. There is no separate join table: one simple one
+the application belongs to no more than one complex.
 
-**C++ класс:** `contract::supply::PurchaseComplex`
+**C++ class:** `contract::supply::PurchaseComplex`
 (`ResourceType::PURCHASE_GROUP = 40`).
 
-### `supply_purchase_simple` — Простая закупочная заявка
+### `supply_purchase_simple` - Simple purchase order
 
-| Колонка | Тип | Описание |
+| Column | Type | Description |
 |---|---|---|
 | `id` | INTEGER PK | |
-| *общие поля ResourceAbstract* | | |
+| *general fields ResourceAbstract* | | |
 | `name` | TEXT | |
 | `description` | TEXT | |
 | `status` | INTEGER | `PurchStatus` |
-| `purchase_complex_id` | INTEGER NULL | FK → `supply_purchase_complex.id` (если заявка входит в комплексную) |
-| `doc_link_id` | INTEGER NULL | FK → `documents_doc_link.id` (счёт / накладная) |
+| `purchase_complex_id` | INTEGER NULL | FK → `supply_purchase_complex.id` (if the application is part of a complex one) |
+| `doc_link_id` | INTEGER NULL | FK → `documents_doc_link.id` (invoice/invoice) |
 | `instance_simple_id` | INTEGER NULL | FK → `material_instances_simple.id` |
 | `instance_composite_id` | INTEGER NULL | FK → `material_instances_composite.id` |
-| `plant_id` | INTEGER NULL | FK → `manager_plant.id` (площадка-получатель, опц.) |
+| `plant_id` | INTEGER NULL | FK → `manager_plant.id` (destination site, opt) |
 
-**Инвариант:** `instance_simple_id` XOR `instance_composite_id` — заполнено
-ровно одно (заявка ссылается либо на простой, либо на составной Instance).
+**Invariant:** `instance_simple_id` XOR `instance_composite_id` - filled
+exactly one (the request refers to either a simple or a composite Instance).
 
-**C++ класс:** `contract::supply::Purchase`
+**C++ class:** `contract::supply::Purchase`
 (`ResourceType::PURCHASE = 41`).
 
-## Связи (ключевые)
+## Connections (key)
 
 ```
 supply_purchase_complex 1 ─ N supply_purchase_simple
-supply_purchase_simple  N ─ 1 material_instances_simple   (через instance_simple_id)
-supply_purchase_simple  N ─ 1 material_instances_composite (через instance_composite_id)
-supply_purchase_simple  N ─ 1 documents_doc_link           (через doc_link_id)
-supply_purchase_simple  N ─ 1 manager_plant                (через plant_id)
+supply_purchase_simple N ─ 1 material_instances_simple (via instance_simple_id)
+supply_purchase_simple N ─ 1 material_instances_composite (via instance_composite_id)
+supply_purchase_simple N ─ 1 documents_doc_link (via doc_link_id)
+supply_purchase_simple N ─ 1 manager_plant (via plant_id)
 ```
 
-## Заметки по логике
+## Notes on logic
 
-* При создании `PurchaseComplex` сами `Purchase` создаются отдельными
-  CREATE-сообщениями. `PurchaseComplex` не содержит `std::vector<uint64_t>`
-  с id членов — связь материализуется обратным SELECT по `purchase_complex_id`.
-* Обратная денормализация `PurchaseComplex.purchases[]` (которая раньше
-  была в коде) убрана: источник истины — FK в `supply_purchase_simple`.
-* Одна `Purchase` не может входить в две `PurchaseComplex` одновременно
-  (ограничение на уровне FK: `purchase_complex_id` — одиночное поле).
+* When creating a `PurchaseComplex` the `Purchase` themselves are created separately
+CREATE messages. `PurchaseComplex` does not contain `std::vector<uint64_t>`
+with member ids - the connection is materialized by a reverse SELECT on `purchase_complex_id`.
+* Reverse denormalization of `PurchaseComplex.purchases[]` (which used to be
+was in the code) removed: the source of truth is FK in `supply_purchase_simple`.
+* One `Purchase` cannot be part of two `PurchaseComplex` at the same time
+(restriction at FK level: `purchase_complex_id` - single field).

@@ -12,7 +12,7 @@
 namespace updater {
 namespace upfuncs {
 
-// Добавляем новые каталоги
+// Adding new directories
 void addnew_dirs(std::map<std::filesystem::path, std::filesystem::path> & newdir_mapper)
 {
     for (const auto& [temp_fullpath, work_fullpath] : newdir_mapper)
@@ -23,40 +23,40 @@ void addnew_dirs(std::map<std::filesystem::path, std::filesystem::path> & newdir
         std::filesystem::copy(temp_fullpath, work_fullpath,
                               std::filesystem::copy_options::recursive);
 
-        //Здесь по идее записи в журнал для recover.exe
+        //Here's the idea of ​​logging for recover.exe
     }
 }
 
-// Добавляем новые файлы
+// Adding new files
 void addnew_files(std::map<std::filesystem::path, std::filesystem::path> & newfile_mapper)
 {
     for (const auto& [temp_fullpath, work_fullpath] : newfile_mapper)
     {
         qDebug() << "addnew_files: " << temp_fullpath.string();
         std::filesystem::copy_file(temp_fullpath, work_fullpath);
-        //Здесь по идее записи в журнал для recover.exe
+        //Here's the idea of ​​logging for recover.exe
     }
 }
 
-// Заменяет старые версии файлов на новые
+// Replaces old versions of files with new ones
 void replace_files(std::map<std::filesystem::path, std::filesystem::path> & replace_mapper)
 {
     for (const auto& [temp_fullpath, work_fullpath] : replace_mapper)
     {
         qDebug() << "replace_files: " << QString::fromStdString(temp_fullpath.string());
 
-        // Если файл назначения существует — удаляем
+        // If the destination file exists, delete it
         std::error_code ec;
         if (std::filesystem::exists(work_fullpath, ec))
         {
             if (!std::filesystem::remove(work_fullpath, ec) || ec)
             {
                 qWarning() << "replace_files: failed to remove existing file:" << QString::fromStdString(work_fullpath.string()) << ", error:" << ec.message().c_str();
-                continue; // или break, или бросить исключение — решай сам
+                continue; // or break, or throw an exception - decide for yourself
             }
         }
 
-        // Копируем файл
+        // Copying the file
         if (!std::filesystem::copy_file(temp_fullpath, work_fullpath, std::filesystem::copy_options::none, ec) || ec)
         {
             qWarning() << "replace_files: failed to copy file from" << QString::fromStdString(temp_fullpath.string())
@@ -64,35 +64,35 @@ void replace_files(std::map<std::filesystem::path, std::filesystem::path> & repl
             continue;
         }
 
-        // TODO: Добавить запись в журнал для recover.exe
+        // TODO: Add log entry for recover.exe
     }
 }
 
-// Удаляет файлы из списка
+// Removes files from the list
 void delete_files(std::vector<std::filesystem::path> & files)
 {
     for (const auto& file_path : files)
     {
         qDebug() << "delete_file: " << file_path.string();
         std::filesystem::remove(file_path);
-        //Здесь по идее записи в журнал для recover.exe
+        //Here's the idea of ​​logging for recover.exe
     }
 }
 
-// Удаляет каталоги из списка
+// Removes directories from the list
 void delete_dirs(std::vector<std::filesystem::path> & dirs) {
     for (const auto& dir_path : dirs)
     {
         qDebug() << "delete_dir: " << dir_path.string();
         std::filesystem::remove_all(dir_path);
-        //Здесь по идее записи в журнал для recover.exe
+        //Here's the idea of ​​logging for recover.exe
     }
 }
 
-//Ищем внутри файла строку с тэгом и путем
+//We look inside the file for a line with a tag and path
 bool is_notice(const std::filesystem::path & file, QString & tag, QString & value)
 {
-    //Если есть расширение .txt
+    //If there is a .txt extension
     if (file.extension() == ".txt")
     {
         std::ifstream in(file);
@@ -113,7 +113,7 @@ bool is_notice(const std::filesystem::path & file, QString & tag, QString & valu
     return false;
 }
 
-// Ждёт завершения процесса по PID
+// Waits for process completion based on PID
 void wait_for_process_exit(QString & parent_pid_str) noexcept
 {
     bool ok = false;
@@ -131,9 +131,9 @@ void wait_for_process_exit(QString & parent_pid_str) noexcept
     }
 }
 
-// Рекурсивно обходит temp_dir и заполняет структуры
-// Если это файл .txt то он может содержать тэги, которые указывают на удаляемый файл/каталог
-// Все остальные файлы сразу же добавляются в map для замены файлов
+// Recursively traverses temp_dir and fills structures
+// If this is a .txt file then it may contain tags that indicate the file/directory to be deleted
+// All other files are immediately added to the map to replace the files
 void get_update_data(QString & qtemp_dir,
                      QString & qwork_dir,
                      std::map<std::filesystem::path, std::filesystem::path> & newdir_mapper,
@@ -144,10 +144,10 @@ void get_update_data(QString & qtemp_dir,
 {
     std::filesystem::path temp_dir = std::filesystem::path(qtemp_dir.toStdWString());
     std::filesystem::path work_dir = std::filesystem::path(qwork_dir.toStdWString());
-    //Объявляем тэг и значение для проверки тэгов DELFILE DELDIR
+    //We declare a tag and value for checking tags DELFILE DELDIR
     QString tag, value;
 
-    // Получаем абсолютный путь до текущего исполняемого файла (updater.exe)
+    // We get the absolute path to the current executable file (updater.exe)
     const Path updater_path = std::filesystem::canonical(QCoreApplication::applicationFilePath().toStdWString());
 
     for (auto rec_iter = std::filesystem::recursive_directory_iterator(temp_dir);
@@ -158,17 +158,17 @@ void get_update_data(QString & qtemp_dir,
         const Path rel_path = std::filesystem::relative(full_temp_path, temp_dir);
         const Path full_work_path = work_dir / rel_path;
 
-        //Если обычный файл и is_notice(full_temp_path, tag, value) возвращает true
+        //If a regular file and is_notice(full_temp_path, tag, value) returns true
         if(entry.is_regular_file() && is_notice(full_temp_path, tag, value)) {
             const Path target_path = work_dir / value.toStdWString();
 
-            // Исключаем удаление updater.exe
+            // We exclude the removal of updater.exe
             if (std::filesystem::equivalent(target_path, updater_path)) {
                 qDebug() << "get_update_data: skipping deletion of updater.exe";
                 continue;
             }
 
-            //В зависимости от тэга добваляем в delfile_vector или deldir_vector
+            //Depending on the tag, add it to delfile_vector or deldir_vector
             if(tag == "DELFILE")
             {
                 qDebug() << "get_update_data: delfile found: " << value;
@@ -183,35 +183,35 @@ void get_update_data(QString & qtemp_dir,
             }
         }
 
-        //Если обычный файл и такой же существует в work_dir
+        //If a regular file and the same one exists in work_dir
         if(entry.is_regular_file() && std::filesystem::exists(full_work_path))
         {
-            // Исключаем замену updater.exe
+            // We exclude the replacement of updater.exe
             if (std::filesystem::equivalent(full_work_path, updater_path))
             {
                 qDebug() << "get_update_data: skipping replacement of updater.exe";
                 continue;
             }
 
-            //Добавляем в replace_mapper
+            //Add to replace_mapper
             qDebug() << "get_update_data: remplacement found: " << rel_path.string();
             replace_mapper[full_temp_path] = full_work_path;
             continue;
         }
 
-        //Если обычный файл и такого не существует в work_dir
+        //If a regular file does not exist in work_dir
         if(entry.is_regular_file())
         {
-            //Добавляем в newfile_mapper
+            //Add to newfile_mapper
             qDebug() << "get_update_data: new file found: " << rel_path.string();
             newfile_mapper[full_temp_path] = full_work_path;
             continue;
         }
 
-        //Если каталог и такого же не существует в work_dir
+        //If the directory and the same does not exist in work_dir
         if(entry.is_directory() && !std::filesystem::exists(full_work_path))
         {
-            //Добавляем в newdir_mapper
+            //Add to newdir_mapper
             qDebug() << "get_update_data: new dir found: " << rel_path.string();
             newdir_mapper[full_temp_path] = full_work_path;
             rec_iter.disable_recursion_pending();

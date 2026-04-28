@@ -28,10 +28,10 @@ protected:
     void leaveEvent(QEvent* event) override;
 
 private:
-    // Для коллбека и переключения
+    // For callback and switching
     int index;
 
-    // Визуалка
+    // Visual
     QLabel* nameLabel;
     bool isHovered = false;
 };

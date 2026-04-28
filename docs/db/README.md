@@ -1,50 +1,50 @@
-# docs/db — заметки по проектированию БД
+# docs/db - notes on database design
 
-Этот каталог содержит заметки о том, как классы подсистем из `src/uniter/contract/`
-отображаются на таблицы реляционной БД. Файлы здесь — **справочник для будущего
-проектирования схемы SQLite/серверной БД**, а не автогенерируемая документация.
+This directory contains notes on how the subsystem classes from `src/uniter/contract/`
+mapped to relational database tables. Files here - **reference for the future
+SQLite/server database schema design** rather than auto-generated documentation.
 
-## Ключевой принцип
+## Key principle
 
-**Класс в рантайме ≠ таблица в БД.**
+**Class in runtime ≠ table in the database.**
 
-Мы проектируем классы ресурсов с оглядкой на реляционную БД, но не пытаемся
-делать их один-в-один с таблицами. Для удобства работы в приложении ресурсы
-имеют "свёрнутый" вид: например, `TemplateSimple` в рантайме содержит вектор
-`SegmentDefinition`, хотя в БД это отдельные таблицы `material/segment` и
-`material/segment_value`, соединённые по FK.
+We design resource classes with a relational database in mind, but we don't try
+do them one-on-one with tables. For ease of use in the application, resources
+have a “collapsed” appearance: for example, `TemplateSimple` contains a vector at runtime
+`SegmentDefinition`, although in the database these are separate tables `material/segment` and
+`material/segment_value`, connected by FK.
 
-При чтении из БД DataManager **сворачивает** несколько связанных таблиц в один
-ресурс. При записи — раскладывает обратно.
+When reading from a database, DataManager **collapses** several related tables into one
+resource. When recording, it folds back.
 
-Каждая заметка в этом каталоге по подсистеме описывает:
+Each subsystem note in this directory describes:
 
-1. Перечень классов в подсистеме и их рантайм-состав (какие поля и векторы).
-2. Перечень таблиц на стороне БД (в том числе связочных — M:N).
-3. Правило "сворачивания" — как таблицы собираются в один класс при чтении.
-4. Правило "раскладывания" — как класс распадается на таблицы при записи.
-5. Соответствие `ResourceType` в `uniterprotocol.h` каждой таблице, чтобы
-   DataManager мог выполнять точечный CRUD для связочных таблиц по протоколу.
+1. List of classes in the subsystem and their runtime composition (what fields and vectors).
+2. List of tables on the database side (including link tables - M:N).
+3. The “collapse” rule - how tables are collected into one class when reading.
+4. The “folding out” rule - how the class is divided into tables when recording.
+5. Match the `ResourceType` in `uniterprotocol.h` to each table so that
+DataManager could perform dot CRUD against linked tables over the protocol.
 
-## Отношения
+## Relationship
 
-Если в классе есть `std::vector<Child>`:
+If the class has `std::vector<Child>`:
 
-- **1:M** — у `Child` есть FK на родителя; отдельной связочной таблицы нет.
-  Пример: `DocLink → vector<Doc>`, где у `Doc` есть `doc_link_id`.
-- **M:N** — есть отдельная связочная таблица с двумя FK. Её нужно регистрировать
-  отдельным `ResourceType`, чтобы управлять связями через CRUD-сообщения.
-  Пример: совместимость простых шаблонов материалов
+- **1:M** — `Child` has an FK for its parent; There is no separate link table.
+Example: `DocLink → vector<Doc>`, where `Doc` has `doc_link_id`.
+- **M:N** - there is a separate link table with two FKs. It needs to be registered
+a separate `ResourceType` to manage communications via CRUD messages.
+Example: Simple Material Template Compatibility
   (`TemplateSimple.compatible_template_ids`).
 
-Для корректной работы DataManager'а каждая связочная таблица должна
-соответствовать отдельному `ResourceType` (или хотя бы отдельной логической
-единице CRUD) — иначе нельзя "прилинковать/отлинковать" без перезаписи всего
-родительского ресурса.
+For DataManager to work correctly, each linked table must
+match a separate `ResourceType` (or at least a separate logical
+CRUD unit) - otherwise you cannot “link/unlink” without overwriting everything
+parent resource.
 
-## Список подсистем
+## List of subsystems
 
-| Подсистема    | Заметка                                |
+| Subsystem | Note |
 |---------------|----------------------------------------|
 | DOCUMENTS     | [documents.md](./documents.md)         |
 | MATERIALS / INSTANCES | [material_instance.md](./material_instance.md) |

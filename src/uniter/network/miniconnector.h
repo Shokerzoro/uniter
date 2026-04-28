@@ -11,34 +11,34 @@
 namespace uniter::net {
 
 /*
- * MinIOConnector — заглушка HTTP-клиента MinIO.
+ * MinIOConnector is a stub for the MinIO HTTP client.
  *
- * Роль в целевой архитектуре (см. uniter-target-state):
- *   — HTTP GET/PUT/DELETE к MinIO по presigned URL от сервера.
- *   — Работа только с временными presigned URL, credentials не хранятся.
+ * Role in target architecture (see uniter-target-state):
+ * — HTTP GET/PUT/DELETE to MinIO using a presigned URL from the server.
+ * — Work only with temporary presigned URLs, credentials are not stored.
  *
- * Stub-реализация работает локально:
- *   — Использует каталог <workdir>/minio_local как фиктивный S3 bucket
- *     (создаётся при инициализации, если его нет).
- *   — Хранит std::map<object_key → presigned_url> в памяти. Presigned URL
- *     в stub имеет формат "file://<bucket_root>/<object_key>".
- *   — При запросе presigned URL по object_key (от ServerConnector через
- *     TEMP signal/slot connect) возвращает существующий URL или создаёт
- *     новый, если ключа нет в map.
- *   — При GET-запросе (от AppManager — UniterMessage PROTOCOL/GET_MINIO_FILE
- *     REQUEST с add_data["presigned_url"]) возвращает локальный путь файла
- *     через RESPONSE add_data["object_key","local_path"]. Если файла нет —
+ * The Stub implementation runs locally:
+ * — Uses the <workdir>/minio_local directory as a dummy S3 bucket
+ * (created during initialization if it does not exist).
+ * — Stores std::map<object_key → presigned_url> in memory. Presigned URL
+ * in stub it has the format "file://<bucket_root>/<object_key>".
+ * — When requesting a presigned URL by object_key (from ServerConnector via
+ * TEMP signal/slot connect) returns an existing URL or creates
+ * new if the key is not in map.
+ * — With a GET request (from AppManager — UniterMessage PROTOCOL/GET_MINIO_FILE
+ * REQUEST with add_data["presigned_url"]) returns local file path
+ * via RESPONSE add_data["object_key","local_path"]. If there is no file -
  *     ERROR.
- *   — При PUT-запросе (PROTOCOL/PUT_MINIO_FILE REQUEST с
- *     add_data["presigned_url", "object_key", "local_path"]) копирует файл
- *     в bucket по пути, соответствующему presigned URL, и отвечает
- *     RESPONSE/SUCCESS либо ERROR.
+ * — With a PUT request (PROTOCOL/PUT_MINIO_FILE REQUEST with
+ * add_data["presigned_url", "object_key", "local_path"]) copies the file
+ * into the bucket along the path corresponding to the presigned URL and responds
+ * RESPONSE/SUCCESS or ERROR.
  *
- * Связь с ServerConnector (TEMP signal/slot connect, main.cpp):
+ * Communication with ServerConnector (TEMP signal/slot connect, main.cpp):
  *   ServerConnector → signalRequestMinioPresignedUrl → MinIOConnector::onRequestPresignedUrl
  *   MinIOConnector  → signalPresignedUrlReady       → ServerConnector::onMinioPresignedUrlReady
  *
- * Связь с AppManager (основной путь, остаётся и в реальной системе):
+ * Communication with AppManager (the main path, remains in the real system):
  *   AppManager      → signalSendUniterMessage → MinIOConnector::onSendMessage
  *   MinIOConnector  → signalRecvMessage       → AppManager::onRecvUniterMessage
  */
@@ -47,7 +47,7 @@ class MinIOConnector : public QObject
     Q_OBJECT
 
 private:
-    // Синглтон
+    // Singleton
     MinIOConnector();
 
     MinIOConnector(const MinIOConnector&) = delete;
@@ -55,40 +55,40 @@ private:
     MinIOConnector(MinIOConnector&&) = delete;
     MinIOConnector& operator=(MinIOConnector&&) = delete;
 
-    // Локальный bucket (папка, в которой «живут» объекты MinIO).
+    // Local bucket (the folder in which MinIO objects “live”).
     QDir m_bucket;
 
-    // object_key → presigned URL (в stub: file://<bucket>/<object_key>).
+    // object_key → presigned URL (in stub: file://<bucket>/<object_key>).
     std::map<QString, QString> m_presignedByKey;
 
-    // Создаёт новую запись в map для object_key и возвращает URL.
+    // Creates a new map entry for object_key and returns a URL.
     QString generatePresignedUrl(const QString& object_key);
 
-    // Преобразует presigned URL из stub-формата в локальный путь.
-    // Возвращает пустую строку, если формат не тот.
+    // Converts a presigned URL from stub format to a local path.
+    // Returns an empty string if the format is wrong.
     QString presignedUrlToLocalPath(const QString& presigned_url) const;
 
 public:
     static MinIOConnector* instance();
     ~MinIOConnector() override = default;
 
-    // Для тестов/отладки — путь к локальному bucket.
+    // For testing/debugging - the path to the local bucket.
     QString bucketPath() const { return m_bucket.absolutePath(); }
 
 public slots:
     // TEMP connect (ServerConnector → MinIOConnector).
-    // Возвращает presigned URL для object_key: если ключ уже есть — существующий,
-    // иначе создаёт новый. Отвечает через signalPresignedUrlReady.
+    // Returns the presigned URL for object_key: if the key already exists - existing,
+    // otherwise it creates a new one. Replies via signalPresignedUrlReady.
     void onRequestPresignedUrl(std::shared_ptr<contract::UniterMessage> requestCopy,
                                QString object_key,
                                QString minio_operation);
 
-    // Основной слот: AppManager → MinIOConnector.
-    // Фильтрует только GET_MINIO_FILE и PUT_MINIO_FILE; всё остальное
-    // игнорируется.
+    // Main slot: AppManager → MinIOConnector.
+    // Filters only GET_MINIO_FILE and PUT_MINIO_FILE; everything else
+    // ignored.
     void onSendMessage(std::shared_ptr<contract::UniterMessage> message);
 
-    // Сброс состояния (на shutdown/logout).
+    // Resetting the state (to shutdown/logout).
     void onShutdown();
 
 signals:
@@ -97,7 +97,7 @@ signals:
                                  QString object_key,
                                  QString presigned_url);
 
-    // Ответы по операциям GET/PUT для AppManager.
+    // Answers on GET/PUT operations for AppManager.
     void signalRecvMessage(std::shared_ptr<contract::UniterMessage> message);
 };
 

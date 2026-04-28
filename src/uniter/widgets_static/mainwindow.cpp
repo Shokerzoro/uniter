@@ -13,15 +13,15 @@
 
     MainWidget::MainWidget(QWidget* parent) : QWidget(parent) {
 
-        // Применяем настройки
+        // Applying the settings
         auto settings = control::UIManager::instance();
         settings->applyMainWinSettings(this);
 
-        // Создаем stacked layout
+        // Create a stacked layout
         MLayout = new QStackedLayout(this);
         setLayout(MLayout);
 
-        // Виджет аутентификации
+        // Authentication widget
         AWdg = new AuthWdg();
         MLayout->addWidget(AWdg);
 
@@ -31,25 +31,25 @@
         QObject::connect(this, &MainWidget::signalFindAuthData,
                          AWdg, &AuthWdg::onFindAuthData);
 
-        // Виджет оффлайна
+        // Offline widget
         OffWdg = new OfflineWdg();
         MLayout->addWidget(OffWdg);
 
-        // Рабочий виджет
+        // Working widget
         WWdg = new WorkWdg();
         MLayout->addWidget(WWdg);
 
-        // Начальное состояние
+        // Initial state
         MLayout->setCurrentWidget(OffWdg);
     }
 
-    // ========== FSM ОБРАБОТКА СОБЫТИЙ ==========
+    // ========== FSM EVENT PROCESSING ==========
 
     void MainWidget::ProcessEvent(WidgetEvents event)
     {
         qDebug() << "MainWidget::ProcessEvent() - Event received";
 
-        // Лямбды только для входа в состояние
+        // Lambdas are only for state entry
         auto in_auth_offline = [this]() {
             qDebug() << "MainWidget::in_auth_offline()";
             MLayout->setCurrentWidget(OffWdg);
@@ -71,7 +71,7 @@
             MLayout->setCurrentWidget(OffWdg);
         };
 
-        // Обработка событий в зависимости от текущего состояния
+        // Processing events depending on the current state
         switch (m_widgetState) {
         case WidgetState::AUTH_OFFLINE:
             if (event == WidgetEvents::NET_CONNECTED) {
@@ -119,7 +119,7 @@
         }
     }
 
-    // ========== СЛОТЫ ==========
+    // ========== SLOTS ==========
 
     void MainWidget::onConnectionUpdated(bool state)
     {

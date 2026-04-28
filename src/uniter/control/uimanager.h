@@ -17,17 +17,17 @@ public:
     UIManager(UIManager&&) = delete;
     UIManager& operator=(UIManager&&) = delete;
 
-    // Управление главным окном
+    // Managing the Main Window
     void applyMainWinSettings(QWidget* window);
     void saveMainWinState(QWidget* window);
 
-    // Управление workbar, workwdg и виджетов
+    // Manage workbar, workwdg and widgets
     void applyWorkBarSettings(QWidget* bar);
     void applyWorkWdgSettings(QWidget* workWdg);
     void applySubsIconSettings(QWidget* icon);
     void applyGenerativeTabSettings(QWidget* tab);
 
-    // Геттеры для constraints (по одному на виджет)
+    // Getters for constraints (one per widget)
     const WorkBarConstraints& getWorkBarConstraints() const { return workBarConstr; }
     const SubsystemIconConstraints& getSubsIconConstraints() const { return subsIconConstr; }
     const GenerativeTabConstraints& getGenerativeTabConstraints() const { return genTabConstr; }
@@ -38,7 +38,7 @@ private:
 
     std::unique_ptr<QSettings> settings;
 
-    // Constraints для всех виджетов
+    // Constraints for all widgets
     MainWindowConstraints mainWinConstr;
     WorkBarConstraints workBarConstr;
     SubsystemIconConstraints subsIconConstr;

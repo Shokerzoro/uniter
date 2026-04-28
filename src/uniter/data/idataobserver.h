@@ -8,19 +8,21 @@
 #include <vector>
 #include <optional>
 
-/* Объявнение на будущее
-Чтобы избежать проблем синхронизации, и висячих указателей на обзерверы, а также широковещательных рассылоа
-В DataManager должен применяться класс-адаптер.
+/* Future note
+To avoid synchronization issues, dangling observer pointers, and broad
+broadcast fan-out, DataManager should use an adapter class.
 
-Его задача - быть асоциированнымм с обзервером, и при создании подписки создается адаптер
-Который будет коннектится с конкретным обзервером. И через него будет идти дальнейшее общение с ним.
+The adapter is associated with an observer and is created when a subscription is
+created. It connects to a specific observer, and all further communication with
+that observer goes through the adapter.
 
-Это позволяет использовать прокси адаптер, не подлючая менеджер данных и обзерверы напрямую.
-Ведь для уведомления каждого обзервера в отдельности понадобилось бы много слотов.
+This allows a proxy adapter to be used without connecting DataManager and
+observers directly. Otherwise, notifying each observer separately would require
+many slots.
 
-Таким образом мы примениям для обмена данными сигналы и слоты. При этом пропадает необходимость синхронизации,
-а также проблема висячих указателей и прямого вызова через них, т.к. для слотов и сигналов это не страшно.
-
+This way data exchange uses Qt signals and slots. That removes the need for
+synchronization and avoids dangling-pointer/direct-call problems, which are not
+an issue for signal-slot communication.
 */
 
 
@@ -30,11 +32,11 @@ class SubscribeAdaptor {
 
 };
 
-// Структура параметров подписки
+// Subscription parameters structure
 struct SubscriptionParams {
     contract::Subsystem subsystem;
     contract::ResourceType type;
-    std::optional<uint64_t> resourceId; // Только для single resource
+    std::optional<uint64_t> resourceId; // Only for single resource
     bool isActive = false;
 
     SubscriptionParams() = default;
@@ -48,12 +50,12 @@ class IDataObserver : public QObject
     Q_OBJECT
 
 protected:
-    // Контейнеры для данных
+    // Data containers
     std::shared_ptr<contract::ResourceAbstract> resourceData;
     std::vector<std::shared_ptr<contract::ResourceAbstract>> listData;
-    std::shared_ptr<contract::ResourceAbstract> treeData; // Корневой узел
+    std::shared_ptr<contract::ResourceAbstract> treeData; // Root node
 
-    // Параметры подписок
+    // Subscription options
     SubscriptionParams resourceParams;
     SubscriptionParams listParams;
     SubscriptionParams treeParams;
@@ -62,23 +64,23 @@ public:
     explicit IDataObserver(QObject* parent = nullptr);
     virtual ~IDataObserver() = default;
 
-    // Методы для установки данных (вызываются DataManager'ом)
+    // Methods for setting data (called by DataManager)
     void setResourceData(std::shared_ptr<contract::ResourceAbstract> resource);
     void setListData(std::vector<std::shared_ptr<contract::ResourceAbstract>> list);
     void setTreeData(std::shared_ptr<contract::ResourceAbstract> rootNode);
 
-    // Методы получения данных (для виджетов)
+    // Data retrieval methods (for widgets)
     std::shared_ptr<contract::ResourceAbstract> getResourceData() const;
     const std::vector<std::shared_ptr<contract::ResourceAbstract>>& getListData() const;
     std::shared_ptr<contract::ResourceAbstract> getTreeData() const;
 
-    // Доступ к параметрам подписок
+    // Accessing subscription options
     const SubscriptionParams& getResourceParams() const { return resourceParams; }
     const SubscriptionParams& getListParams() const { return listParams; }
     const SubscriptionParams& getTreeParams() const { return treeParams; }
 
 signals:
-    // Сигналы для подписки (соединяются с DataManager в конструкторе)
+    // Signals for subscription (connect to DataManager in constructor)
     void subscribeToResource(contract::Subsystem subsystem,
                              contract::ResourceType type,
                              std::optional<uint64_t> resId,
@@ -92,16 +94,16 @@ signals:
                                  contract::ResourceType type,
                                  QObject* observer);
 
-    // Сигналы для отписки
+    // Signals for unsubscribing
     void unsubscribeFromResource(QObject* observer);
     void unsubscribeFromResourceList(QObject* observer);
     void unsubscribeFromResourceTree(QObject* observer);
 
-    // Уведомление о получении новых данных
+    // Notification of new data receipt
     void dataUpdated();
 
 protected:
-    // Вспомогательные методы для наследников
+    // Helper Methods for Heirs
     void requestResourceSubscription(contract::Subsystem subsystem,
                                      contract::ResourceType type,
                                      uint64_t resId);

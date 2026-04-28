@@ -26,7 +26,7 @@ public:
 signals:
     void signalSwitchTab(int index);
     void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
-    void signalLogout(); // Новый сигнал для LogOut
+    void signalLogout(); // New signal for LogOut
 
 public slots:
     void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
@@ -37,7 +37,7 @@ private slots:
 private:
     QWidget* iconContainer;
     QVBoxLayout* iconLayout;
-    QPushButton* logoutButton; // Кнопка LogOut
+    QPushButton* logoutButton; // LogOut button
     std::map<int, genwdg::SubsystemIcon*> subsystemIcons;
 
 protected:

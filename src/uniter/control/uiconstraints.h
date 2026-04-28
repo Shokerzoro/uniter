@@ -6,20 +6,20 @@
 
 namespace uniter::control {
 
-// Constraints для главного окна
+// Constraints for the main window
 struct MainWindowConstraints {
     QSize minSize = QSize(800, 500);
     QSize maxSize = QSize(1920, 1440);
 };
 
-// Constraints для WorkBar
+// Constraints for WorkBar
 struct WorkBarConstraints {
     int width = 75;
     int borderWidth = 1;
     QColor borderColor = QColor(119, 124, 124, 77);
 };
 
-// Constraints для SubsystemIcon
+// Constraints for SubsystemIcon
 struct SubsystemIconConstraints {
     int size = 70;
     QColor defaultBgColor = QColor(0, 0, 0, 0);
@@ -28,7 +28,7 @@ struct SubsystemIconConstraints {
     int fontSize = 13;
 };
 
-// Constraints для GenerativeTab (ISubsWdg)
+// Constraints for GenerativeTab (ISubsWdg)
 struct GenerativeTabConstraints {
     QColor bgColor = QColor(0, 0, 0, 0);
     QColor textColor = QColor(200, 200, 200);

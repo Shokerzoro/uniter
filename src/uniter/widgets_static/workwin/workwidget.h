@@ -25,14 +25,14 @@ public slots:
                           bool created);
 
 signals:
-    // Снизу (от виджетов)
+    // Bottom (from widgets)
     void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
 private:
-    // Виджеты
+    // Widgets
     WorkBar* workbar;
     WorkArea* workArea;
 
-    // Вектор активных подсистем
+    // Vector of active subsystems
     struct ActiveSubsystem {
         ActiveSubsystem(contract::Subsystem subsystem_,
                         contract::GenSubsystem genType_,
@@ -50,7 +50,7 @@ private:
     std::map<int, ActiveSubsystem> indexToSubsystem;
 
 
-    // Приватные методы
+    // Private Methods
     bool findIndex(contract::Subsystem subsystem,
                    contract::GenSubsystem genType,
                    std::optional<uint64_t> genId,

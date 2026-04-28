@@ -2,7 +2,7 @@
 #define AUTHWDG_H
 
 #include "../contract/unitermessage.h"
-//#include <qtkeychain/keychain.h> TODO: добавить безопасное хранение логина и пароля
+//#include <qtkeychain/keychain.h> TODO: add secure storage of login and password
 #include <QWidget>
 #include <QLineEdit>
 #include <QPushButton>
@@ -17,22 +17,22 @@ class AuthWdg : public QWidget {
     Q_OBJECT
 
 private:
-    // Состояние
+    // State
     enum class RememberCheck {SKIPPED, REMEMBER};
     RememberCheck RCheck = RememberCheck::REMEMBER;
 
-    // Виджеты
+    // Widgets
     QLineEdit* m_loginInput = nullptr;
     QLineEdit* m_passwordInput = nullptr;
     QCheckBox* m_rememberCheckBox = nullptr;
     QPushButton* m_loginButton = nullptr;
     QLabel* m_errorMessageLabel = nullptr;
 
-    // Флаги для удаления placeholder текста при первом клике
+    // Flags for removing placeholder text on first click
     bool m_loginCleared = false;
     bool m_passwordCleared = false;
 
-    // Приватные методы
+    // Private Methods
     void sendSignUpData();
     void saveCredentials(const QString& login, const QString& password);
     void loadCredentials();
@@ -49,11 +49,11 @@ protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
 
 public slots:
-    // От главного окна
+    // From the main window
     void onAuthed(bool result);
     void onFindAuthData();
 
-    // Внутренние
+    // Domestic
     void onRememberCheckChanged(int state);
 
 signals:

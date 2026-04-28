@@ -1,130 +1,130 @@
-# План архитектуры слоя данных и БД
+# Data layer and database architecture plan
 
-Документ фиксирует целевое направление работ по `DataManager`, `IDataBase`, SQLite-реализации, executors, SQL-файлам и CodeGen. Цель ближайшего этапа - сначала выстроить интерфейсы и границы ответственности, чтобы после реализации executor хотя бы одной подсистемы его можно было тестировать независимо от UI и AppManager.
+The document fixes the target direction of work on `DataManager`, `IDataBase`, SQLite implementation, executors, SQL files and CodeGen. The goal of the next stage is to first build interfaces and boundaries of responsibility so that after the executor has implemented at least one subsystem, it can be tested independently of the UI and AppManager.
 
-## Верхнеуровневая ответственность
+## Top-level responsibility
 
 ### DataManager
 
-`DataManager` - компонент приложения, который принадлежит клиентской части и связывает AppManager, сетевой слой, БД и UI.
+`DataManager` is an application component that belongs to the client side and connects the AppManager, the network layer, the database and the UI.
 
-Он должен:
+He must:
 
-1. Инициализироваться для конкретного пользователя.
-   - Принимать `userHash` от AppManager.
-   - Открывать локальный файл БД, привязанный к этому пользователю.
-   - Не смешивать данные разных пользователей.
-   - Инициализировать таблицы через executors подсистем.
-   - Поднимать executors подсистем.
+1. Initialize for a specific user.
+- Accept `userHash` from AppManager.
+- Open a local database file associated with this user.
+- Do not mix data from different users.
+- Initialize tables through executors of subsystems.
+- Raise executors of subsystems.
 
-2. Удалять локальные данные по требованию AppManager.
-   - Очищать ресурсные таблицы перед `FULL_SYNC` или при сбросе сессии.
-   - Сохранять структуру БД, служебные таблицы и домены enum-ов, если это выбранная политика.
-   - Сообщать AppManager результат через `signalDatabaseCleared`.
+2. Delete local data upon request from AppManager.
+- Clear resource tables before `FULL_SYNC` or when resetting the session.
+- Maintain the database structure, service tables and enum domains, if this is the selected policy.
+- Report the result to AppManager via `signalDatabaseCleared`.
 
-3. Работать с данными через CRUD по всем ресурсам.
-   - Разбирать входящий `UniterMessage`.
-   - Маршрутизировать его по `Subsystem` / `ResourceType` в нужный executor.
-   - Выполнять CUD из Kafka/server connector.
-   - Выполнять READ по запросам UI.
-   - После изменения данных уведомлять подписчиков.
+3. Work with data via CRUD for all resources.
+- Parse incoming `UniterMessage`.
+- Route it via `Subsystem`/`ResourceType` to the desired executor.
+- Perform CUD from Kafka/server connector.
+- Perform READ on UI requests.
+- Notify subscribers after data changes.
 
-4. Предоставлять API для UI.
-   - Подписка на конкретный ресурс.
-   - Подписка на список ресурсов.
-   - Иерархическую подписку пока убрать из обязательного API, пока нет стабильной модели деревьев.
+4. Provide API for UI.
+- Subscription to a specific resource.
+- Subscription to a list of resources.
+- Hierarchical subscription should be removed from the mandatory API for now, there is no stable tree model yet.
 
 ### IDataBase
 
-`IDataBase` - абстракция конкретного движка БД и дескриптор открытого подключения. Она не знает бизнес-ресурсы, не владеет схемой подсистем и не принимает на себя ответственность за DDL конкретных подсистем.
+`IDataBase` is an abstraction of a specific database engine and a descriptor for an open connection. She does not know the business resources, does not own the subsystem diagram, and does not accept responsibility for the DDL of specific subsystems.
 
-Она должна:
+She should:
 
-- открыть/закрыть соединение;
-- выбрать физическое хранилище для конкретного пользователя;
-- выполнить SQL-инструкцию и вернуть унифицированный `SqlResult`;
-- управлять транзакциями;
-- предоставить минимальные engine-specific сервисы, которые нужны всем executors.
+- open/close connection;
+- select physical storage for a specific user;
+- execute an SQL statement and return a unified `SqlResult`;
+- manage transactions;
+- provide minimal engine-specific services that all executors need.
 
-`IDataBase` должна быть владельцем низкоуровневого доступа к движку: SQLite, PostgreSQL, тестовая in-memory реализация.
+`IDataBase` must be the owner of low-level access to the engine: SQLite, PostgreSQL, test in-memory implementation.
 
 ### Executors
 
-Executors - слой управления данными конкретной подсистемы. Они не открывают БД, но владеют SQL своей подсистемы: и DDL, и DML.
+Executors - a data management layer for a specific subsystem. They do not open the database, but own the SQL of their subsystem: both DDL and DML.
 
-Они:
+They:
 
-- получают ссылку на `IDataBase`;
-- обеспечивают создание/проверку таблиц своей подсистемы;
-- обеспечивают очистку данных своей подсистемы;
-- используют DDL-инструкции своей подсистемы;
-- используют DML-инструкции;
-- маппят `contract::*` ресурсы в SQL;
-- маппят `SqlResult` обратно в `contract::*` ресурсы;
-- инкапсулируют правила конкретной подсистемы.
+- get a link to `IDataBase`;
+- provide creation/checking of tables of their subsystem;
+- ensure data cleaning of their subsystem;
+- use DDL instructions of their subsystem;
+- use DML instructions;
+- map `contract::*` resources in SQL;
+- map `SqlResult` back to `contract::*` resources;
+- encapsulate the rules of a specific subsystem.
 
-Пример: `ManagerExecutor` отвечает за `Employee`, `Plant`, `Integration`, назначения и права manager-подсистемы.
+Example: `ManagerExecutor` is responsible for `Employee`, `Plant`, `Integration`, assignments and rights of the manager subsystem.
 
-## Разделение DDL и DML
+## Separate DDL and DML
 
-Нужно жестко разделить:
+You need to strictly separate:
 
-- DDL - управление структурой БД: `CREATE TABLE`, `CREATE INDEX`, `DROP TABLE`, `ALTER TABLE`, домены, миграции.
-- DML - операции с данными: `INSERT`, `SELECT`, `UPDATE`, soft delete, join-запросы.
+- DDL - database structure management: `CREATE TABLE`, `CREATE INDEX`, `DROP TABLE`, `ALTER TABLE`, domains, migrations.
+- DML - operations with data: `INSERT`, `SELECT`, `UPDATE`, soft delete, join queries.
 
-DDL используется executor-ом той подсистемы, которой принадлежат таблицы. Это сохраняет локальность: структура таблиц, CRUD-инструкции и C++-маппинг одной подсистемы живут рядом и изменяются вместе.
+DDL is used by the executor of the subsystem that owns the tables. This preserves locality: the table structure, CRUD instructions and C++ mapping of one subsystem live nearby and change together.
 
-DML используется executors.
+DML is used by executors.
 
-## Изоляция данных пользователей
+## User data isolation
 
-Идея "один файл БД, но разные пользователи видят свои данные" правильна как клиентская локальная изоляция, но в SQLite нет встроенных пользователей, схем и `search_path`, как в PostgreSQL. Поэтому это нельзя реализовать только средствами `IDataBase`, не зная таблиц.
+The idea of ​​"one db file, but different users see their data" is correct as client local isolation, but SQLite doesn't have built-in users, schemas and `search_path` like PostgreSQL. Therefore, this cannot be implemented only using `IDataBase`, without knowing the tables.
 
-Принятая модель:
+Accepted Model:
 
-- физический файл БД один;
-- `IDataBase::SetUserContext(userHash)` задает текущий логический user context;
-- executors создают DDL так, чтобы данные были user-scoped;
-- DML executors обращается к своей подсистеме с учетом текущего user context.
+- one physical database file;
+- `IDataBase::SetUserContext(userHash)` sets the current logical user context;
+- executors create DDL so that the data is user-scoped;
+- DML executors access their subsystem taking into account the current user context.
 
-Для SQLite практичный вариант:
+For SQLite a practical option is:
 
-1. Физические таблицы содержат технический столбец `user_hash` или `local_user_id`.
-2. Executor создает реальные таблицы и, при необходимости, connection-local views/triggers для текущего пользователя.
-3. `SqlDataBase::SetUserContext()` обновляет текущий контекст connection.
-4. Executor гарантирует, что CRUD работает только с текущим user context.
+1. Physical tables contain a technical column `user_hash` or `local_user_id`.
+2. Executor creates real tables and, if necessary, connection-local views/triggers for the current user.
+3. `SqlDataBase::SetUserContext()` updates the current connection context.
+4. Executor ensures that CRUD only works with the current user context.
 
-Вариант с одинаковыми именами таблиц "как будто у каждого пользователя своя схема" в SQLite можно эмулировать только через views/triggers или через префиксы таблиц. Простое создание `manager_employees` отдельно для каждого пользователя в одном SQLite-файле невозможно: имена таблиц в одном database namespace глобальны.
+The option of having the same table names “as if each user has their own schema” in SQLite can only be emulated through views/triggers or through table prefixes. Simply creating `manager_employees` separately for each user in one SQLite file is not possible: table names in one database namespace are global.
 
-Отдельные файлы на пользователя технически проще, но пока это не выбранная модель.
+Individual files per user is technically simpler, but this is not the chosen model yet.
 
-## DataManager после подготовки интерфейсов
+## DataManager after preparing interfaces
 
-После появления `IDataBase` и хотя бы одного executor DataManager должен получить внутренние поля:
+After `IDataBase` appears and at least one executor, the DataManager should receive the internal fields:
 
 ```cpp
 std::unique_ptr<database::IDataBase> db_;
 std::unordered_map<contract::Subsystem, std::unique_ptr<database::IResExecutor>> executors_;
 ```
 
-Инициализация DataManager:
+DataManager initialization:
 
-1. Создать `SqliteDataBase`.
-2. Сформировать путь к общему локальному файлу БД.
-3. Вызвать `Open(databasePath)`.
-4. Вызвать `SetUserContext(userHash)`.
-5. Создать/зарегистрировать executors.
-6. Вызвать DDL-инициализацию каждого executor-а.
-7. Перейти в состояние `LOADED`.
+1. Create `SqliteDataBase`.
+2. Generate the path to the common local database file.
+3. Call `Open(databasePath)`.
+4. Call `SetUserContext(userHash)`.
+5. Create/register executors.
+6. Call DDL initialization of each executor.
+7. Go to the `LOADED` state.
 
-Очистка данных:
+Data clearing:
 
-1. Открыть транзакцию.
-2. Вызвать очистку данных каждого executor-а в согласованном порядке.
-3. Зафиксировать транзакцию.
-4. Уведомить AppManager через `signalDatabaseCleared`.
+1. Open a transaction.
+2. Call data clearing for each executor in a consistent manner.
+3. Commit the transaction.
+4. Notify AppManager via `signalDatabaseCleared`.
 
-Подписки лучше хранить не тремя плоскими списками, а индексами:
+It is better to store subscriptions not in three flat lists, but in indexes:
 
 ```cpp
 ResourceKey {
@@ -136,63 +136,63 @@ ResourceKey {
 }
 ```
 
-И отдельно:
+And separately:
 
-- подписки на конкретный ресурс;
-- подписки на список ресурсов конкретного типа.
+- subscription to a specific resource;
+- subscriptions to a list of resources of a specific type.
 
-Иерархическую подписку пока не реализовывать как обязательную часть API. Ее лучше вернуть после появления стабильной модели деревьев.
+Hierarchical subscription should not yet be implemented as a mandatory part of the API. It is better to return it after the appearance of a stable tree model.
 
 ## IResExecutor
 
-`IResExecutor` - это общий интерфейс executor-а одной подсистемы. Он не владеет соединением с БД, а получает `IDataBase&` от `DataManager` на каждый вызов. Это важно: `IDataBase` остается дескриптором engine/session, а вся структура таблиц, DDL, DML и маппинг ресурсов остаются внутри конкретной подсистемы.
+`IResExecutor` is a common interface for the executor of one subsystem. It does not own the database connection, but receives an `IDataBase&` from the `DataManager` for each call. This is important: `IDataBase` remains the engine/session descriptor, and all table structure, DDL, DML and resource mapping remain within the specific subsystem.
 
-Минимальный жизненный цикл executor-а:
+Minimum life cycle of an executor:
 
-- `Subsystem()` - возвращает подсистему, за которую отвечает executor.
-- `Initialize(IDataBase&)` - создает/заполняет DDL-структуры подсистемы.
-- `Verify(IDataBase&)` - проверяет, что ожидаемые структуры существуют и доступны.
-- `ApplyMigrations(IDataBase&)` - применяет миграции своей подсистемы.
-- `ClearData(IDataBase&)` - удаляет пользовательские данные подсистемы без обязательного удаления структуры.
-- `DropStructures(IDataBase&)` - удаляет DDL-структуры подсистемы.
-- `Create/Read/Update/Delete` - выполняет CRUD по ресурсам подсистемы.
-- `HandleMessage(IDataBase&, const UniterMessage&)` - базовая маршрутизация CRUD-сообщения в конкретный метод.
+- `Subsystem()` - returns the subsystem for which the executor is responsible.
+- `Initialize(IDataBase&)` - creates/fills DDL structures of the subsystem.
+- `Verify(IDataBase&)` - verifies that the expected structures exist and are accessible.
+- `ApplyMigrations(IDataBase&)` - applies migrations of its subsystem.
+- `ClearData(IDataBase&)` - deletes user data of the subsystem without necessarily deleting the structure.
+- `DropStructures(IDataBase&)` - deletes DDL structures of the subsystem.
+- `Create/Read/Update/Delete` - performs CRUD on subsystem resources.
+- `HandleMessage(IDataBase&, const UniterMessage&)` - basic routing of a CRUD message to a specific method.
 
-Результат работы executor-а возвращается через `ExecutorResult`: статус, код ошибки, сообщение и опционально один ресурс или список ресурсов. Для READ-запросов без полного `UniterMessage` используется `ResourceKey`, чтобы UI/DataManager могли запрашивать ресурс по подсистеме, типу и id.
+The result of the executor's work is returned via `ExecutorResult`: status, error code, message and optionally one resource or a list of resources. For READ requests without a full `UniterMessage`, a `ResourceKey` is used to allow the UI/DataManager to query a resource by subsystem, type and id.
 
-Миграции не должны быть обязанностью `IDataBase`: база не знает ни подсистем, ни таблиц, ни версий схемы. Правильная модель - orchestration в `DataManager`, выполнение в конкретном executor-е. Миграции должны быть отдельным служебным ресурсом новой подсистемы, не `PROTOCOL`: протокол отвечает за управляющие действия и FSM, а не за доменные данные схемы. Таблица учета миграций может быть общей структурой служебной подсистемы, например `system_migrations` с полями `target_subsystem`, `version`, `name`, `checksum`, `applied_at`. Сами SQL-шаги остаются собственностью executor-а соответствующей подсистемы.
+Migrations should not be the responsibility of `IDataBase`: the base knows neither subsystems, nor tables, nor schema versions. The correct model is orchestration in `DataManager`, execution in a specific executor. Migrations should be a separate service resource of the new subsystem, not `PROTOCOL`: the protocol is responsible for control actions and FSM, not for schema domain data. The migration accounting table can be a general structure of the service subsystem, for example `system_migrations` with the fields `target_subsystem`, `version`, `name`, `checksum`, `applied_at`. The SQL steps themselves remain the property of the executor of the corresponding subsystem.
 
-Сейчас `ManagerExecutor` адаптирован под этот интерфейс как первый рабочий executor: жизненный цикл вызывает существующую DDL-инициализацию, а CRUD-методы маршрутизируют `Employee` и `Plant` в уже существующие `add/read/update/delete` методы. SQL-логика внутри этих методов еще требует отдельной стабилизации после фиксации DataManager.
+Now `ManagerExecutor` is adapted to this interface as the first working executor: the lifecycle calls the existing DDL initialization, and CRUD methods route `Employee` and `Plant` to already existing `add/read/update/delete` methods. The SQL logic inside these methods still requires separate stabilization after the DataManager is committed.
 
 ## CodeGen
 
-CodeGen нужен после стабилизации интерфейсов `IDataBase`, executor-ов и правил разметки SQL-файлов.
+CodeGen is needed after stabilizing the `IDataBase` interfaces, executors and SQL file markup rules.
 
-Минимальный первый этап:
+Minimum first stage:
 
 1. Enum pairs.
-   - Обрабатывать `.h` / `.hpp` рекурсивно.
-   - Искать `enum class` с маркером CodeGen.
-   - Генерировать `inline constexpr std::array<std::pair<int, std::string_view>, N>`.
-   - Использовать begin/end маркеры generated-блока, чтобы надежно перегенерировать.
+- Process `.h` / `.hpp` recursively.
+- Search for `enum class` with CodeGen token.
+- Generate `inline constexpr std::array<std::pair<int, std::string_view>, N>`.
+- Use begin/end markers of the generated block to reliably regenerate.
 
 2. SQL constants.
-   - На вход: raw SQL-каталог подсистемы.
-   - На выход: generated SQL-каталог той же подсистемы.
-   - Каждая SQL-инструкция имеет имя.
-   - Placeholder-ы лучше писать явно как `:param_name`, а не заменять произвольные значения из комментария.
-   - Генератор заменяет `:param_name` на `%VAL%` и может генерировать массив имен параметров.
+- Input: raw SQL directory of the subsystem.
+- Output: generated SQL catalog of the same subsystem.
+- Each SQL statement has a name.
+- It is better to write placeholders explicitly as `:param_name`, rather than replacing arbitrary values ​​from the comment.
+- The generator replaces `:param_name` with `%VAL%` and can generate an array of parameter names.
 
-## Порядок работ
+## Work order
 
-1. [x] Утвердить и локально разложить структуру каталогов.
-2. [x] Утвердить минимальный интерфейс `IDataBase`.
-3. [x] Добавить `SqliteDataBase` с открытием общего файла БД, транзакциями и user context.
-4. [x] Уточнить базовый интерфейс executor-а: DDL-инициализация, проверка структур, миграции, очистка данных, удаление структур, CRUD-маршрутизация.
-5. [x] Перенести DDL/DML SQL в разделенные `.sql` файлы внутри подсистем.
-6. [x] Реализовать `DataManager` на уровне инициализации, очистки и маршрутизации в executor.
-7. Реализовать `ManagerExecutor` как первый рабочий executor.
-8. Добавить миграции схемы как отдельный ресурс новой служебной подсистемы, распределяемый через `UniterMessage`, без локальных `migrations.sql` в подсистемах.
-9. Выполнить базовое тестирование (одной подсистемы manager)
-10. После этого внедрять CodeGen и DataGrip-процесс.
-11. Реализовать фактическую изоляцию данных пользователей в DDL/DML executors: `SetUserContext()` сейчас только задает контекст, но сам по себе не фильтрует и не разделяет данные.
+1. [x] Validate and locally decompose the directory structure.
+2. [x] Assert minimal interface `IDataBase`.
+3. [x] Add `SqliteDataBase` with opening a common database file, transactions and user context.
+4. [x] Clarify the basic interface of the executor: DDL initialization, checking structures, migrations, data cleaning, deleting structures, CRUD routing.
+5. [x] Move SQL DDL/DML to separated `.sql` files within subsystems.
+6. [x] Implement `DataManager` at the initialization, cleanup and routing level in the executor.
+7. Implement `ManagerExecutor` as the first worker executor.
+8. Add schema migrations as a separate resource of the new service subsystem, distributed through `UniterMessage`, without local `migrations.sql` in the subsystems.
+9. Perform basic testing (one manager subsystem)
+10. After this, implement the CodeGen and DataGrip process.
+11. Implement actual isolation of user data in DDL/DML executors: `SetUserContext()` now only sets the context, but does not itself filter or separate the data.
