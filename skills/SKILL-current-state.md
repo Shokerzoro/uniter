@@ -1,354 +1,197 @@
 ---
 name: uniter-current-state
-description: Актуальное состояние проекта Uniter (Qt C++ PDM/ERP). Структура кода, реализованные компоненты, отсутствующие части и пошаговый план работ по развитию ядра.
+description: Актуальное состояние проекта Uniter после консолидации документации в docs/documentation.md и docs/plan.md. Использовать для работ по Qt C++ PDM/ERP, AppManager, DataManager, БД, DESIGN/PDM и протоколу.
 ---
 
-# SKILL: Uniter — Актуальное состояние проекта
+# SKILL: Uniter — актуальное состояние
 
-## Контекст проекта
+## Основной источник правды
 
-**Uniter** — Qt C++ (C++17) клиент-серверная PDM/ERP система для автоматизации учёта материалов в машиностроении. CMake-проект с тремя подпроектами: статическая библиотека `Common`, исполняемый файл `Updater` и основное приложение `Uniter`. Сборка в двух вариантах: динамическая линковка (Debug/Profile) и статическая (RelWithDebInfo/Release). Среда: MSYS/MinGW, Qt, сторонние библиотеки MuPDF и tinyxml2. Тесты — GoogleTest, запускаются при каждой сборке.
+Перед работой по Uniter сначала проверяй:
 
-Репозиторий: https://github.com/Shokerzoro/uniter
+- `docs/documentation.md` — сводная архитектура проекта;
+- `docs/plan.md` — план реализации data layer;
+- `docs/visual/` — PDF/DWG/BAK visual references.
 
-\---
+Старые Markdown-документы удалены; их решения сведены в `documentation.md`.
 
-## Структура исходного кода (актуальная)
+## Проект
 
-```
-src/
-├── common/           # Статическая библиотека (appfuncs, excepts)
-├── uniter/           # Основное приложение
-│   ├── contract/     # Ресурсы и протокол (UniterMessage, ResourceAbstract, подсистемы)
-│   │   ├── design/           # Assembly, Part, Project, FileVersion
-│   │   ├── material/         # MaterialTemplateBase, Simple, Composite
-│   │   ├── materialinstance/ # MaterialInstanceBase, Simple, Composite
-│   │   ├── employee/         # Employee (User)
-│   │   ├── supply/           # ProcurementRequest
-│   │   ├── plant/            # ProductionTask
-│   │   ├── unitermessage.h/.cpp
-│   │   ├── uniterprotocol.h
-│   │   └── resourceabstract.h/.cpp
-│   ├── control/      # AppManager, ConfigManager, UIManager
-│   ├── data/         # DataManager, IDataObserver
-│   ├── network/      # TcpConnector, MockNetwork, MainNetworker, UpdaterWorker
-│   ├── widgets\_static/
-│   ├── widgets\_generative/
-│   ├── widgets\_dynamic/
-│   └── main.cpp
-└── updater/
-```
+Uniter — Qt C++17 клиент-серверная PDM/ERP система для автоматизации материалов, конструкторской документации, закупок и производства. CMake-проект с `Common`, `Updater`, `Uniter`. Используются Qt, MinGW/MSYS, MuPDF, tinyxml2, GoogleTest.
 
-\---
+Подмодули:
 
-## Актуальное состояние компонентов
+- `src/uniter/contract/` — `uniter-contract`;
+- `src/uniter/database/` — `uniter-database`.
 
-### UniterMessage и протокол
+## Текущая архитектурная модель
 
-**Файлы:** `contract/unitermessage.h`, `contract/uniterprotocol.h`
+Слои:
 
-Текущая структура `UniterMessage`:
+1. Network: `ServerConnector`, `KafkaConnector`, `MinioConnector`.
+2. Application management: `AppManager`, `ConfigManager`.
+3. Data management: `DataManager`, `FileManager`, `IDataBase`, executors.
+4. Business logic: `PDMManager`, `ERPManager`.
+5. UI: `MainWindow`, static/generative/dynamic widgets.
 
-* Метаданные: `version`, `timestamp`, `message\_sequence\_id`, `request\_sequence\_id`
-* Подсистема: `subsystem` (Subsystem enum), `GenSubsystem`, `GenSubsystemId`
-* Тип операции: `crudact` (CrudAction), `protact` (ProtocolAction), `status` (MessageStatus), `error` (ErrorCode)
-* Данные: `std::shared\_ptr<ResourceAbstract> resource`, `std::map<QString,QString> add\_data`
-* Методы: `to\_xml()`, `form\_xml()`
+Весь сетевой трафик проходит через `AppManager`. UI и бизнес-логика не должны напрямую ходить в network layer.
 
-**Что реализовано в протоколе:**
+## AppManager/FSM
 
-* `Subsystem`: PROTOCOL, MATERIALS, DESIGN, PURCHASES, MANAGER, GENERATIVE
-* `CrudAction`: NOTCRUD, CREATE, READ, UPDATE, DELETE
-* `ProtocolAction`: NOTPROTOCOL, ACCOCATE\_ID, AUTH, POLL
-* `MessageStatus`: REQUEST, RESPONSE, ERROR, NOTIFICATION
-* `ErrorCode`: SUCCESS, BAD\_REQUEST, BAD\_TIMING, PERMISSION\_DENIED, INTERNAL\_ERROR, SERVICE\_UNAVAILABLE
-* `ResourceType`: DEFAULT, EMPLOYEES, PRODUCTION, INTEGRATION, GROUP, PURCHASE, PROJECT, ASSEMBLY, PART
-* `GenSubsystem`: NOTGEN, PRODUCTION, INTERGATION
+Актуальная FSM из `docs/documentation.md`:
 
-**Чего НЕТ (требует доработки):**
-
-* Отсутствует `MessageType` (CRUD / PROTOCOL / MINIO) — сейчас CRUD и PROTOCOL смешаны через `crudact`/`protact`
-* Нет полей для Kafka: отсутствуют `SUCCESS` (подтверждение через Kafka) в MessageStatus (только NOTIFICATION есть)
-* Нет полей для MinIO-операций (presigned URL, upload token)
-* Нет поддержки передачи файлов в сообщении (UPDATE с бинарными данными)
-* Подсистема `INSTANCES` (MaterialInstance) отсутствует в `Subsystem` enum
-* `PDM` отсутствует в `Subsystem` enum
-
-\---
-
-### AppManager и FSM
-
-**Файлы:** `control/appmanager.h`, `control/appmanager.cpp`
-
-**Текущие состояния (AppState):** IDLE → STARTED → IDLE\_CONNECTED → CONNECTED → AUTHENTIFICATED → DBLOADED → READY → SHUTDOWN
-
-**Текущие события (Events):** START, NET\_CONNECTED, NET\_DISCONNECTED, AUTH\_SUCCESS, DB\_LOADED, CONFIG\_DONE, LOGOUT, SHUTDOWN
-
-**Реализованные методы:**
-
-* Синглтон через `instance()`
-* `start\_run()` — запуск FSM
-* `onConnectionUpdated(bool)` — слот от сетевого класса
-* `onResourcesLoaded()`, `onConfigured()`, `onLogout()`, `onShutDown()`
-* `onRecvUniterMessage(...)` / `onSendUniterMessage(...)` — маршрутизация
-
-**Реализованные сигналы:**
-
-* `signalMakeConnection()`, `signalPollMessages()`
-* `signalConnectionUpdated(bool)`, `signalAuthed(bool)`, `signalLoggedOut()`
-* `signalFindAuthData()`, `signalLoadResources(QByteArray)`, `signalConfigProc(Employee)`, `signalClearResources()`
-* `signalRecvUniterMessage(...)`, `signalSendUniterMessage(...)`
-
-**Чего НЕТ (требует доработки):**
-
-* Нет состояний для Kafka (KAFKA\_CONNECTED, ожидание credentials)
-* Нет обработки FULL\_SYNC (POLL) как отдельного состояния/события
-* Нет маршрутизации MinIO-сообщений
-* Нет события для получения Kafka credentials от сервера
-
-\---
-
-### Сетевой слой
-
-**Файлы:** `network/tcpconnector.h/.cpp`, `network/mocknetwork.h/.cpp`, `network/mainnetworker.h`, `network/updaterworker.h/.cpp`
-
-**Что реализовано:**
-
-* `TcpConnector` — реальный TCP/SSL коннектор к серверу с сериализацией UniterMessage в XML
-* `MockNetwork` — заглушка, имитирующая сетевую работу (авторизация, базовые ответы)
-* `MainNetworker` — фасад для выбора между TcpConnector и MockNetwork
-* `UpdaterWorker` — отдельный класс для работы с обновлениями (скачивание, установка)
-
-**Интерфейс `MainNetworker`:** принимает `std::shared\_ptr<UniterMessage>`, отправляет UniterMessage обратно через сигналы, взаимодействует только с AppManager
-
-**Чего НЕТ:**
-
-* `KafkaConnector` — отсутствует полностью (нет даже заглушки)
-* `MinioConnector` — отсутствует полностью (нет даже заглушки)
-* `ServerConnector` как отдельный класс (сейчас роль выполняет TcpConnector, без разделения ответственности по документации)
-
-\---
-
-### DataManager и Observer
-
-**Файлы:** `data/datamanager.h/.cpp`, `data/idataobserver.h/.cpp`
-
-**Что реализовано:**
-
-* Синглтон `DataManager`
-* Внутренние состояния: IDLE, LOADING, LOADED, ERROR
-* Три списка observers: `treeObservers`, `listObservers`, `resourceObservers` (через `std::weak\_ptr`)
-* Слоты: `onStartLoadResources(QByteArray)`, `onClearResources()`, `onRecvUniterMessage(...)`, `onSubsystemGenerate(...)`
-* Подписки: `onSubscribeToResourceList/Tree/Resource()`, `onUnsubscribeFrom\*()`
-* `onGetResource()` — прямой запрос ресурса
-* `signalResourcesLoaded()` — сигнал AppManager
-
-**Чего НЕТ (требует доработки):**
-
-* Нет реальной локальной БД (SQLite) — нет инициализации, создания таблиц, персистентности
-* Нет обработки CUD-операций с сохранением в БД
-* Нет `SubscribeAdaptor` (механизм из документации для безопасных подписок)
-* Нет разделения на `ResourceListObserver`, `ResourceObserver`, `TreeObserver` (пока единый `IDataObserver`)
-
-\---
-
-### Ресурсы (contract/)
-
-**Что реализовано:**
-
-| Подсистема | Ресурс | Статус |
-|---|---|---|
-| DESIGN | `Project` | Реализован (name, description, projectcode, rootdirectory, root\_assembly) |
-| DESIGN | `Assembly` | Реализован (project\_id, name, type, parent, child\_assemblies, parts, docs) |
-| DESIGN | `Part` | Реализован |
-| DESIGN | `FileVersion` | Реализован |
-| MATERIALS | `MaterialTemplateBase/Simple/Composite` | Реализованы |
-| INSTANCES | `MaterialInstanceBase/Simple/Composite` | Реализованы |
-| MANAGER | `Employee` | Реализован |
-| PURCHASES | `Supply` (ProcurementRequest) | Реализован частично |
-| MANAGER | `Plant` (ProductionTask) | Реализован частично |
-
-**Чего НЕТ в ресурсах:**
-
-* `PDM::Snapshot` — отсутствует как ресурс
-* `PDM::Delta` — отсутствует
-* `Assembly` не имеет полей для snapshot XML (документация §9)
-* Структуры конструктора (Assembly/Part) не соответствуют целевой XML-структуре snapshot (§9 документации): нет `Invariant`, `Config`, `PartsDef`-нотации
-
-\---
-
-### Бизнес-логика
-
-**Чего НЕТ (не реализовано совсем):**
-
-* `PDMManager` — отсутствует
-* `ERPManager` — отсутствует
-* `FileManager` — отсутствует
-
-\---
-
-## План работ (приоритизированный)
-
-### 1\. Актуализация UniterMessage (Kafka + MinIO + UPDATE с файлами)
-
-**Задача:** расширить протокол без поломки существующей структуры.
-
-* Добавить `MessageType` enum: `CRUD`, `PROTOCOL`, `MINIO`
-* Добавить `MessageStatus::SUCCESS` (подтверждение CUD через Kafka)
-* Добавить в `Subsystem`: `INSTANCES`, `PDM`
-* Добавить в `ProtocolAction`: `GET\_KAFKA\_CREDENTIALS`, `GET\_MINIO\_TOKEN`, `FULL\_SYNC`
-* Добавить поля MinIO в UniterMessage: `minio\_object\_key`, `minio\_presigned\_url`, `minio\_token`
-* Добавить поддержку передачи файлов: поле `file\_payload` (опциональный бинарный blob или путь)
-* Обновить `to\_xml()` / `form\_xml()` под новые поля
-
-**1.1. Доработать AppManager — маршрутизацию с учётом новых типов**
-
-* `onRecvUniterMessage`: ветвление по `MessageType` (CRUD → DataManager, PROTOCOL → FSM, MINIO → FileManager)
-* Добавить сигналы: `signalSendToKafka(...)`, `signalSendToMinio(...)`
-
-\---
-
-### 2\. Актуализировать ресурсы конструкторской подсистемы
-
-**Задача:** привести Assembly, Part, Project к целевой XML-структуре snapshot (документация §9).
-
-Целевая XML-структура snapshot:
-
-```xml
-<shapshot id="" designation="" name="" version="" previousVersion="">
-  <Assembly designation="" name="">
-    <Structure>
-      <Invariant>
-        <Assemblies><AssemblyRef designation="" config=""/></Assemblies>
-        <Parts><PartRef designation="" config=""/></Parts>
-      </Invariant>
-      <Config number="01">...</Config>
-    </Structure>
-    <PartsDef>
-      <Part designation="" name="">
-        <Config id="01"/>
-      </Part>
-    </PartsDef>
-  </Assembly>
-</shapshot>
+```text
+IDLE -> STARTED -> AUTHENIFICATION -> IDLE_AUTHENIFICATION
+-> DBLOADING -> CONFIGURATING -> KCONNECTOR -> KAFKA
+-> READY
 ```
 
-Целевая структура `Partdef`:
+Если offset Kafka устарел:
 
-```xml
-<Partdef designation="..." name="...">
-  <Metadata>
-    <Material><Base>...</Base><CoatingTop/><CoatingBottom/></Material>
-    <Signatures><Signature role="..." name="..." date="..."/></Signatures>
-    <Litera>О</Litera>
-    <Organization>...</Organization>
-    <DrawingFile><Path/><Hash/><ModifiedAt/></DrawingFile>
-  </Metadata>
-  <Config id="01"><Dimensions length="" width="" height=""/><Mass/></Config>
-</Partdef>
+```text
+KAFKA -> DBCLEAR -> SYNC -> READY
 ```
 
-* Добавить в `Assembly`: поля `designation`, `configs` (map<QString, ConfigData>), `invariant`
-* Добавить в `Part`: поля `designation`, `litera`, `organization`, `signatures`, `configs` с Dimensions/Mass
-* Добавить ресурс `PDM::Snapshot` и `PDM::Delta`
-* Обновить сериализацию `from\_xml` / `to\_xml`
+Online/offline — отдельное состояние от `AppState`. Network-состояния повторяют entry-action при reconnect, local-состояния нет.
 
-\---
+Routing:
 
-### 3\. Реализовать DataManager с локальной SQLite БД
+- `PROTOCOL` до `READY` — внутренняя FSM;
+- CRUD до `READY` — reject/log;
+- CRUD в `READY` — `DataManager`;
+- MinIO protocol в `READY` — `FileManager`;
+- outgoing CRUD — `ServerConnector`;
+- `GET_MINIO_FILE` / `PUT_MINIO_FILE` — `MinioConnector`;
+- `GET_MINIO_PRESIGNED_URL` — `ServerConnector`.
 
-**Задача:** полноценный DataManager с персистентностью.
+## UniterMessage/add_data
 
-* Инициализация: открыть существующую БД пользователя или создать новую (имя файла привязать к userhash)
-* Схема: по одной таблице на каждый тип ресурса (materials, instances, projects, assemblies, parts, snapshots, deltas, employees, purchases, plant\_tasks)
-* Обработка входящих UniterMessage с `crudact` == CREATE/UPDATE/DELETE → запись в SQLite
-* Реализовать механизм подписок через `SubscribeAdaptor`:
+`UniterMessage::add_data` — строгий строковый контракт для protocol parameters. Ключи описаны в `docs/documentation.md`.
 
-  * `ResourceListObserver` — уведомление при изменении списка ресурсов подсистемы
-  * `ResourceObserver` — уведомление при изменении конкретного ресурса по id
-  * `TreeObserver` — уведомление при изменении дерева (для конструкторской подсистемы)
-* READ: прямая выдача данных из SQLite через `onGetResource()`
+Важные действия:
 
-\---
+- `AUTH`: `login`, `password_hash`;
+- `GET_KAFKA_CREDENTIALS`: server/topic/user/group/offset data;
+- `GET_MINIO_PRESIGNED_URL`: `object_key`, `minio_operation`, `presigned_url`, `url_expires_at`;
+- `GET_MINIO_FILE`: `presigned_url`, `object_key`, `expected_sha256`, `local_path`;
+- `PUT_MINIO_FILE`: `presigned_url`, `object_key`, `local_path`, `sha256`;
+- `FULL_SYNC`: без обязательных ключей;
+- update actions: см. `docs/documentation.md`.
 
-### 4\. Обновить FSM в AppManager (Kafka + POLL)
+Будущее улучшение: вынести ключи в `contract/add_data_keys.h`.
 
-**Задача:** учесть новые состояния после добавления Kafka.
+## Data layer
 
-Новые состояния FSM:
+Актуальный план в `docs/plan.md`.
 
-* `AUTHENTIFICATED` → запрос Kafka credentials → `KAFKA\_CONNECTING` → `KAFKA\_CONNECTED`
-* При успешном подключении к Kafka → запуск DB\_LOAD (FULL\_SYNC или продолжение с offset)
-* Обработка события `FULL\_SYNC\_REQUIRED`: очистка БД, POLL с сервера, пассивный приём CRUD из Kafka
+Целевые границы:
 
-Механизм POLL:
+- `IDataBase` — низкоуровневое соединение, SQL, транзакции, user context. Не знает ресурсов.
+- `IResExecutor` — DDL/DML/mapping/migrations для одной подсистемы.
+- `DataManager` — оркестратор: открывает БД, выставляет user context, регистрирует executors, маршрутизирует CRUD/READ, чистит данные перед `FULL_SYNC`, уведомляет observers.
 
-* `signalPollMessages()` инициирует FULL\_SYNC: `onClearResources()` → запрос синхронизации серверу → пассивный приём всех CRUD-сообщений → переход в READY
+Целевые поля `DataManager`:
 
-\---
+```cpp
+std::unique_ptr<database::IDataBase> db_;
+std::unordered_map<contract::Subsystem,
+                   std::unique_ptr<database::IResExecutor>> executors_;
+```
 
-### 5\. Реализовать заглушки сетевых классов (ServerConnector, KafkaConnector, MinioConnector)
+SQLite user isolation:
 
-**Задача:** заглушки, моделирующие полноценную сетевую работу без реальной сети.
+- один физический локальный DB file;
+- `SetUserContext(userHash)`;
+- фильтрация через `user_hash`/`local_user_id` или views/triggers;
+- executor DML обязан учитывать user context.
 
-**ServerConnector (stub):**
+Первый executor: `ManagerExecutor`.
 
-* При авторизации — всегда возвращает `Employee` с полными правами
-* На CRUD-запросы — возвращает `RESPONSE` с `SUCCESS`, параллельно генерирует `NOTIFICATION` через KafkaConnector
-* На `GET\_KAFKA\_CREDENTIALS` — возвращает фиктивные credentials
-* На `GET\_MINIO\_TOKEN` — возвращает фиктивный presigned URL
+Рекомендуемый порядок executors:
 
-**KafkaConnector (stub):**
+1. Manager
+2. Documents
+3. Materials
+4. Instances
+5. Design
+6. PDM
+7. Supply
+8. Production
+9. Integration
 
-* Хранит offset в памяти (имитация OS Secure Storage)
-* При инициализации: если offset == 0 → сигнал FULL\_SYNC\_REQUIRED
-* Получает от ServerConnector подтверждённые CUD операции и рассылает их как `NOTIFICATION` / `SUCCESS`
+## Database model
 
-**MinioConnector (stub):**
+Главный принцип:
 
-* Работает с локальной папкой (аналог S3 bucket)
-* GET по presigned URL → читает файл из локального пути
-* PUT → сохраняет файл локально
+```text
+runtime class != database table
+```
 
-\---
+DataManager/executors collapse normalized tables into runtime resources on READ and expand resources back into tables on CREATE/UPDATE.
 
-### 6\. Реализовать FileManager
+## DESIGN
 
-**Задача:** координатор операций с файлами.
+DESIGN — текущая редактируемая структура изделий.
 
-* Цепочка загрузки: запрос presigned URL у сервера (через AppManager/ServerConnector) → запрос файла у MinioConnector → проверка SHA256 (из DataManager)
-* Цепочка выгрузки: PUT через MinioConnector → уведомление DataManager об обновлении URL
-* `IFileObserver` — интерфейс подписки: `onFileDownloaded(key, localPath)`, `onFileUploaded(key, url)`
-* Кэширование: не скачивать повторно файл с совпадающим SHA256
+Ресурсы:
 
-\---
+- `Project = 30` -> `design_project`;
+- `Assembly = 31` -> `design_assembly`;
+- `AssemblyConfig = 33` -> `design_assembly_config` + join tables;
+- `Part = 32` -> `design_part`;
+- `PartConfig = 34` -> `design_part_config`.
 
-### 7\. Реализовать PDMManager и ERPManager (бизнес-логика)
+Ключевые решения:
 
-**PDMManager:**
+- `design_project` содержит `root_assembly_id` и nullable `pdm_project_id`;
+- `active_snapshot_id` удалён из DESIGN;
+- `design_assembly` хранит общие данные сборки;
+- структура сборки хранится в `design_assembly_config`;
+- `design_part` не содержит `assembly_id`, деталь может входить в разные исполнения;
+- документы подключаются через `documents_doc_link`.
 
-* Работает поверх DataManager и FileManager
-* Парсинг PDF-каталога через MuPDF → XML snapshot (вызов библиотеки компиляции)
-* Создание нового Snapshot ресурса или Delta при повторном парсинге
-* Управление версиями: применение дельты, откат к предыдущей версии
-* Валидация КД по критериям ЕСКД
-* Управление XMLDocument на уровне PDMManager, передача root в компилятор
+## PDM
 
-**ERPManager:**
+PDM хранит неизменяемые snapshot-ы DESIGN и delta между ними.
 
-* Работает поверх DataManager
-* Расчёт потребности в материалах на основе ProductionTask + конструкторских данных
-* Прогнозирование дефицитов: сравнение доступных MaterialInstance с требуемыми
-* Построение отчётов по материальному балансу
+Ресурсы:
 
-\---
+- `Snapshot = 50` -> `pdm_snapshot`;
+- `Delta = 51` -> `pdm_delta`;
+- `PdmProject = 52` -> `pdm_project`;
+- `Diagnostic = 57` -> `pdm_diagnostic`.
 
-## Текущее состояние работоспособности
+PDM mirror resources:
 
-Приложение работает на **минимальном уровне**:
+- `ASSEMBLY_PDM = 53`;
+- `ASSEMBLY_CONFIG_PDM = 54`;
+- `PART_PDM = 55`;
+- `PART_CONFIG_PDM = 56`.
 
-* Запуск, FSM инициализации, подключение через MockNetwork, авторизация
-* Структуры ресурсов определены, сериализация базовая реализована
-* DataManager создан как skeleton (без реальной БД)
-* UI статические виджеты существуют
-* Kafka, MinIO, PDMManager, ERPManager, FileManager — **не реализованы**
+При создании snapshot текущие `design_*` строки копируются в `pdm_*` mirror tables с `snapshot_id`. `pdm_snapshot.root_assembly_id` указывает на `pdm_assembly.id`, не на live `design_assembly.id`.
+
+История — двусвязный список snapshot/delta:
+
+```text
+snapshot_1 <-> delta_1 <-> snapshot_2 <-> delta_2 <-> snapshot_3
+```
+
+`design_project.pdm_project_id -> pdm_project.head_snapshot_id -> pdm_snapshot` заменяет старый `design_project.active_snapshot_id`.
+
+## Открытые решения
+
+Перед реализацией проверить раздел решений в `docs/documentation.md`.
+
+Главные пункты:
+
+- как передавать `snapshot_id` для PDM mirror CRUD;
+- исправить расхождение ResourceType PDM mirrors 35-38 vs 53-56;
+- проверить simple/composite instance для standard products в DESIGN;
+- убрать legacy `active_snapshot_id` wording;
+- синхронизировать PDF-схему DESIGN с `design_part.project_id`;
+- обновить устаревшие комментарии про `MATERIAL_INSTANCE = 60`;
+- решить, нужен ли `pdm_project.approved_snapshot_id`.
+
+## Рабочее правило
+
+При изменениях в коде сверяйся с `docs/documentation.md` и `docs/plan.md`. Если обнаружен новый конфликт между SQL, C++ и документацией, обнови `docs/documentation.md` вместо создания отдельного Markdown-файла.

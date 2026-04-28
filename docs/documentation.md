@@ -1,609 +1,660 @@
+# Uniter Documentation
 
+This document is the consolidated project reference. It summarizes the former
+architecture documents, former database notes, and the manual conflict
+decisions that were merged before the old source Markdown files were removed.
+`docs/plan.md` remains the separate implementation plan for the data layer.
+Visual references are stored in `docs/visual/`.
 
-##### **0. Project setup**
-This is a CMake project in Qt C++ (17 standard), in QtCreator with git in the root. It has 3 subprojects: the Common static library, the .exe for Updater updates, and the Uniter application itself. It is assembled in 2 versions with dynamic linking (for debug and profile) and static linking (RelWithDebInfo and Release). Uses GoogleTests for unit testing, which are compiled into a separate .exe and run with each build in a separate console. Added --verbose flag to display compiler calls.
+## 1. Project Overview
 
-Third-party libraries are used - MuPDF for extracting data from pdf files, tinyxml2 for working with XML. Moreover, they are assembled in the MSYS environment using MinGW, like the entire Uniter project on Qt, which will allow cross-platform assembly.
+Uniter is a Qt C++17 client/server PDM/ERP application for engineering and
+manufacturing companies. Its purpose is to automate accounting of materials,
+design documentation, procurement and production tasks by turning design data
+into structured resources that can be synchronized between clients.
 
-On the server side, Kafka is used as a message broker, storing these messages for a certain time, after which the messages are deleted and the client is forced to perform full synchronization.
+The project is built with CMake and QtCreator. The repository contains three
+main build products:
 
-MinIo is used as a storage for heavy files, while the server operates with URL links to files (mainly design files, but also pdf standards, etc.), and the client requests a URL and a token to download them on demand.
+| Product | Role |
+|---|---|
+| `Common` | Static helper library |
+| `Updater` | Separate executable for application updates |
+| `Uniter` | Main client application |
 
+The project uses GoogleTest for tests. Third-party libraries include MuPDF for
+PDF extraction and tinyxml2 for XML processing. The build environment is
+MinGW/MSYS with Qt.
 
-##### **0.1. Git Submodules**
+## 2. Submodules
 
-The project uses git submodules to connect repositories common to the server part: a contract (protocol + resources) and a database access layer.
+The repository uses git submodules for shared contract and database code:
 
-**List of submodules:**
-
-| Submodule | Repository path | Repository |
+| Submodule | Path | Repository |
 |---|---|---|
-| `uniter-contract` | `src/uniter/contract/` | https://github.com/Shokerzoro/uniter-contract |
-| `uniter-database` | `src/uniter/database/` | https://github.com/Shokerzoro/uniter-database |
+| `uniter-contract` | `src/uniter/contract/` | `https://github.com/Shokerzoro/uniter-contract` |
+| `uniter-database` | `src/uniter/database/` | `https://github.com/Shokerzoro/uniter-database` |
 
-**Initial repository cloning:**
+Clone with submodules:
 
 ```bash
 git clone --recurse-submodules https://github.com/Shokerzoro/uniter.git
 ```
 
-**If the repository is already cloned without submodules:**
+Initialize submodules after a regular clone:
 
 ```bash
 git submodule update --init --recursive
 ```
 
-**Updating submodules to latest commit:**
+Update submodules:
 
 ```bash
 git submodule update --remote --merge
 ```
 
-**CMake integration:**
-
-`uniter-contract` and `uniter-database` are included via `include()` in `src/uniter/CMakeLists.txt`:
+The submodules are included from `src/uniter/CMakeLists.txt` through
+`sources.cmake` files:
 
 ```cmake
-include(contract/sources.cmake) # defines uniter::contract
-include(database/sources.cmake) # defines uniter::database
+include(contract/sources.cmake)
+include(database/sources.cmake)
 ```
 
-Each submodule provides `sources.cmake` instead of `CMakeLists.txt`, allowing them to be included in any subproject via a simple `include()` without spawning nested `cmake_minimum_required()`/`project()`.
+## 3. Architectural Layers
 
-##### **1. Application Description**
+Uniter is split into independent layers. Each layer communicates through clear
+boundaries and avoids direct coupling to unrelated parts of the application.
 
-The purpose of the application is to automate the accounting of materials for manufacturing/design companies in the field of mechanical engineering. The application's operating algorithms take advantage of the ESKD, using ready-made design data to automatically extract information about products, which includes the structure of the product, designs, and materials used. At the same time, automation covers the following processes: release of design documentation, procurement, production (inventory + task management).
-The design of an information system is based on the assumption that all capabilities can be represented as CRUD operations on data, including new subsystems. This allows you to scale the application and add support for other business processes.
+| Layer | Main components | Responsibility |
+|---|---|---|
+| Network | `ServerConnector`, `KafkaConnector`, `MinioConnector` | External communication |
+| Application management | `AppManager`, `ConfigManager` | FSM, routing, lifecycle, configuration |
+| Data management | `DataManager`, `FileManager`, database executors | Local structured data, files, observers |
+| Business logic | `PDMManager`, `ERPManager` | Domain workflows over data/files |
+| UI | `MainWindow`, static/generative/dynamic widgets | User workflows and presentation |
 
-Future plans include expanding the production unit, the ability to create workshops and route production through them, as well as read technological documentation. It is also a platform for introducing automated drafting using AI in the future.
-It is also a platform for introducing cooperation within the engineering industry for publishing orders for metalworking.
-##### **2. Application architectural layers**
-The application is organized into four independent layers, each of which is responsible for its own area of ​​responsibility.
+All network traffic is routed through `AppManager`. Network classes do not talk
+directly to UI, DataManager or business logic.
 
-###### 1. **Network Layer**
-The network layer ensures that all external communications are isolated from the rest of the application. It consists of three independent components, each of which is responsible for its own communication channel. All components interact with the upper layers exclusively through AppManager (application management), without direct connections with business logic or UI
+## 4. Network Layer
 
-###### **ServerConnector**
-Channel of communication with the self-written server (authorization engine and CRUD operations). Uses TCP/SSL connection for secure data transfer.
+### ServerConnector
 
-Responsibility:
-- Establishing and maintaining a permanent TCP/SSL connection with the self-written server
-- Serialize UniterMessage in XML and send to server
-- Deserializing XML responses back to UniterMessage, spitting them out to the top
-- Buffering of outgoing CUD requests when there is no connection (for subsequent sending upon recovery)
-- Handling request timeouts (each request has a time limit for waiting for a response)
-Operations:
-- Protocol operations (MessageType = PROTOCOL) for authentication, full synchronization request, request for access to Kafka, request for MinIO tokens
-- CRUD operations (MessageType = CRUD) - requests from the client for operations on resources in all subsystems
+`ServerConnector` is the TCP/SSL channel to the Uniter server. It is responsible
+for authentication, protocol requests and client-originated CRUD requests.
 
-###### **KafkaConnector**
-One-way channel for receiving broadcast notifications from the Apache Kafka distributed messaging system. The client acts only as a consumer (reader) and never publishes messages.
+Responsibilities:
 
-Responsibility:
+- maintain TCP/SSL connection;
+- serialize and deserialize `UniterMessage` XML;
+- send protocol and CRUD requests to the server;
+- buffer outgoing CUD requests when disconnected;
+- handle request timeouts.
 
-- Connect to the Kafka cluster using credentials received from the server via ServerConnector
-- Subscription to the company topic, continuous reading of new messages (only CRUD broadcast notifications), deserialization in UniterMessage and “spitting” to the top
-- Remembering the last processed offset in OS Secure Storage with reference to a specific User (to be able to continue reading after a restart)
-- Checking the availability of the saved offset during initialization, sending an error to the top to indicate the need for full synchronization (FULL_SYNC)
-
-###### **MinioConnector**
-HTTP client for interacting with the MinIO S3 API object storage. Provides operations for uploading and downloading files (PDF drawings, XML snapshots of design documentation).
-Does not have direct credentials to access MinIO. Instead, a mechanism is used for pre-signed URLs: the client requests from the server (via ServerConnector) a temporary URL with an embedded access token, valid for a short time
-
-Responsibility:
-- Performing HTTP GET/PUT/DELETE requests to MinIO via pre-signed URLs to download/upload files. Knows only atamar tasks (which file to download/upload and where)
+Protocol operations include `AUTH`, `FULL_SYNC`, `GET_KAFKA_CREDENTIALS`,
+`GET_MINIO_PRESIGNED_URL` and update-related actions.
 
+### KafkaConnector
 
-###### 2. **Application Management Layer**
-**Components**: AppManager, ConfigManager
-**Responsibility**:
-**AppManager**:
-- Global application FSM, lifecycle management
-- Processing protocol UniterMessage (for example during initialization)
-- UniterMessage routing between network layer and data layer
-- Coordination of FULL_SYNC execution
+`KafkaConnector` is a one-way broadcast channel. The client is only a consumer.
+It receives CRUD notifications and success confirmations from Kafka.
 
-**ConfigManager**:
-- Parsing User from the server
-- Generating signals to create subsystem tab widgets
-- Management of configuration changes
+Responsibilities:
 
+- connect using credentials received from the server;
+- subscribe to the company topic;
+- deserialize Kafka messages into `UniterMessage`;
+- store the last processed offset in OS Secure Storage per user;
+- request full synchronization if the saved offset is stale or missing.
 
-###### 3. **Data Management Layer**
-The data management layer provides an abstraction over data storage and files, providing a unified API for the upper layers. Contains two key components: **DataManager** for working with structured data (relational database) and **FileManager** for working with files.
+Kafka messages use:
 
-###### **DataManager**
-A central data management component that provides local database access and reactive UI updating via the Observer pattern.
+| Status | Meaning |
+|---|---|
+| `NOTIFICATION` | Change made by another user |
+| `SUCCESS` | Confirmation of this user's own CUD operation |
 
-**Responsibility**:
-- Resource management (downloading, updating, deleting), working with the local database.
-- Reception of CRUD operations from the network layer through AppManager and their processing (implementation)
-- Managing UI component subscriptions to data changes (notifications)
-- Reset all data when performing FULL_SYNC on a command from AppManager, subsequently passive CRUD operations
+### MinioConnector
 
-**Three types of subscriptions**:
-1. **ResourceListObserver** - for a list of resources (for generative subsystems)
-2. **ResourceObserver** - to a specific resource by ID (for dynamic widgets)
-3. **TreeObserver** - on a tree structure (for hierarchical data)
+`MinioConnector` is the HTTP client for MinIO object storage. It works only with
+temporary presigned URLs issued by the server.
 
-Subscription mechanism via SubscribeAdaptor:
-To avoid synchronization problems, dangling pointers, broadcast notifications and direct calls between DataManager and Observers, the SubscribeAdaptor adapter class is used.
+Responsibilities:
 
-###### **FileManager**
-Coordinator of all file operations, providing centralized management of uploading, downloading and caching of files from MinIO.
+- download files through HTTP GET;
+- upload files through HTTP PUT;
+- delete files if the protocol later requires it;
+- avoid direct storage of permanent MinIO credentials.
 
-Responsibility:
-- Coordination of the chain of operations for retrieving a file - from a **presignedUrl** request from the server to a file request to MinIO.
-- File integrity check via SHA256 hash (taken from DataManager)
-- Managing subscribers via IFileObserver (notification of completed download/upload).
-- 
+## 5. Application Management Layer
 
+### AppManager
 
-###### 4. **Business logic layer**
-The business logic layer contains components that implement complex domain-specific operations that are decomposed into many network requests or local actions. This layer sits between the Data Layer and the UI Layer, using the DataManager and FileManager to access data, but encapsulating complex processing logic.
+`AppManager` owns the global application FSM and all message routing. It routes
+incoming messages from network classes upward and outgoing messages from UI or
+subsystems downward.
 
-###### ****PDMManager****
-Product Data Management Manager is a subsystem for managing design documentation and products. Performs complex tasks of restoring shapshot versions of projects, applying/undoing deltas.
+Important states:
 
-Responsibility:
-- Interaction with FileManager DataManager AppManager UI (providing API)
-- Parsing and generation of XML snapshots of design documentation (CD)
-- Product version management (Part, Assembly, Project)
-- Processing delta changes (incremental snapshot updates)
-- Validation of design documentation for compliance with ESKD standards
-- Linking products with drawings (PDF files in MinIO)
+| State | Role |
+|---|---|
+| `IDLE` | Initial state |
+| `STARTED` | Connection requested |
+| `AUTHENIFICATION` | Auth data requested or sent |
+| `IDLE_AUTHENIFICATION` | Waiting for auth response |
+| `DBLOADING` | DataManager initialization |
+| `CONFIGURATING` | ConfigManager processes user permissions |
+| `KCONNECTOR` | Kafka connector initialization |
+| `KAFKA` | Server checks Kafka credentials/offset |
+| `DBCLEAR` | Local database is cleared before full sync |
+| `SYNC` | Full synchronization request |
+| `READY` | Normal application work |
+| `SHUTDOWN` | Final cleanup |
 
-###### ****ERPManager****
-The materials and production analytics subsystem works locally and calculates shortages/forecasts using data on projects, purchases, etc.
+Golden path:
 
-Responsibility:
-- Calculation of material requirements based on production plans
-- Forecasting material shortages
-- Analysis of available stocks vs required quantities
-- Creation of reports on material balance
+```text
+IDLE
+ -> STARTED
+ -> AUTHENIFICATION
+ -> IDLE_AUTHENIFICATION
+ -> DBLOADING
+ -> CONFIGURATING
+ -> KCONNECTOR
+ -> KAFKA
+ -> READY
+```
 
+If the Kafka offset is stale:
 
-###### 5. **Visualization Layer (UI Layer)**
-**Components**: MainWindow, static/generative/dynamic widgets
+```text
+KAFKA -> DBCLEAR -> SYNC -> READY
+```
 
-**Widget structure**:
+Online/offline state is orthogonal to `AppState`. Network states repeat their
+entry action after reconnect; local states do not.
 
-**Static widgets**:
-- MainWindow - orchestration of all other widgets
-- AuthWidget - authentication widget
-- WorkspaceWidget - work area with tabs
-**Responsibility**:
-- formation of basic control of the application by the user
+### Routing Rules
 
-**Subsystem widgets**:
-**Responsibility**:
-- Subscription to resources of a specific subsystem (list, tree)
-- Opportunities for working with a specific business process
-- Displaying data on a business process
-- Processing user input (clicks, editing)
-- Creating and managing dynamic widgets to work with specific resources
+Incoming routing through `onRecvUniterMessage`:
 
-**Dynamic widgets**:
-**Responsibility**:
-- Subscribe to ResourceObserver to receive updates for a specific resource
-- Processing user input (clicks, editing)
-- Subscribe to DataManager to receive data
-- Formation of UniterMessage during CRUD actions
-- Created by generative tabs
+| Condition | Destination |
+|---|---|
+| Offline | Drop/log |
+| `PROTOCOL` before `READY` | FSM internal handlers |
+| CRUD before `READY` | Drop/log |
+| CRUD in `READY` | `DataManager` |
+| MinIO-related protocol in `READY` | `FileManager` |
+| Update/Kafka protocol in `READY` | Log/TODO unless explicitly handled |
 
+Outgoing routing through `onSendUniterMessage`:
 
+| Source/state | Destination |
+|---|---|
+| Auth request before `READY` | `ServerConnector` |
+| CRUD in `READY` | `ServerConnector` |
+| `GET_MINIO_PRESIGNED_URL` | `ServerConnector` |
+| `GET_MINIO_FILE` / `PUT_MINIO_FILE` | `MinioConnector` |
+| FSM enter-actions | `ServerConnector` directly |
 
-##### **3. Subsystems**
+### ConfigManager
 
-Each subsystem owns its own resources, which it manages using CRUD operations. Resources/subsystems can reference resources from another subsystem using id. Each resource is assigned a unique id, distributed centrally. Each host stores all data about all resources, and the server only switches CRUD operations.
+`ConfigManager` parses the authenticated `Employee` resource and generates UI
+configuration: available subsystem tabs, permissions and generative subsystem
+visibility.
 
-**Material database subsystem**
-Manages material templates MaterialTemplate, which reflects a specific standard and its possible variants, serves as the basis for introducing a MaterialInstanse (an independent entity that allows you to point to a standard and specialize it). Inside the MaterialTemplate there are vectors for linking them (when the material is denoted by a fraction - assortment/material). Also owns the MaterialTemplateComplex resources - this is a pair of MaterialTemplates, which can also be the basis for a MaterialInstanseComplex.
+## 6. Data Management Layer
 
-**Subsystem of links to materials**
-Here you manage resources that are directly related to the previous section. Manages its own MaterialInstance resources that specialize a specific MaterialTemplate and add Quantity to it. As a result, an “instance” of material is formed, which can be referenced, for example, a purchase, or a part.
+### DataManager
 
-**Constructor subsystem**
-Manages project projects (an independent resource with its own id), which internally contain assemblies, parts and their documentation. All these entities refer to MaterialInstance - a specialization of the material template.
+`DataManager` is the client-side owner of local structured data. It connects
+AppManager, database access, subsystem executors and UI observers.
 
-**PDM subsystem**
-It is managed by a snapshot (an independent resource with its own id), which inside itself contains a snapshot of a project, and deltas, which are a resource within a specific snapshot. The subsystem runs on top of the designer subsystem and allows you to introduce version control of design projects, propose changes, and accept or reject them.
+Responsibilities:
 
-**Procurement subsystem**
-Manages ProcurementRequests that contain a MaterialInstance and complex ProcurementRequestComplex requests that contain references to simple purchases.
+- initialize database access for the current user;
+- keep local data isolated by user context;
+- route CRUD messages to subsystem executors;
+- clear local resource data before `FULL_SYNC`;
+- provide direct READ access for UI;
+- notify subscribers after changes.
 
-**Manager subsystem**
-Manages special resources - employees, production, integration, in the same way using CRUD operations. At the same time, industries are generative resources, i.e. after the creation of production, a subsystem of this production appears, which is controlled through id, and manages resources within its subsystem.
+The target internal structure is:
 
-**Generative production subsystem X**
-Manages the ProdactionTask resource (a separate resource with its own id) and also contains the MaterialInstance list. (PS: can query data from the design subsystem and the purchasing subsystem, which allows the raid to calculate material shortages).
+```cpp
+std::unique_ptr<database::IDataBase> db_;
+std::unordered_map<contract::Subsystem,
+                   std::unique_ptr<database::IResExecutor>> executors_;
+```
 
-**Generative Integration Engine X**
-Manages resource - integrations that allow you to open access to resources (primarily projects) for other companies. Uses references to design projects and materials. It is implemented using a gateway on the server, when passing through which the UniterMessage message is translated from one resource id space to another, thanks to the gateway correspondence table. The server keeps track of what is found for the resource id to which the CRUD operation is applied in this table, and if it is there, it switches the message. We are not implementing it yet.
+Subscriptions should be indexed by a `ResourceKey` containing subsystem,
+generative subsystem context, resource type and optional resource id. The
+mandatory API should include:
 
+- subscription to a resource list;
+- subscription to a specific resource.
 
-##### **4. Development of UniterMessage**
+Tree subscriptions are postponed until a stable tree model is finalized.
 
-The UniterMessage serves as a universal container for exchanging data between system components in three main scenarios:
-1. **CRUD operations between subsystems** - a user on one host creates/changes/deletes a resource (for example, a new purchase item), the server distributes this change to all clients of the company via Kafka
-2. **Protocol operations with the server** - authentication, request for full synchronization (FULL_SYNC), obtaining credentials for Kafka and tokens for MinIO
-3. **Operations with file storage** - designed for MinIOConnector and performing requests for uploading/downloading files
+### IDataBase
 
-UniterMessage is a generic data container that **does not contain specific structures for each resource type**. Instead of rigid typing, a flexible hierarchical data structure is used via XML payload, which makes it easy to expand the system with new types of resources without changing the protocol
+`IDataBase` is the low-level database engine abstraction. It knows how to open
+connections, execute SQL and manage transactions, but it does not know business
+resources or subsystem schemas.
 
-###### **UniterMessage structure**
+Responsibilities:
 
-**MessageType** - message type, determines which additional fields are used:
-- `CRUD` - operations of creating/reading/updating/deleting resources
-- `PROTOCOL` - protocol operations with the server
-- `MINIO` - operations with file storage
+- open and close database connections;
+- select physical storage for a user;
+- store current user context;
+- execute SQL and return `SqlResult`;
+- manage transactions;
+- expose minimal engine-specific helpers.
 
-**MessageStatus** — message status in the request-response chain:
-- `REQUEST` - request from the client (outgoing message)
-- `RESPONSE` - response from the server (incoming message)
-- `ERROR` - error when processing the request
-- `NOTIFICATION` - notification about data changes by another user (from Kafka)
-- `SUCCESS` - confirmation of the successful completion of its own CUD operation (from Kafka)
+SQLite, PostgreSQL and test in-memory implementations should fit this boundary.
 
-###### **Fields for CRUD operations (MessageType = CRUD)**
+### Executors
 
-**Subsystem** is the subsystem to which the resource and specific **ResourceType** belong:
-- `MATERIALS` - materials management
-- `INSTANCES` - management of material elements
-- `DESIGN` - design documentation
-- `PDM` - versioning management
-- `PURCHASES` - purchases and deliveries
-- `MANAGER` - enterprise management
-- `GENERATIVE` - production subsystems
+Executors own database logic for one subsystem. They receive `IDataBase&` from
+DataManager and own DDL, DML, migrations and resource mapping for their subsystem.
 
-**CrudAction** - operation type:
+Minimum lifecycle:
 
-- `CREATE` - creating a new resource
-- `UPDATE` - updating an existing resource
-- `DELETE` - deleting a resource
-- `READ` - reading a resource (not used in the current architecture, all readings come from the local database)
+- `Subsystem()`;
+- `Initialize(IDataBase&)`;
+- `Verify(IDataBase&)`;
+- `ApplyMigrations(IDataBase&)`;
+- `ClearData(IDataBase&)`;
+- `DropStructures(IDataBase&)`;
+- `Create/Read/Update/Delete`;
+- `HandleMessage(IDataBase&, const UniterMessage&)`.
 
-And also some general fields, such as user_id, creation time, payload for transferring some data (such as login/password).
+`ManagerExecutor` is the first target worker executor.
 
+### FileManager
 
-###### **DB schema migrations**
+`FileManager` coordinates file operations over MinIO.
 
-DB schema migrations should not be treated as a local `migrations.sql` file within the subsystem. The target model is a separate migration resource in the new service subsystem, which is distributed by the server via `UniterMessage` in the same way as the rest of the system's managed data. The `PROTOCOL` subsystem is not used for this: it is responsible for control communication operations and application state, and not for storing and versioning the database structure.
+Download flow:
 
-The migration must have its own resource type, version/sequence number, target subsystem, SQL statement set or reference to the migration artifact, checksum, and application overhead. The client receives such a resource through a normal network route, stores the receipt, and then applies the migration to the local database in a controlled manner.
+1. request presigned URL from the server;
+2. call `MinioConnector::get`;
+3. verify SHA-256 using metadata from DataManager;
+4. notify `IFileObserver` subscribers.
 
-The application policy is currently fixed as an open architectural solution:
-- migration can be applied immediately after receiving from the network if the client is in a state where it is safe to do so;
-- or migrations can first be accumulated as resources, after which the server allows their use with a separate protocol command.
+Upload flow:
 
-In both options, the use of migrations must be idempotent, transactional and verifiable through the state of the local database. Regular CRUD messages should only be processed after the required schema version has already been applied.
+1. request upload URL/token from the server;
+2. call `MinioConnector::put`;
+3. notify DataManager about URL/object metadata updates;
+4. notify `IFileObserver`.
 
+## 7. UniterMessage
 
-**Company merger**
-When creating an integration (confirmation on both sides), the server registers this. Integration, like other resources, is assigned its own id, each unique for a specific company. After this, the server creates a space gateway id, initially empty. This is just a table of correspondence between one id and another company for all resources. When a special flag is set in UniterMessage, the required resources (primarily the project) will be entered into the gateway. Plus a complex algorithm for resolving other resources that the project refers to. After this, when switching messages, it will be checked whether these resources are marked in the gateway and transferred to the space of another company.
+`UniterMessage` is the universal exchange container for protocol, CRUD and file
+operations. Resource-specific data is carried as XML/resource payload; protocol
+parameters are carried in `add_data`.
 
+### Message Type
 
-##### **5. Structures for describing resources**
+| Type | Meaning |
+|---|---|
+| `CRUD` | Resource create/read/update/delete |
+| `PROTOCOL` | Control communication with server/FSM |
+| `MINIO` | File storage operations, represented by protocol actions in current routing |
 
-Each shared resource (materials database entry, purchase, project, something else) also has a unique id within its type. Obtaining a new id is also managed centrally, through the server.
+### Message Status
 
-In this case, a link to a shared resource is simply an indication of its id and resource type. But when a resource is created or updated, then it is necessary to transmit complete information.
+| Status | Meaning |
+|---|---|
+| `REQUEST` | Client request |
+| `RESPONSE` | Server response |
+| `ERROR` | Processing error |
+| `NOTIFICATION` | Broadcast data change |
+| `SUCCESS` | Successful CUD confirmation |
 
-Resource update - no delta, always final result, providing additional reliability for reuse. Resource mapping is decided at the level of resource data structures, not at the message level. The message with the highest id wins, each client has a message queue, it applies and confirms only the next id.
+### Protocol `add_data`
 
-The final list of resources to which CRUD is applicable. Each resource is managed only from its own subsystem; from other subsystems they are used through a link - just specifying the id.
+`add_data` is the strict key/value contract for protocol parameters. Values are
+always `QString`.
 
-
-###### **Materials**
-The material database subsystem manages material templates. The material template models the standard, has vectors of suffix and prefix segments, which are denoted by id. Each segment has its own set of values, which also have their own ids. Removing and adding new segments does not break the structures that, through id, point to segments and their values, because each has its own unique id in its area of ​​application. The template also contains vectors that determine the order in which the segments are applied.
-
-enum class SegmentValueType : uint8_t { 
-	
-STRING = 0, // Arbitrary string
-ENUM = 1, // Select from the list
-NUMBER = 2, // Number (int or double)
-CODE = 3 // Code (special format)
-};
+Important keys:
 
-// segment id makes sense ONLY within a specific MaterialTemplate (GOST),
-// to which it belongs. In other contexts this id has no meaning.
+| Action | Keys |
+|---|---|
+| `AUTH` | `login`, `password_hash` |
+| `GET_KAFKA_CREDENTIALS` | `bootstrap_servers`, `topic`, `username`, `password`, `group_id`, `offset_actual` |
+| `GET_MINIO_PRESIGNED_URL` | `object_key`, `minio_operation`, `presigned_url`, `url_expires_at` |
+| `GET_MINIO_FILE` | `presigned_url`, `object_key`, `expected_sha256`, `local_path`, `reason` |
+| `PUT_MINIO_FILE` | `presigned_url`, `object_key`, `local_path`, `sha256`, `reason` |
+| `FULL_SYNC` | no required keys |
+| `UPDATE_CHECK` | `current_version`, `update_available`, `new_version`, `release_notes` |
+| `UPDATE_DOWNLOAD` | `version`, `file_path`, `presigned_url`, `file_size`, `sha256`, `file_index`, `files_total` |
 
-struct SegmentDefinition { 
-	
-    uint8_t id;
-QString code; // Machine name (for logic)
-QString name; // Human readable name
-QString description; // Description of the segment
-SegmentValueType value_type;//Value type
-std::map<uint8_t, std::string> allowed_values; // Segment status
-bool is_active = true; // true = active, false = deleted (deprecated)
-};
-
-enum class GostStandardType : uint8_t { 
-	
-GOST = 0, // GOST
-OST = 1, // OST
-GOST_R = 2, // GOST R
-TU = 3, // TU (technical condition)
-SNIP = 4, // SNiP
-OTHER = 5 // Other
-};
-
-enum class DimensionType : uint8_t { 
-PIECE = 0, // Piece
-LINEAR = 1, // Linear (m)
-AREA = 2 // Flat (m²)
-};
-
-enum class GostSource : uint8_t { 
-BUILT_IN = 0, // Preset standard
-COMPANY_SPECIFIC = 1 // Company specific
-};
-
-class MaterialTemplateBase : public ResourceAbstract { 
-public: 
-	virtual ~MaterialTemplateBase() = default;
-	
-QString name; // Name
-QString description; // Detailed description, scope
-DimensionType dimension_type; // Material dimension
-bool is_standalone; // Can this GOST independently describe the product
-
-// Template metadata
-GostSource source; // Source: built-in or company-specific
-
-// Virtual methods to distinguish between types
-    virtual bool isComposite() const = 0;
-
-// Serialization deserialization
-    virtual void from_xml(tinyxml2::XMLElement* source) = 0;
-    virtual void to_xml(tinyxml2::XMLElement* dest) = 0;
-};
-
-Based on the basic template, two successors are constructed:
-
-class MaterialTemplateSimple : public MaterialTemplateBase { 
-public: 
-	
-GostStandardType standard_type; // Standard type
-QString standard_number; // Standard number
-QString year; // Standard version
-	
-// Standard prefixes
-    std::map<uint8_t, SegmentDefinition> prefix_segments;
-std::vector<uint8_t> prefix_order; // Order of prefixes
-	
-// Standard suffixes
-    std::map<uint8_t, SegmentDefinition> suffix_segments;
-std::vector<uint8_t> suffix_order; // Order of suffixes
-	
-    bool isComposite() const override { return false; }
-	
-// Serialization deserialization
-    virtual void from_xml(tinyxml2::XMLElement* source) override;
-    virtual void to_xml(tinyxml2::XMLElement* dest) override;
-};
-
-// A compound template references two simple ones
-class MaterialTemplateComposite : public MaterialTemplateBase { 
-public: 
-	
-QString PrefName; // Write before the standard (leaf, circle...)
-uint64_t top_template_id; // Simple template ID for the top part
-uint64_t bottom_template_id; // Simple template ID for the bottom
-	
-    bool isComposite() const override { return true; }
-	
-// Serialization deserialization
-    virtual void from_xml(tinyxml2::XMLElement* source) override;
-    virtual void to_xml(tinyxml2::XMLElement* dest) override;
-};
-
-
-#### **6. Links to materials (MaterialInstance)**
-
-To indicate a specific type of material (which is a combination of a template reference and a specialized prefix/suffix with specific segment values), other subsystems use the MaterialInstance class, which is also inherited for the regular and composite material classes
-
-// Size/quantity depends on dimension_type
-struct figure
-{
-    double area = 0;
-};
-struct Quantity {
-    std::optional"<"int> items;
-    std::optional"<"double> length;
-    std::optional"<"figure> fig;
-};
-
-class MaterialInstanceBase { 
-public: 
-    MaterialInstanceBase() {}
-virtual ~MaterialInstanceBase() = default; // Identification
-
-uint64_t template_id; // Link to MaterialTemplateBase (GOST)
-QString name; // Human readable name of the material
-QString description; // Description
-DimensionType dimension_type; // Copied from template for quick access
-    Quantity quantity;
-
-// Virtual methods
-    virtual bool isComposite() const = 0;
-
-// Serialization deserialization
-    virtual void from_xml(tinyxml2::XMLElement* source) = 0;
-    virtual void to_xml(tinyxml2::XMLElement* dest) = 0;
-};
-
-class MaterialInstanceSimple : public MaterialInstanceBase {
-public:
-
-std::map<uint8_t, std::string> prefix_values; // Prefix values
-std::map<uint8_t, std::string> suffix_values; // Suffix values
-    bool isComposite() const override { return false; }
-    void setPrefixValue(uint8_t segment_id, const uint8_t value);
-    void setSuffixValue(uint8_t segment_id, const uint8_t value);
-    std::optional<std::string> getPrefixValue(uint8_t segment_id) const;
-    std::optional<std::string> getSuffixValue(uint8_t segment_id) const;
-
-// Serialization deserialization
-    void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml(tinyxml2::XMLElement* dest) override;
-};
-
-
-class MaterialInstanceComposite : public MaterialInstanceBase {
-public:
-// Filled segment values ​​for composite material
-std::map<uint8_t, std::string> top_values; // Top values
-std::map<uint8_t, std::string> bottom_values; // Bottom values
-
-    bool isComposite() const override { return true; }
-
-    void from_xml(tinyxml2::XMLElement* source) override;
-    void to_xml(tinyxml2::XMLElement* dest) override;
-};
-#### **7. Runtime order**
-
-1. Creating the main window (static widgets). This sets the base state
-2. Creating a data manager, linking signals/slots to the main window
-3. Creating an application manager that creates a configuration manager and local settings. Linking signals/slots to the main window and data manager.
-4. Creating a network class, associating signals/slots with the application manager.
-5. Launching the application manager (a short call to a function that will only send a signal and return to the signal processing loop). At the same time, it processes the initialization FSM: it sends a signal to the network to start the connection, and the main thread enters the message processing loop.
-
-6. Network initialization
-1. The network class gets the server IP via DNS
-2. Establishes an SSL connection and then sends the signalConnected signal.
-7. Authorization and configuration
-1. The application manager requests authorization data from the authorization widget and sends the request to the server
-2. If authorization is successful, the server sends resources::User.
-3. The application manager initiates the data manager, and the data is loaded.
-4. The application manager passes the User to the configuration manager, which serves as the basis for generating tab widgets
-5. The application manager launches the local settings manager, which applies local settings, associates local folders and projects, etc.
-6. The application enters the READY state.
-7. At the same time, checking and downloading updates is initiated
-8. Creating CRUD operations by the user and receiving messages
-1. UniterMessage is generated and sent to the server
-2. After processing by the server, a UniterMessage is sent
-3. Only after receiving the UniterMessage are changes made to the local database and the view changed.
-9. Creating new generative tabs
-1. If a CRUD operation affects resources that are responsible for generative subsystems, the server processes it as a regular resource.
-2. When adding a generative tab for Users, the server transmits the new User to clients.
-10. Handling User Change
-1. Receiving a new User is processed by the application manager like other protocol UniterMessages, and is transferred to the configuration manager
- 
-
-
-#### **8. Connecting signals and slots**
-
-Dynamic widgets and subsystem widgets use IDataObserver to receive data from the local database, subscribe to some resources, and IFileObserver to access files from the MinIO server.
-
-Also, subsystem tabs use a connection with AppManager to send messages, and dynamic widgets use a connection to their subsystem to send messages through it.
-
-Most of the objects that exist throughout the entire program are implemented as singletons, while connecting in main() to emphasize the incorrectness of arbitrary connections in runtime, except for those specifically designated (only sending messages for AppManager and auto-connections when creating an observer).
-
-#### **9. About PLM**
-At the entrance we have a directory with design files. After parsing, we convert these files into structured XML form. If parsing is performed for the first time, then a new shapshot resource is created. If the second, then a delta snapshot is created based on parsing (more on this below)
-
-The Snapshot XML structure separates **links** (product structure) and **definitions** (item parameters). Inside each assembly there are two elements **structure \<structure>** and **parts \<parts>** used directly in this assembly. Inside the structure there is a **constant data \<invariant>** element, as well as variable data for each **configuration \<config>**, which together provide complete data about the structure for each configuration. In this case, only references to parts/assemblies are used in the structure, for example \<partref> \<assemblyref>. Complete parts data is contained within \<parts>.  This eliminates data duplication and allows parts to be reused in different assemblies.
-
-
-	<shapshot id="" designation="" name="" version="2" previousVersion="1">
-	
-	  <Assembly designation="" name="">
-	    <Metadata>...</Metadata>
-	    <Documentation>
-	      <File path="..." hash="sha256:..." modifiedAt="..."/>
-	    </Documentation>
-	    <Structure>
-	      <Invariant>
-	        <Assemblies><AssemblyRef designation="" config=""/></Assemblies>
-	        <Parts><PartRef designation="" config=""/></Parts>
-	        <StandardProducts/>
-	        <BuyingProducts/>
-	        <OtherMaterials/>
-	      </Invariant>
-	      <Config number="01">...</Config>
-	      <Config number="02">...</Config>
-	    </Structure>
-	    <PartsDef>
-	      <Part designation="" name="">
-	        <Config id="01"/>
-	        <Config id="02"/>
-	      </Part>
-	    </PartsDef>
-	  </Assembly>
-	
-	  <Errors>
-	    <Error severity="Error" category="FileSystem" type="NO_FILE"
-	           path="drawings/4021.01.00.02.pdf"/>
-	    <Error severity="Warning" category="VersionControl" type="INFORMAL_CHANGE"
-	           designation="4021.01.00.03" hashBefore="sha256:a1b2..." hashAfter="sha256:c3d4..."/>
-	  </Errors>
-	
-	</Shapshot>
-
-
-And the partdef element is simply a container for MaterialInstance + other meta information.
-
-
-<Partdef designation="4021.01.00.01" name="Longitudinal beam">
-	  <Metadata>
-	    <Material>
-<Base>Channel 20P GOST 8239-89</Base>
-	      <CoatingTop/>
-	      <CoatingBottom/>
-	    </Material>
-	    <Signatures>
-<Signature role="Developed" name="Ivanov I.P." date="2026-01-15"/>
-<Signature role="Checked" name="Petrov S.A."  date="2026-01-18"/>
-	    </Signatures>
-<Litera>O</Litera>
-<Organization>OJSC "Plant"</Organization>
-	    <DrawingFile>
-<Path>drawings/4021.01.00.01_rev.A.pdf</Path>
-	      <Hash>sha256:e7f8g9...</Hash>
-	      <ModifiedAt>2026-01-15T11:30:00+03:00</ModifiedAt>
-	    </DrawingFile>
-	  </Metadata>
-	  <Config id="01">
-	    <Dimensions length="2400" width="200" height="80"/>
-	    <Mass>85.2</Mass>
-	  </Config>
-	  <Config id="02">
-	    <Dimensions length="2800" width="200" height="80"/>
-	    <Mass>99.4</Mass>
-	  </Config>
-	</Partdef>
-
-
-In this case, based on the parsing results, separate management of the resources of the designer subsystem and separate management of the resources of the PDM subsystem are performed. The PDM subsystem owns its own resources - project snapshots and deltas within them, and allows you to manage changes independently, incl. roll back to previous versions, propose changes, accept or reject them.
-
-###### **Version control (within XML delta formation)**
-
-To manage versioning, an approach is used to logically separate the criteria for changes from the data on the basis of which the decision about the presence of changes is made. The data on the basis of which the decision on the presence of changes is made is collected independently, to the maximum extent, for all versioning criteria. This data is collected during parsing.
-
-Document change criteria are introduced - this means that simply changing the hash will not be a sufficient basis for recording changes in XML delta. To record changes, one of the change criteria must be met (in addition to the obvious additions of configurations, or changes in dimensions, a change in the file name is also assessed - for example, Rev.B at the end, or adding information to the title block).
-
-
-
-#### **10. Architecture Client-Server-Kafka-Postgres-MinIO**
-
-All key information is stored in a relational database (both on the server and locally). All heavy files are stored in the MinIO cloud, and if a resource requires such a file, it stores the URL to them inside the database. In this case, the client can request temporary access to files via UniterMessage from the server, and also upload files there independently, for example, when creating resources. Fields for URL requests have not yet been processed in UniterMessage.
-
-
-#### **11. Drawing Compiler**
-
-The compilation algorithm should look like this.
-
-First, ideally we need to get a list of files that belong to the project. But we can also identify them ourselves by the project name and file names. So, we have created an initiating list of pdf files.
-
-Further, because each pdf can contain several drawings, we form an initiating list of translation primitives - each separate pdf page, with a saved path to it and context.
-
-Next, we need to determine the type of each translation primitive (specification, assembly drawing, part, installation drawing, and we need to distinguish the first page from the others). To do this, we extract the designation for each page. It works to our advantage that each first page contains a title block of the same size in the lower right corner, as well as a designation in the upper left corner, and the following pages of the same document have the same designation, only they also have a sheet entry other than “1”.
-
-After this, we transform our list from translation primitives into translation units, logically combining documents. Next, translation units are distributed among buckets using type-specific compilers.
-
-After passing through type-specific compilers, the project is already linked into a tree.
-
-
-Important! The creation of an XMLDocument, as well as the root element with its attributes, is performed at the PDMManager level, and only the root is passed to the compilation library. In this case, it is PDMManager that manages document saving, etc.
+String literals should be moved to a future `contract/add_data_keys.h`.
+
+## 8. Database Design Principles
+
+The database documentation follows one key rule:
+
+```text
+Runtime class != database table
+```
+
+Runtime classes are convenient collapsed objects. Database tables are normalized.
+DataManager and subsystem executors collapse multiple tables into one resource
+when reading and expand resources back to tables when writing.
+
+Examples:
+
+- `TemplateSimple` contains segment vectors at runtime, but segments and allowed
+  values live in separate database tables.
+- `Employee` contains assignments and permissions at runtime, but the database
+  stores employee, assignment, permission and assignment-link tables separately.
+- `Assembly` contains configurations at runtime, but assembly configuration and
+  join data are stored in separate tables.
+
+Every linked table that must be independently synchronized should have its own
+`ResourceType` or at least a clear logical CRUD unit.
+
+## 9. Database User Isolation
+
+SQLite does not provide PostgreSQL-like users, schemas or `search_path`.
+The selected client model is:
+
+- one physical local database file;
+- `IDataBase::SetUserContext(userHash)` stores the active logical user context;
+- executors create user-scoped tables, views or filters;
+- DML always respects the current user context.
+
+The practical SQLite option is a technical `user_hash` or `local_user_id`
+column in resource tables, optionally hidden behind views/triggers.
+
+## 10. Subsystems and Resources
+
+### DOCUMENTS
+
+Documents are represented by `DocLink` folders and `Doc` file records.
+
+| Runtime class | ResourceType | Table |
+|---|---|---|
+| `DocLink` | `DOC_LINK = 91` | `documents_doc_link` |
+| `Doc` | `DOC = 90` | `documents_doc` |
+
+`DocLink` stores target type and collapsed `docs`. `Doc` stores MinIO metadata:
+`object_key`, `sha256`, document type, name, size, MIME type, description and
+optional local cache path. A `Doc` belongs to one `DocLink` through database FK.
+
+### MATERIALS and INSTANCES
+
+Materials define templates; instances specialize templates and add quantities.
+
+| Runtime class | ResourceType | Main table |
+|---|---|---|
+| `TemplateSimple` | `MATERIAL_TEMPLATE_SIMPLE = 20` | `material_template_simple` |
+| `TemplateComposite` | `MATERIAL_TEMPLATE_COMPOSITE = 21` | `material_template_composite` |
+| `SegmentDefinition` | `SEGMENT` | `material_segment` |
+| Segment value | `SEGMENT_VALUE` | `material_segment_value` |
+| Compatibility pair | `TEMPLATE_COMPATIBILITY` | `material_template_compatibility` |
+| `InstanceSimple` | `MATERIAL_INSTANCE_SIMPLE = 61` | `material_instances_simple` |
+| `InstanceComposite` | `MATERIAL_INSTANCE_COMPOSITE = 62` | `material_instances_composite` |
+
+Simple templates own prefix/suffix segment definitions and allowed values.
+Composite templates reference two simple templates. Instances reference the
+template they specialize and carry quantity data.
+
+### MANAGER
+
+Manager owns employees, permission assignments, plants and integrations.
+
+| Runtime class/data | ResourceType | Table |
+|---|---|---|
+| `Employee` | `EMPLOYEES = 10` | `manager_employee` |
+| `EmployeeAssignment` | `EMPLOYEE_ASSIGNMENT` | `manager_employee_assignment` |
+| Permission row | `PERMISSION` | `manager_permissions` |
+| Employee-assignment link | `EMPLOYEE_ASSIGNMENT_LINK` | `manager_employee_assignment_link` |
+| `Plant` | `PRODUCTION = 11` | `manager_plant` |
+| `Integration` | `INTEGRATION = 12` | `manager_integration` |
+
+`Employee` collapses assignments and permissions at runtime. Permissions use
+the shared `contract::Subsystem` enum, not a duplicate manager-local enum.
+
+### DESIGN
+
+DESIGN is the source of truth for the current editable product structure.
+
+| Runtime class | ResourceType | Table(s) |
+|---|---|---|
+| `Project` | `PROJECT = 30` | `design_project` |
+| `Assembly` | `ASSEMBLY = 31` | `design_assembly` |
+| `AssemblyConfig` | `ASSEMBLY_CONFIG = 33` | `design_assembly_config` + joins |
+| `Part` | `PART = 32` | `design_part` |
+| `PartConfig` | `PART_CONFIG = 34` | `design_part_config` |
+
+Important model decisions:
+
+- `design_project` has `root_assembly_id` and nullable `pdm_project_id`.
+- `active_snapshot_id` was removed from DESIGN.
+- `design_assembly` stores general assembly data only.
+- assembly contents live in `design_assembly_config` and join tables.
+- `design_part` has no `assembly_id`; parts can appear in many assemblies.
+- `design_part` must have `project_id`, the same way `design_assembly` belongs
+  to a project.
+- `design_assembly_config_standard_products` references
+  `material_instances_simple`.
+- `design_assembly_config_materials` references `material_instances_simple`.
+- files are linked through `documents_doc_link`.
+
+### PDM
+
+PDM stores versioned immutable snapshots of DESIGN data and deltas between them.
+
+| Runtime class | ResourceType | Table |
+|---|---|---|
+| `PdmProject` | `PDM_PROJECT = 52` | `pdm_project` |
+| `Snapshot` | `SNAPSHOT = 50` | `pdm_snapshot` |
+| `Delta` | `DELTA = 51` | `pdm_delta` |
+| `Diagnostic` | `DIAGNOSTIC = 57` | `pdm_diagnostic` |
+
+PDM also owns mirror copies of DESIGN resources:
+
+| Mirror table | ResourceType |
+|---|---|
+| `pdm_assembly` | `ASSEMBLY_PDM = 53` |
+| `pdm_assembly_config` | `ASSEMBLY_CONFIG_PDM = 54` |
+| `pdm_part` | `PART_PDM = 55` |
+| `pdm_part_config` | `PART_CONFIG_PDM = 56` |
+
+When a snapshot is created, the current `design_*` records are copied into
+`pdm_*` mirror tables with `snapshot_id`. The snapshot points to the frozen
+`pdm_assembly` root, not to the live `design_assembly`.
+
+The snapshot/delta chain is a doubly linked list:
+
+```text
+snapshot_1 <-> delta_1 <-> snapshot_2 <-> delta_2 <-> snapshot_3
+```
+
+`pdm_project.base_snapshot_id` points to the first snapshot, and
+`pdm_project.head_snapshot_id` points to the active snapshot. There is no
+separate `approved_snapshot_id` in the accepted model.
+
+Accepted implementation rule for SQL/C++ conflicts:
+
+- SQL schema wins over current C++ class shape.
+- Resource classes should be approved after `.sql` files are developed.
+- The `snapshot_id` transfer convention for PDM mirror CRUD is finalized during
+  SQL/executor implementation, not from old Markdown notes.
+
+### PURCHASES
+
+Procurement contains complex purchase groups and simple purchase requests.
+
+| Runtime class | ResourceType | Table |
+|---|---|---|
+| `PurchaseComplex` | `PURCHASE_GROUP = 40` | `supply_purchase_complex` |
+| `Purchase` | `PURCHASE = 41` | `supply_purchase_simple` |
+
+`Purchase` optionally belongs to one `PurchaseComplex` through
+`purchase_complex_id`. It references either a simple or composite material
+instance, but not both.
+
+### PRODUCTION
+
+Production is a generative subsystem created per `Plant`.
+
+| Runtime class | ResourceType | Table |
+|---|---|---|
+| `ProductionTask` | `PRODUCTION_TASK = 70` | `production_task` |
+| `ProductionStock` | `PRODUCTION_STOCK = 71` | `production_stock` |
+| `ProductionSupply` | `PRODUCTION_SUPPLY = 72` | `production_supply` |
+
+`ProductionTask` stores both:
+
+- `snapshot_original_id` - snapshot used when the task was created;
+- `snapshot_current_id` - snapshot currently used for production.
+
+This preserves history while allowing a task to move to a newer approved
+composition.
+
+### INTEGRATION
+
+Integration is a generative subsystem created per `manager::Integration`.
+
+| Runtime class | ResourceType | Table |
+|---|---|---|
+| `IntegrationTask` | `INTEGRATION_TASK = 80` | `integration_task` |
+
+`IntegrationTask` references an arbitrary resource through a polymorphic key:
+`target_subsystem`, `target_resource_type`, `any_resource_id`. DataManager must
+validate this reference because the SQL database cannot express a normal FK to a
+runtime-selected table.
+
+## 11. DESIGN and PDM Interaction
+
+DESIGN and PDM are intentionally separated:
+
+- DESIGN stores the current editable state.
+- PDM stores immutable frozen copies and deltas.
+
+First snapshot:
+
+1. create `pdm_project`;
+2. create `pdm_snapshot` version 1;
+3. copy current DESIGN rows into PDM mirror tables;
+4. set `pdm_snapshot.root_assembly_id` to the copied root assembly;
+5. set `pdm_project.base_snapshot_id` and `head_snapshot_id`;
+6. set `design_project.pdm_project_id`.
+
+Subsequent snapshot:
+
+1. create a new `pdm_snapshot`;
+2. copy current DESIGN rows into mirror tables;
+3. set the copied root assembly;
+4. create `pdm_delta` between previous head and new snapshot;
+5. update cross-links on previous snapshot, new snapshot and delta;
+6. move `pdm_project.head_snapshot_id`.
+
+The first snapshot has no delta.
+
+## 12. PDMManager and Drawing Compiler
+
+`PDMManager` owns design-documentation workflows:
+
+- scan project PDF directory;
+- invoke the drawing compiler;
+- build XML snapshot data;
+- upload documents/XML to MinIO;
+- create/update DESIGN records;
+- create PDM snapshots and deltas;
+- validate ESKD-related diagnostics;
+- support version iteration and rollback.
+
+The drawing compiler works with translation primitives:
+
+1. collect PDF files;
+2. split each PDF into page-level primitives;
+3. detect page type by designation/title block;
+4. group pages into logical translation units;
+5. route units to type-specific compilers;
+6. link compiled data into the project tree.
+
+`PDMManager` creates the `XMLDocument` and root element. The compiler library
+receives only the root element to fill.
+
+## 13. ERPManager
+
+`ERPManager` performs local analytics over DataManager data:
+
+- calculate material requirements from production plans;
+- compare required material instances with stock and purchases;
+- forecast shortages;
+- generate material balance reports.
+
+ERP should reference PDM snapshots rather than live editable DESIGN state when
+reproducibility matters.
+
+## 14. UI Layer
+
+Static widgets live for the whole application lifecycle:
+
+- `MainWindow`;
+- `AuthWidget`;
+- `WorkspaceWidget`.
+
+Subsystem widgets are generated according to user permissions and subscribe to
+DataManager resource lists. Dynamic widgets subscribe to specific resources and
+form CRUD `UniterMessage` instances for user edits.
+
+Widgets should not bypass AppManager for network traffic.
+
+## 15. Migrations
+
+Database migrations are not local ad-hoc `migrations.sql` files. Target design:
+
+- migrations are resources of a future service/system subsystem;
+- the server distributes migrations via `UniterMessage`;
+- each migration has version, target subsystem, SQL steps or artifact reference,
+  checksum and application metadata;
+- DataManager orchestrates migration order;
+- subsystem executors apply their own migration logic;
+- regular CRUD is processed only after required schema version is applied.
+
+Migrations must be idempotent, transactional and verifiable.
+
+## 16. Current Verification Notes
+
+The former conflict file was reviewed manually. Accepted decisions:
+
+1. For C++/SQL conflicts, SQL wins. Resource classes are approved after `.sql`
+   files are developed.
+2. Old Markdown files are no longer authoritative. If Markdown conflicts with
+   C++, C++ wins unless the SQL schema later overrides it.
+3. PDM mirror ResourceTypes follow the current C++ protocol values:
+   `ASSEMBLY_PDM = 53`, `ASSEMBLY_CONFIG_PDM = 54`, `PART_PDM = 55`,
+   `PART_CONFIG_PDM = 56`.
+4. `design_assembly_config_materials` references
+   `material_instances_simple`.
+5. `design_assembly_config_standard_products` also references
+   `material_instances_simple`, matching `designtypes.h`.
+6. `pdm_project.head_snapshot_id` is the active snapshot. Forget the
+   `approved_snapshot_id` idea.
+7. `design_part` must have `project_id`.
+8. Splitting the old generic `MATERIAL_INSTANCE = 60` into
+   `MATERIAL_INSTANCE_SIMPLE = 61` and `MATERIAL_INSTANCE_COMPOSITE = 62` is the
+   correct model.
+
+Remaining cleanup notes:
+
+1. Remove legacy comments that mention `Project.active_snapshot_id`.
+2. Remove legacy comments that mention generic `MATERIAL_INSTANCE = 60`.
+3. If visual schemas are regenerated, ensure DESIGN shows `design_part.project_id`.
+
+## 17. Visual References
+
+Non-Markdown reference artifacts are kept in `docs/visual/`:
+
+- PDF diagrams and exports;
+- DWG drawings;
+- backup/lock artifacts from visual tooling.
