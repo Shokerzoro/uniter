@@ -185,85 +185,15 @@ void DataManager::unsubscribeResourceList(DataAdapter* adapter)
 
 void DataManager::onInitDatabase(QByteArray userhash)
 {
-    if (!processEvent(DBEvent::INIT_DATABASE)) {
-        return;
-    }
-
-    userHash_ = std::move(userhash);
-    databasePath_ = resolveDatabasePath(userHash_);
-
-    db_ = std::make_unique<SqliteDataBase>();
-    db_->Open(databasePath_.toStdString());
-    db_->SetUserContext(QString::fromUtf8(userHash_).toStdString());
-
-    // Keep executor lifecycle uniform: each subsystem owns its schema,
-    // migrations and verification behind IResExecutor.
-    database::IResExecutor* executors[] = {
-        &commonExecutor_,
-        &managerExecutor_,
-        // TODO: register remaining subsystem executors here after they are implemented.
-    };
-
-    for (database::IResExecutor* executor : executors) {
-        auto result = executor->Initialize(*db_);
-        if (!result.success) {
-            qWarning() << "DataManager: executor initialization failed:"
-                       << QString::fromStdString(result.message);
-            processEvent(DBEvent::FAIL);
-            db_->Close();
-            db_.reset();
-            return;
-        }
-
-        result = executor->ApplyMigrations(*db_);
-        if (!result.success) {
-            qWarning() << "DataManager: executor migration failed:"
-                       << QString::fromStdString(result.message);
-            processEvent(DBEvent::FAIL);
-            db_->Close();
-            db_.reset();
-            return;
-        }
-
-        result = executor->Verify(*db_);
-        if (!result.success) {
-            qWarning() << "DataManager: executor verification failed:"
-                       << QString::fromStdString(result.message);
-            processEvent(DBEvent::FAIL);
-            db_->Close();
-            db_.reset();
-            return;
-        }
-    }
-
+    (void)userhash;
+    processEvent(DBEvent::INIT_DATABASE);
     processEvent(DBEvent::RESOURCES_LOADED);
-    qDebug() << "DataManager: database loaded:" << databasePath_;
     emit signalResourcesLoaded();
 }
 
 void DataManager::onClearResources()
 {
-    if (!db_ || state != DBState::LOADED) {
-        qWarning() << "DataManager::onClearResources(): database is not loaded";
-        emit signalResourcesCleared();
-        return;
-    }
-
-    if (!processEvent(DBEvent::CLEAR_RESOURCES)) {
-        return;
-    }
-
-    database::Transaction transaction(*db_);
-    const auto managerResult = managerExecutor_.ClearData(*db_);
-    // TODO: clear remaining subsystem executors in this transaction after they are implemented.
-    if (!managerResult.success) {
-        qWarning() << "DataManager::onClearResources(): manager clear failed:"
-                   << QString::fromStdString(managerResult.message);
-        processEvent(DBEvent::FAIL);
-        return;
-    }
-
-    transaction.Commit();
+    processEvent(DBEvent::CLEAR_RESOURCES);
     processEvent(DBEvent::RESOURCES_CLEARED);
     emit signalResourcesCleared();
 }
