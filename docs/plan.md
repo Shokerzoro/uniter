@@ -345,7 +345,7 @@ Completed or already established:
 Next:
 
 7. [x] Realize DataManager API observers with notifications, stable DataManager.
-8. [ ] Add DataManager observer mechanism tests before stabilizing `ManagerExecutor`.
+8. [x] Add DataManager observer mechanism tests before stabilizing `ManagerExecutor`.
 9. [ ] Stabilize `ManagerExecutor` as the first real executor.
 10. [ ] Add schema migration resource model in a service/system subsystem.
 11. [ ] Add basic tests for manager subsystem CRUD and DataManager routing.
