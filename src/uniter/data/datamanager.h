@@ -67,6 +67,10 @@ public:
     void unsubscribeResource(SingleResourceAdapter* adapter);
     void unsubscribeResourceList(VectorResourceAdapter* adapter);
 
+#ifdef UNITER_TESTS
+    void notifyObserversForTest(const contract::UniterMessage& message) { notifyObservers(message); }
+#endif
+
 public slots:
     // CUD message from AppManager
     void onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> message);

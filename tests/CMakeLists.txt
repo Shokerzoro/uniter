@@ -50,6 +50,10 @@ target_link_libraries(UniterTests
         GTest::gmock_main
 )
 
+target_compile_definitions(UniterTests PRIVATE
+    UNITER_TESTS
+)
+
 devkit_finalize(UniterTests)
 
 target_include_directories(UniterTests PRIVATE
