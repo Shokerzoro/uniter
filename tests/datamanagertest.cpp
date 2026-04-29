@@ -70,9 +70,9 @@ protected:
         qunsetenv("TEMP_DIR");
     }
 
-    data::AdapterKey employeeListKey() const
+    contract::SubsystemKey employeeListKey() const
     {
-        return data::AdapterKey{
+        return contract::SubsystemKey{
             contract::Subsystem::MANAGER,
             contract::GenSubsystem::NOTGEN,
             std::nullopt,
@@ -86,7 +86,7 @@ protected:
 
 TEST_F(DataManagerObserverTest, SingleResourceAdapterReceivesCreateUpdateAndDeleteByExactKey)
 {
-    data::SingleResourceAdapter adapter({employeeListKey(), 42});
+    data::SingleResourceAdapter adapter(employeeListKey(), 42);
     QSignalSpy spy(&adapter, &data::SingleResourceAdapter::signalDataUpdated);
 
     const auto createMessage = makeManagerMessage(contract::CrudAction::CREATE,
@@ -116,7 +116,7 @@ TEST_F(DataManagerObserverTest, SingleResourceAdapterReceivesCreateUpdateAndDele
 
 TEST_F(DataManagerObserverTest, SingleResourceAdapterIgnoresDifferentResourceId)
 {
-    data::SingleResourceAdapter adapter({employeeListKey(), 42});
+    data::SingleResourceAdapter adapter(employeeListKey(), 42);
     QSignalSpy spy(&adapter, &data::SingleResourceAdapter::signalDataUpdated);
 
     const auto message = makeManagerMessage(contract::CrudAction::UPDATE,
@@ -162,13 +162,14 @@ TEST_F(DataManagerObserverTest, VectorResourceAdapterCreatesUpdatesAndDeletesMat
 
 TEST_F(DataManagerObserverTest, InitializeDataDoesNotEmitSignals)
 {
-    data::SingleResourceAdapter singleAdapter({employeeListKey(), 42});
+    data::SingleResourceAdapter singleAdapter(employeeListKey(), 42);
     data::VectorResourceAdapter vectorAdapter(employeeListKey());
     QSignalSpy singleSpy(&singleAdapter, &data::SingleResourceAdapter::signalDataUpdated);
     QSignalSpy vectorSpy(&vectorAdapter, &data::VectorResourceAdapter::signalDataUpdated);
 
     singleAdapter.initializeData(makeEmployee(42, "Initial"));
-    vectorAdapter.initializeData({makeEmployee(42, "Initial")});
+    vectorAdapter.initializeData(
+        std::vector<std::shared_ptr<contract::ResourceAbstract>>{makeEmployee(42, "Initial")});
 
     EXPECT_EQ(singleSpy.count(), 0);
     EXPECT_EQ(vectorSpy.count(), 0);

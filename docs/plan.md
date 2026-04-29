@@ -166,14 +166,19 @@ UniterMessage
  -> DataManager notifies subscribers
 ```
 
-UI READ requests should not require a full `UniterMessage`. Use a `ResourceKey`:
+UI READ requests should not require a full `UniterMessage`. Use shared
+contract keys:
 
 ```cpp
-struct ResourceKey {
+struct SubsystemKey {
     contract::Subsystem subsystem;
     contract::GenSubsystem genSubsystem;
     std::optional<uint64_t> genId;
     contract::ResourceType resourceType;
+};
+
+struct ResourceKey {
+    SubsystemKey subsystemKey;
     std::optional<uint64_t> resourceId;
 };
 ```
@@ -196,8 +201,8 @@ Observer implementation decisions:
 - Adapter construction/subscription may synchronously fill stored data, but
   initial fill must not emit update signals.
 - DataManager keeps guarded non-owning adapter references indexed as
-  `std::multimap`s: exact resource keys for single adapters, and `AdapterKey`
-  for vector adapters.
+  `std::multimap`s: `ResourceKey` for single adapters and `SubsystemKey` for
+  vector adapters.
 - ConfigManager `signalSubsystemAdded` tells DataManager which subsystem and
   generative contexts exist for the current user; DataManager creates/removes
   those subscription contexts.

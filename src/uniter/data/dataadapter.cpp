@@ -5,6 +5,22 @@
 
 namespace uniter::data {
 
+SingleResourceAdapter::SingleResourceAdapter(contract::ResourceKey key, QObject* parent)
+    : DataAdapter(parent)
+    , key_(std::move(key))
+{
+    DataManager::instance()->subscribeResource(this);
+}
+
+SingleResourceAdapter::SingleResourceAdapter(contract::SubsystemKey key, uint64_t resourceId, QObject* parent)
+    : SingleResourceAdapter(contract::ResourceKey{std::move(key), std::optional<uint64_t>{resourceId}}, parent)
+{
+}
+
+SingleResourceAdapter::~SingleResourceAdapter()
+{
+    DataManager::instance()->unsubscribeResource(this);
+}
 
 void SingleResourceAdapter::updateData(std::shared_ptr<contract::ResourceAbstract> resource,
                                        contract::CrudAction action)
@@ -13,6 +29,35 @@ void SingleResourceAdapter::updateData(std::shared_ptr<contract::ResourceAbstrac
     emit signalDataUpdated(this, action);
 }
 
+void SingleResourceAdapter::updateData(std::shared_ptr<contract::ResourceAbstract> resource,
+                                       contract::CrudAction action,
+                                       uint64_t resourceId)
+{
+    (void)resourceId;
+    updateData(std::move(resource), action);
+}
+
+VectorResourceAdapter::VectorResourceAdapter(contract::SubsystemKey key, QObject* parent)
+    : DataAdapter(parent)
+    , key_(std::move(key))
+{
+    DataManager::instance()->subscribeResourceList(this);
+}
+
+VectorResourceAdapter::VectorResourceAdapter(contract::SubsystemKey key,
+                                             std::vector<std::shared_ptr<contract::ResourceAbstract>> resources,
+                                             QObject* parent)
+    : DataAdapter(parent)
+    , key_(std::move(key))
+    , resources_(std::move(resources))
+{
+    DataManager::instance()->subscribeResourceList(this);
+}
+
+VectorResourceAdapter::~VectorResourceAdapter()
+{
+    DataManager::instance()->unsubscribeResourceList(this);
+}
 
 void VectorResourceAdapter::updateData(std::shared_ptr<contract::ResourceAbstract> resource,
                                        contract::CrudAction action,

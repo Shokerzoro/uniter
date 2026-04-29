@@ -44,28 +44,28 @@ private:
     QString databasePath_;
     QString resolveDatabasePath(const QByteArray& userhash) const;
 
-    std::multimap<ResourceAdapterKey, QPointer<SingleResourceAdapter>> resourceSubscribers_;
-    std::multimap<AdapterKey, QPointer<VectorResourceAdapter>> resourceListSubscribers_;
-    std::map<AdapterKey, bool> activeSubsystemContexts_;
+    std::multimap<contract::ResourceKey, QPointer<DataAdapter>> resourceSubscribers_;
+    std::multimap<contract::SubsystemKey, QPointer<DataAdapter>> resourceListSubscribers_;
+    std::map<contract::SubsystemKey, bool> activeSubsystemContexts_;
 
     void notifyObservers(const contract::UniterMessage& message);
-    void notifySingleResourceAdapters(const ResourceAdapterKey& key,
+    void notifySingleResourceAdapters(const contract::ResourceKey& key,
                                       const contract::UniterMessage& message);
-    void notifyVectorResourceAdapters(const AdapterKey& key,
+    void notifyVectorResourceAdapters(const contract::SubsystemKey& key,
                                       const contract::UniterMessage& message,
                                       uint64_t resourceId);
 
     std::optional<database::ExecutorResult> routeMessage(const contract::UniterMessage& message);
-    std::optional<database::ExecutorResult> readResource(const ResourceAdapterKey& key);
+    std::optional<database::ExecutorResult> readResource(const contract::ResourceKey& key);
 
 public:
     static DataManager* instance();
     ~DataManager() override = default;
 
-    void subscribeResource(SingleResourceAdapter* adapter);
-    void subscribeResourceList(VectorResourceAdapter* adapter);
-    void unsubscribeResource(SingleResourceAdapter* adapter);
-    void unsubscribeResourceList(VectorResourceAdapter* adapter);
+    void subscribeResource(DataAdapter* adapter);
+    void subscribeResourceList(DataAdapter* adapter);
+    void unsubscribeResource(DataAdapter* adapter);
+    void unsubscribeResourceList(DataAdapter* adapter);
 
 #ifdef UNITER_TESTS
     void notifyObserversForTest(const contract::UniterMessage& message) { notifyObservers(message); }

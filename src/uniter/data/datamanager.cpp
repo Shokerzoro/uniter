@@ -110,30 +110,33 @@ QString DataManager::resolveDatabasePath(const QByteArray& userhash) const
     return dir.filePath(QStringLiteral("uniter_%1.sqlite").arg(safeUserHash(userhash)));
 }
 
-void DataManager::subscribeResource(SingleResourceAdapter* adapter)
+void DataManager::subscribeResource(DataAdapter* adapter)
 {
     if (!adapter) {
         return;
     }
 
     unsubscribeResource(adapter);
+    const auto key = adapter->resourceKey();
+    if (!key.has_value()) {
+        return;
+    }
 
     // DataManager stores only guarded non-owning pointers. Adapters stay owned
     // by UI/business objects and unsubscribe themselves on destruction.
-    const auto& key = adapter->key();
-    resourceSubscribers_.insert({key, QPointer<SingleResourceAdapter>(adapter)});
+    resourceSubscribers_.insert({*key, QPointer<DataAdapter>(adapter)});
 
     connect(adapter, &QObject::destroyed, this, [this, adapter]() {
         unsubscribeResource(adapter);
     });
 
-    const auto result = readResource(key);
+    const auto result = readResource(*key);
     if (result && result->success) {
         adapter->initializeData(result->resource);
     }
 }
 
-void DataManager::subscribeResourceList(VectorResourceAdapter* adapter)
+void DataManager::subscribeResourceList(DataAdapter* adapter)
 {
     if (!adapter) {
         return;
@@ -143,14 +146,14 @@ void DataManager::subscribeResourceList(VectorResourceAdapter* adapter)
 
     // List reads are not stable yet, so vector adapters may be constructed with
     // initial data by their owner. DataManager only registers future updates.
-    resourceListSubscribers_.insert({adapter->key(), QPointer<VectorResourceAdapter>(adapter)});
+    resourceListSubscribers_.insert({adapter->subsystemKey(), QPointer<DataAdapter>(adapter)});
 
     connect(adapter, &QObject::destroyed, this, [this, adapter]() {
         unsubscribeResourceList(adapter);
     });
 }
 
-void DataManager::unsubscribeResource(SingleResourceAdapter* adapter)
+void DataManager::unsubscribeResource(DataAdapter* adapter)
 {
     if (!adapter) {
         return;
@@ -165,7 +168,7 @@ void DataManager::unsubscribeResource(SingleResourceAdapter* adapter)
     }
 }
 
-void DataManager::unsubscribeResourceList(VectorResourceAdapter* adapter)
+void DataManager::unsubscribeResourceList(DataAdapter* adapter)
 {
     if (!adapter) {
         return;
@@ -320,7 +323,7 @@ void DataManager::onSubsystemGenerate(contract::Subsystem subsystem,
                                       std::optional<uint64_t> genId,
                                       bool created)
 {
-    const auto key = AdapterKey::Context(subsystem, genType, genId);
+    const auto key = contract::SubsystemKey::Context(subsystem, genType, genId);
     if (created) {
         activeSubsystemContexts_[key] = true;
         return;
@@ -348,13 +351,7 @@ std::optional<database::ExecutorResult> DataManager::routeMessage(const contract
                 return managerExecutor_.Create(*db_, message);
             case contract::CrudAction::READ:
                 // READ uses the executor API for explicit resource requests only.
-                return managerExecutor_.Read(*db_, database::ResourceKey{
-                    message.subsystem,
-                    message.GenSubsystem,
-                    AdapterKey::OptionalGenId(message.GenSubsystemId),
-                    message.resource ? message.resource->resource_type : contract::ResourceType::DEFAULT,
-                    message.resource ? std::optional<uint64_t>{message.resource->id} : std::optional<uint64_t>{}
-                });
+                return managerExecutor_.Read(*db_, contract::ResourceKey::FromMessage(message));
             case contract::CrudAction::UPDATE:
                 // DataManager does not inspect or mutate tables directly.
                 return managerExecutor_.Update(*db_, message);
@@ -372,14 +369,14 @@ std::optional<database::ExecutorResult> DataManager::routeMessage(const contract
     return std::nullopt;
 }
 
-std::optional<database::ExecutorResult> DataManager::readResource(const ResourceAdapterKey& key)
+std::optional<database::ExecutorResult> DataManager::readResource(const contract::ResourceKey& key)
 {
     if (!db_ || state != DBState::LOADED) {
         return std::nullopt;
     }
 
-    if (key.adapterKey.subsystem == contract::Subsystem::MANAGER) {
-        return managerExecutor_.Read(*db_, key.toDatabaseKey());
+    if (key.subsystemKey.subsystem == contract::Subsystem::MANAGER) {
+        return managerExecutor_.Read(*db_, key);
     }
 
     // TODO: route non-manager reads to subsystem executors after they are implemented.
@@ -396,15 +393,15 @@ void DataManager::notifyObservers(const contract::UniterMessage& message)
     // A CUD payload contains the changed resource, so notification does not
     // need another database read. The same payload updates exact-resource and
     // list subscribers.
-    const auto resourceKey = ResourceAdapterKey::FromMessage(message);
-    const auto listKey = AdapterKey::FromMessage(message);
+    const auto resourceKey = contract::ResourceKey::FromMessage(message);
+    const auto listKey = contract::SubsystemKey::FromMessage(message);
     const uint64_t resourceId = message.resource->id;
 
     notifySingleResourceAdapters(resourceKey, message);
     notifyVectorResourceAdapters(listKey, message, resourceId);
 }
 
-void DataManager::notifySingleResourceAdapters(const ResourceAdapterKey& key,
+void DataManager::notifySingleResourceAdapters(const contract::ResourceKey& key,
                                                const contract::UniterMessage& message)
 {
     const auto range = resourceSubscribers_.equal_range(key);
@@ -416,12 +413,13 @@ void DataManager::notifySingleResourceAdapters(const ResourceAdapterKey& key,
         }
 
         adapter->updateData(message.crudact == contract::CrudAction::DELETE ? nullptr : message.resource,
-                            message.crudact);
+                            message.crudact,
+                            key.resourceId.value_or(0));
         ++it;
     }
 }
 
-void DataManager::notifyVectorResourceAdapters(const AdapterKey& key,
+void DataManager::notifyVectorResourceAdapters(const contract::SubsystemKey& key,
                                                const contract::UniterMessage& message,
                                                uint64_t resourceId)
 {

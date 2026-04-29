@@ -228,9 +228,9 @@ std::unordered_map<contract::Subsystem,
                    std::unique_ptr<database::IResExecutor>> executors_;
 ```
 
-Subscriptions should be indexed by a `ResourceKey` containing subsystem,
-generative subsystem context, resource type and optional resource id. The
-mandatory API should include:
+Subscriptions should be indexed by shared contract keys: `SubsystemKey` for
+subsystem/generative/resource-type lists and `ResourceKey` for an exact
+resource id inside that context. The mandatory API should include:
 
 - subscription to a resource list;
 - subscription to a specific resource.

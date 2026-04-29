@@ -10,7 +10,10 @@
 #include <QSignalSpy>
 #include <QCryptographicHash>
 #include <QString>
+#include <chrono>
 #include <memory>
+#include <optional>
+#include <vector>
 
 using namespace uniter;
 
@@ -73,13 +76,14 @@ public:
         crudMessage->subsystem = contract::Subsystem::PURCHASES;
         crudMessage->crudact   = contract::CrudAction::CREATE;
         crudMessage->status    = contract::MessageStatus::NOTIFICATION;
+        const auto now = std::chrono::system_clock::now();
 
         auto newPurch = std::make_shared<contract::supply::Purchase>(
             1001, true,
-            QDateTime::currentDateTime(), QDateTime::currentDateTime(),
+            now, now,
             12345, 12345,
-            QString("Steel purchase 10t"),
-            QString("Steel is needed for project #47"),
+            "Steel purchase 10t",
+            "Steel is needed for project #47",
             contract::supply::PurchStatus::DRAFT,
             std::nullopt);
         crudMessage->resource = std::move(newPurch);
@@ -96,12 +100,17 @@ public:
         authMessageSuccess->error     = contract::ErrorCode::SUCCESS;
 
         std::vector<contract::manager::EmployeeAssignment> assignments;
+        const auto now = std::chrono::system_clock::now();
         auto employee = std::make_shared<contract::manager::Employee>(
             12345, true,
-            QDateTime::currentDateTime(), QDateTime::currentDateTime(),
+            now, now,
             0, 0,
-            QString("Ivan"), QString("Ivanov"), QString("Ivanovich"),
-            QString("ivan@company.ru"),
+            "ivan",
+            "ivan@company.ru",
+            "password-hash",
+            "Ivan",
+            "Ivanov",
+            std::nullopt,
             std::move(assignments));
         authMessageSuccess->resource = std::move(employee);
 

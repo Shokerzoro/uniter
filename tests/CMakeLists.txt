@@ -36,10 +36,10 @@ add_executable(UniterTests
 # Qt6::Test включён сюда же, а не отдельным вызовом.
 
 if(DEVKIT_QT_DYNAMIC)
-    devkit_use_qt_shared(UniterTests Core Widgets Network Test)
+    devkit_use_qt_shared(UniterTests Core Widgets Network Test Sql)
     devkit_use_tinyxml2_shared(UniterTests)
 else()
-    devkit_use_qt_static(UniterTests Core Widgets Network Test)
+    devkit_use_qt_static(UniterTests Core Widgets Network Test Sql)
     devkit_use_tinyxml2_static(UniterTests)
 endif()
 
