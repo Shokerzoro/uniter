@@ -270,6 +270,40 @@ Minimum lifecycle:
 
 `ManagerExecutor` is the first target worker executor.
 
+### SQL Authoring and CodeGen
+
+Database SQL is authored as raw `.sql` files under each subsystem directory:
+
+```text
+src/uniter/database/{subsystem}/raw_sql_{subsystem}/
+```
+
+These files are maintained in the DataGrip side project and are the readable
+source for table DDL, CRUD instructions, verification queries, cleanup scripts
+and drop scripts. CodeGen translates selected instructions from
+`raw_sql_{subsystem}` into generated C++ headers under:
+
+```text
+src/uniter/database/{subsystem}/gen_sql_{subsystem}/
+```
+
+The generated headers expose SQL as `static constexpr const char*` literals.
+CodeGen is controlled by comments in the raw SQL files, so a raw SQL file may
+contain helper queries or notes that are not emitted into C++.
+
+Enum-backed table domains are not part of raw or generated SQL directories.
+They are generated directly from `std::array<std::pair<int, std::string>, N>`
+definitions in the main contract/project code. Each subsystem owns these domain
+builders in a root-level header:
+
+```text
+src/uniter/database/{subsystem}/{subsystem}domains.h
+```
+
+Examples are `common/commondomains.h` for protocol/resource domains and
+`manager/managerdomains.h` for manager permissions. The `raw_sql_*` directories
+remain SQL authoring inputs, and `gen_sql_*` remains CodeGen output only.
+
 ### FileManager
 
 `FileManager` coordinates file operations over MinIO.

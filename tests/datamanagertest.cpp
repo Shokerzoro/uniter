@@ -177,4 +177,45 @@ TEST_F(DataManagerObserverTest, InitializeDataDoesNotEmitSignals)
     EXPECT_EQ(vectorAdapter.resources().size(), 1);
 }
 
+TEST_F(DataManagerObserverTest, InitializesDatabaseAndRoutesManagerCrudLifecycle)
+{
+    QSignalSpy loadedSpy(manager_, &data::DataManager::signalResourcesLoaded);
+    QSignalSpy clearedSpy(manager_, &data::DataManager::signalResourcesCleared);
+
+    manager_->onInitDatabase(QByteArrayLiteral("manager-lifecycle"));
+    ASSERT_EQ(loadedSpy.count(), 1);
+
+    auto created = makeEmployee(100, "Created");
+    manager_->onRecvUniterMessage(makeManagerMessage(contract::CrudAction::CREATE, created));
+
+    data::SingleResourceAdapter singleAdapter(employeeListKey(), 100);
+    manager_->subscribeResource(&singleAdapter);
+    auto stored = std::dynamic_pointer_cast<contract::manager::Employee>(singleAdapter.resource());
+    ASSERT_NE(stored, nullptr);
+    EXPECT_EQ(stored->id, 100);
+    EXPECT_EQ(stored->first_name, "Created");
+
+    QSignalSpy updateSpy(&singleAdapter, &data::SingleResourceAdapter::signalDataUpdated);
+    auto updated = makeEmployee(100, "Updated");
+    manager_->onRecvUniterMessage(makeManagerMessage(contract::CrudAction::UPDATE, updated));
+    ASSERT_EQ(updateSpy.count(), 1);
+    stored = std::dynamic_pointer_cast<contract::manager::Employee>(singleAdapter.resource());
+    ASSERT_NE(stored, nullptr);
+    EXPECT_EQ(stored->first_name, "Updated");
+
+    manager_->onRecvUniterMessage(makeManagerMessage(contract::CrudAction::DELETE,
+                                                     makeEmployee(100, "Deleted")));
+    ASSERT_EQ(updateSpy.count(), 2);
+    EXPECT_EQ(singleAdapter.resource(), nullptr);
+
+    manager_->onRecvUniterMessage(makeManagerMessage(contract::CrudAction::CREATE,
+                                                     makeEmployee(101, "ClearMe")));
+    manager_->onClearResources();
+    ASSERT_EQ(clearedSpy.count(), 1);
+
+    data::SingleResourceAdapter clearedAdapter(employeeListKey(), 101);
+    manager_->subscribeResource(&clearedAdapter);
+    EXPECT_EQ(clearedAdapter.resource(), nullptr);
+}
+
 } // namespace

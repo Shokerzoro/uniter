@@ -185,15 +185,60 @@ void DataManager::unsubscribeResourceList(DataAdapter* adapter)
 
 void DataManager::onInitDatabase(QByteArray userhash)
 {
-    (void)userhash;
-    processEvent(DBEvent::INIT_DATABASE);
+    if (!processEvent(DBEvent::INIT_DATABASE)) {
+        return;
+    }
+
+    userHash_ = std::move(userhash);
+    databasePath_ = resolveDatabasePath(userHash_);
+    db_ = std::make_unique<SqliteDataBase>();
+    db_->Open(databasePath_.toStdString());
+    db_->SetUserContext(userHash_.toStdString());
+
+    const auto commonInit = commonExecutor_.Initialize(*db_);
+    if (!commonInit.success) {
+        qWarning() << "DataManager::onInitDatabase(): common initialization failed:"
+                   << QString::fromStdString(commonInit.message);
+        processEvent(DBEvent::FAIL);
+        return;
+    }
+
+    const auto managerInit = managerExecutor_.Initialize(*db_);
+    if (!managerInit.success) {
+        qWarning() << "DataManager::onInitDatabase(): manager initialization failed:"
+                   << QString::fromStdString(managerInit.message);
+        processEvent(DBEvent::FAIL);
+        return;
+    }
+
+    const auto commonVerify = commonExecutor_.Verify(*db_);
+    const auto managerVerify = managerExecutor_.Verify(*db_);
+    if (!commonVerify.success || !managerVerify.success) {
+        qWarning() << "DataManager::onInitDatabase(): database verification failed:"
+                   << QString::fromStdString(commonVerify.message)
+                   << QString::fromStdString(managerVerify.message);
+        processEvent(DBEvent::FAIL);
+        return;
+    }
+
     processEvent(DBEvent::RESOURCES_LOADED);
     emit signalResourcesLoaded();
 }
 
 void DataManager::onClearResources()
 {
-    processEvent(DBEvent::CLEAR_RESOURCES);
+    if (!db_ || !processEvent(DBEvent::CLEAR_RESOURCES)) {
+        return;
+    }
+
+    const auto result = managerExecutor_.ClearData(*db_);
+    if (!result.success) {
+        qWarning() << "DataManager::onClearResources(): manager clear failed:"
+                   << QString::fromStdString(result.message);
+        processEvent(DBEvent::FAIL);
+        return;
+    }
+
     processEvent(DBEvent::RESOURCES_CLEARED);
     emit signalResourcesCleared();
 }
