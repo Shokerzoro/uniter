@@ -13,7 +13,7 @@ manufacturing companies. Its purpose is to automate accounting of materials,
 design documentation, procurement and production tasks by turning design data
 into structured resources that can be synchronized between clients.
 
-The project is built with CMake and QtCreator. The repository contains three
+The project is built with CMake, self-made SDK "DevKit" and CLion. The repository contains three
 main build products:
 
 | Product | Role |
@@ -28,7 +28,7 @@ MinGW/MSYS with Qt.
 
 ## 2. Submodules
 
-The repository uses git submodules for shared contract and database code:
+The repository uses git submodules for shared (between client app (current project) and server services) contract and database code:
 
 | Submodule | Path | Repository |
 |---|---|---|
@@ -82,7 +82,7 @@ directly to UI, DataManager or business logic.
 ### ServerConnector
 
 `ServerConnector` is the TCP/SSL channel to the Uniter server. It is responsible
-for authentication, protocol requests and client-originated CRUD requests.
+for authentication, protocol requests and client-originated CUD requests.
 
 Responsibilities:
 
@@ -137,20 +137,20 @@ subsystems downward.
 
 Important states:
 
-| State | Role |
-|---|---|
-| `IDLE` | Initial state |
-| `STARTED` | Connection requested |
-| `AUTHENIFICATION` | Auth data requested or sent |
-| `IDLE_AUTHENIFICATION` | Waiting for auth response |
-| `DBLOADING` | DataManager initialization |
-| `CONFIGURATING` | ConfigManager processes user permissions |
-| `KCONNECTOR` | Kafka connector initialization |
-| `KAFKA` | Server checks Kafka credentials/offset |
+| State | Role                                       |
+|---|--------------------------------------------|
+| `IDLE` | Initial state                              |
+| `STARTED` | Connection requested                       |
+| `AUTHENIFICATION` | Auto search auth data and request          |
+| `IDLE_AUTHENIFICATION` | Waiting for user auth data input           |
+| `DBLOADING` | DataManager initialization                 |
+| `CONFIGURATING` | ConfigManager processes user permissions   |
+| `KCONNECTOR` | Kafka connector initialization             |
+| `KAFKA` | Server checks Kafka credentials/offset     |
 | `DBCLEAR` | Local database is cleared before full sync |
-| `SYNC` | Full synchronization request |
-| `READY` | Normal application work |
-| `SHUTDOWN` | Final cleanup |
+| `SYNC` | Full synchronization request               |
+| `READY` | Normal application work                    |
+| `SHUTDOWN` | Final cleanup                              |
 
 Golden path:
 
@@ -173,20 +173,20 @@ KAFKA -> DBCLEAR -> SYNC -> READY
 ```
 
 Online/offline state is orthogonal to `AppState`. Network states repeat their
-entry action after reconnect; local states do not.
+entry action after reconnect (if they exist); local states do not.
 
 ### Routing Rules
 
 Incoming routing through `onRecvUniterMessage`:
 
-| Condition | Destination |
-|---|---|
-| Offline | Drop/log |
-| `PROTOCOL` before `READY` | FSM internal handlers |
-| CRUD before `READY` | Drop/log |
-| CRUD in `READY` | `DataManager` |
-| MinIO-related protocol in `READY` | `FileManager` |
-| Update/Kafka protocol in `READY` | Log/TODO unless explicitly handled |
+| Condition                         | Destination                   |
+|-----------------------------------|-------------------------------|
+| Offline                           | Drop/log                      |
+| `PROTOCOL` before `READY`         | FSM internal handlers         |
+| CUD after `READY`                 | To DataManager                |
+| `PROTOCOL` after `READY`          | MinIO-related to FileMaanger  |
+| `PROTOCOL` after `READY`          | Update-related to FileMaanger |
+| `PROTOCOL` after `READY`  | User-related to ConfigManager |
 
 Outgoing routing through `onSendUniterMessage`:
 
@@ -196,7 +196,6 @@ Outgoing routing through `onSendUniterMessage`:
 | CRUD in `READY` | `ServerConnector` |
 | `GET_MINIO_PRESIGNED_URL` | `ServerConnector` |
 | `GET_MINIO_FILE` / `PUT_MINIO_FILE` | `MinioConnector` |
-| FSM enter-actions | `ServerConnector` directly |
 
 ### ConfigManager
 
@@ -208,16 +207,17 @@ visibility.
 
 ### DataManager
 
-`DataManager` is the client-side owner of local structured data. It connects
+`DataManager` is the client-side owner of local structured data (thick client). It connects
 AppManager, database access, subsystem executors and UI observers.
 
 Responsibilities:
 
 - initialize database access for the current user;
 - keep local data isolated by user context;
-- route CRUD messages to subsystem executors;
-- clear local resource data before `FULL_SYNC`;
-- provide direct READ access for UI;
+- route CRUD messages to subsystem executors (databaase submodule);
+- clear local resource data before `FULL_SYNC` on AppManager demand;
+- apply CUD events based on UniterMessager recieved from AppManager;
+- provide direct READ access for UI (througn observers mechanism);
 - notify subscribers after changes.
 
 The target internal structure is:
@@ -235,11 +235,9 @@ mandatory API should include:
 - subscription to a resource list;
 - subscription to a specific resource.
 
-Tree subscriptions are postponed until a stable tree model is finalized.
-
 ### IDataBase
 
-`IDataBase` is the low-level database engine abstraction. It knows how to open
+`IDataBase` is the low-level database engine abstraction (in database submodule). It knows how to open
 connections, execute SQL and manage transactions, but it does not know business
 resources or subsystem schemas.
 
@@ -256,8 +254,8 @@ SQLite, PostgreSQL and test in-memory implementations should fit this boundary.
 
 ### Executors
 
-Executors own database logic for one subsystem. They receive `IDataBase&` from
-DataManager and own DDL, DML, migrations and resource mapping for their subsystem.
+Executors own database logic for one subsystem. They receive `IDataBase&` as descriptor from
+DataManager and own DDL, DML, and resource mapping for their subsystem.
 
 Minimum lifecycle:
 
@@ -298,11 +296,10 @@ parameters are carried in `add_data`.
 
 ### Message Type
 
-| Type | Meaning |
-|---|---|
-| `CRUD` | Resource create/read/update/delete |
-| `PROTOCOL` | Control communication with server/FSM |
-| `MINIO` | File storage operations, represented by protocol actions in current routing |
+| Type | Meaning                                                                                            |
+|---|----------------------------------------------------------------------------------------------------|
+| `CRUD` | Resource create/read/update/delete                                                                 |
+| `PROTOCOL` | Control communication with server: authentification, MINIO credentials, Kafka credentials, updates |
 
 ### Message Status
 
@@ -348,7 +345,7 @@ when reading and expand resources back to tables when writing.
 
 Examples:
 
-- `TemplateSimple` contains segment vectors at runtime, but segments and allowed
+- `TemplateSimple` contains segment vectors at runtime clas, but segments and allowed
   values live in separate database tables.
 - `Employee` contains assignments and permissions at runtime, but the database
   stores employee, assignment, permission and assignment-link tables separately.
@@ -373,6 +370,12 @@ column in resource tables, optionally hidden behind views/triggers.
 
 ## 10. Subsystems and Resources
 
+### MIGRATIONS
+
+Independen subsystem and resource distributed through common massage flow and 
+applied upon receipt in DataManager, perform Databases migrations 
+(may be received form server after update), up to design and implement
+
 ### DOCUMENTS
 
 Documents are represented by `DocLink` folders and `Doc` file records.
@@ -386,7 +389,7 @@ Documents are represented by `DocLink` folders and `Doc` file records.
 `object_key`, `sha256`, document type, name, size, MIME type, description and
 optional local cache path. A `Doc` belongs to one `DocLink` through database FK.
 
-### MATERIALS and INSTANCES
+### MATERIALS and INSTANCES 
 
 Materials define templates; instances specialize templates and add quantities.
 
@@ -402,7 +405,9 @@ Materials define templates; instances specialize templates and add quantities.
 
 Simple templates own prefix/suffix segment definitions and allowed values.
 Composite templates reference two simple templates. Instances reference the
-template they specialize and carry quantity data.
+template they specialize and carry quantity data. Simple instance may be: 
+standalone, assortment or material and contain information about which 
+can be combined to form composite templates
 
 ### MANAGER
 
@@ -483,7 +488,7 @@ separate `approved_snapshot_id` in the accepted model.
 Accepted implementation rule for SQL/C++ conflicts:
 
 - SQL schema wins over current C++ class shape.
-- Resource classes should be approved after `.sql` files are developed.
+- Resource classes should be finally approved after `.sql` files are developed.
 - The `snapshot_id` transfer convention for PDM mirror CRUD is finalized during
   SQL/executor implementation, not from old Markdown notes.
 
@@ -531,6 +536,13 @@ Integration is a generative subsystem created per `manager::Integration`.
 validate this reference because the SQL database cannot express a normal FK to a
 runtime-selected table.
 
+In future integrations will have server maintainance at Uniter server. Maintainace
+will be based on "id gate" between companies, and creation an IntegrationTask resource
+will cause adding linked resource id to be traked in this gateway. If resource is tracked
+in gatway it has other company id pair (in other company id space) and all CUD operations
+which touches such resource (stored in gateway) will be translated in other company id 
+space and shared with other company UniterMessage.
+
 ## 11. DESIGN and PDM Interaction
 
 DESIGN and PDM are intentionally separated:
@@ -549,14 +561,12 @@ First snapshot:
 
 Subsequent snapshot:
 
-1. create a new `pdm_snapshot`;
+1. create a new `pdm_snapshot` or delta (based on user permissions);
 2. copy current DESIGN rows into mirror tables;
 3. set the copied root assembly;
 4. create `pdm_delta` between previous head and new snapshot;
 5. update cross-links on previous snapshot, new snapshot and delta;
 6. move `pdm_project.head_snapshot_id`.
-
-The first snapshot has no delta.
 
 ## 12. PDMManager and Drawing Compiler
 
@@ -581,7 +591,76 @@ The drawing compiler works with translation primitives:
 6. link compiled data into the project tree.
 
 `PDMManager` creates the `XMLDocument` and root element. The compiler library
-receives only the root element to fill.
+receives only the root element to fill. The XML document structure looks like
+
+The Snapshot XML structure separates **links** (product structure) and **definitions** (item parameters). Inside each assembly there are two elements **structure \<structure>** and **parts \<parts>** used directly in this assembly. Inside the structure there is a **constant data \<invariant>** element, as well as variable data for each **configuration \<config>**, which together provide complete data about the structure for each configuration. In this case, only references to parts/assemblies are used in the structure, for example \<partref> \<assemblyref>. Complete parts data is contained within \<parts>.  This eliminates data duplication and allows parts to be reused in different assemblies.
+
+
+	<shapshot id="" designation="" name="" version="2" previousVersion="1">
+	
+	  <Assembly designation="" name="">
+	    <Metadata>...</Metadata>
+	    <Documentation>
+	      <File path="..." hash="sha256:..." modifiedAt="..."/>
+	    </Documentation>
+	    <Structure>
+	      <Invariant>
+	        <Assemblies><AssemblyRef designation="" config=""/></Assemblies>
+	        <Parts><PartRef designation="" config=""/></Parts>
+	        <StandardProducts/>
+	        <BuyingProducts/>
+	        <OtherMaterials/>
+	      </Invariant>
+	      <Config number="01">...</Config>
+	      <Config number="02">...</Config>
+	    </Structure>
+	    <PartsDef>
+	      <Part designation="" name="">
+	        <Config id="01"/>
+	        <Config id="02"/>
+	      </Part>
+	    </PartsDef>
+	  </Assembly>
+	
+	  <Errors>
+	    <Error severity="Error" category="FileSystem" type="NO_FILE"
+	           path="drawings/4021.01.00.02.pdf"/>
+	    <Error severity="Warning" category="VersionControl" type="INFORMAL_CHANGE"
+	           designation="4021.01.00.03" hashBefore="sha256:a1b2..." hashAfter="sha256:c3d4..."/>
+	  </Errors>
+	
+	</Shapshot>
+
+
+    
+    <Partdef designation="4021.01.00.01" name="Longitudinal beam">
+          <Metadata>
+            <Material>
+    <Base>Channel 20P GOST 8239-89</Base>
+              <CoatingTop/>
+              <CoatingBottom/>
+            </Material>
+            <Signatures>
+    <Signature role="Developed" name="Ivanov I.P." date="2026-01-15"/>
+    <Signature role="Checked" name="Petrov S.A."  date="2026-01-18"/>
+            </Signatures>
+    <Litera>O</Litera>
+    <Organization>OJSC "Plant"</Organization>
+            <DrawingFile>
+    <Path>drawings/4021.01.00.01_rev.A.pdf</Path>
+              <Hash>sha256:e7f8g9...</Hash>
+              <ModifiedAt>2026-01-15T11:30:00+03:00</ModifiedAt>
+            </DrawingFile>
+          </Metadata>
+          <Config id="01">
+            <Dimensions length="2400" width="200" height="80"/>
+            <Mass>85.2</Mass>
+          </Config>
+          <Config id="02">
+            <Dimensions length="2800" width="200" height="80"/>
+            <Mass>99.4</Mass>
+          </Config>
+        </Partdef>
 
 ## 13. ERPManager
 

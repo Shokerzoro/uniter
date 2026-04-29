@@ -275,20 +275,26 @@ Migration requirements:
 CodeGen should start only after `IDataBase`, executor interfaces and SQL markup
 rules are stable.
 
-First stage:
-
-1. Enum mapping generation.
-   - Recursively scan `.h` / `.hpp`.
-   - Process only enums marked with a CodeGen token.
-   - Generate `inline constexpr std::array<std::pair<int, std::string_view>, N>`.
-   - Use generated-block markers for safe regeneration.
-
-2. SQL constants generation.
-   - Input: subsystem raw SQL directories.
-   - Output: generated SQL catalog.
-   - SQL statements must have explicit names.
-   - Use named placeholders like `:param_name`.
-   - Generator can emit parameter lists and replace placeholders as needed.
+	Обработка enum-классов
+		- Под enum class, который предваряется комментарием "// CodeGen need" создавать std::array<std::pair<int, std::string>>, (начинается через строку после последней строки enum class)
+		- Если генерация производится в первый раз, то комментарий // CodeGen need"  заменяется на "*// CodeGen version: 1. Need update (yes/no): no"
+		- Для повторной генерации нужно "no" заменить на "yes"
+		- А сгенерированный std::array должен предварять комментарий "// CodeGen from %enum_name% version 1."
+		- Если CodeGen находит enum с "Need update (yes/no): yes", то перегенерирует enum, инкрементируя версию.
+		- Запускается с указанием директории, и обрабатывает все файлы с расширением .h .hpp с рекурсивным поиском
+		- Имя std::array формируется как название enum class только с добавлением Pair как суффикс, а формирование структуры
+			*constexpr std::array<std::pair<int, std::string>, {кол-во вариантов}> {EnumName}Pair = {{*
+				*{{static_cast\<int>(EnumName::first_name), "{first_name}"}},*
+				*{{static_cast\<int>(EnumName::second_name), "{second_name}"}},*
+				*// ...*
+			*}};*
+	
+      Обработка sql инструкций
+		- Каждая обрабатываемая инструкция внутри .sql файла должна быть предварена комментарием "--CodeGen need for {name}."
+		- В инструкции, если в какой то строке нужно убрать какое-то конкретное значение (например value или условие выборки), то в этой строке нужно написать в конце комментарий --replacable: ... и список того, что нужно заменять через запятую
+		- Если CodeGen видит такую инструкцию, отмеченную с помощью "--CodeGen need for {name}.", то он создает переменную static constexpr const char* {name}, при этом заменяя конкретные replacable на строку "%VAL%
+		- После первой генерации CodeGen заменяет м"--CodeGen need for {name}." на "--CodeGen: {name} version 1. Need update (yes/no): no
+		- CodeGen получает в аргументах командной строки две директории, первая из которой он берет файлы, а вторая где создает файлы .h с переменными. При этом он зеркалит название файлов и структуру каталогов при создании файлов.
 
 ## 12. Work Order
 
@@ -303,19 +309,13 @@ Completed or already established:
 
 Next:
 
-7. [ ] Stabilize `ManagerExecutor` as the first real executor.
+7. [ ] Realize DataManager API observers with notifications
+8. [ ] Stabilize `ManagerExecutor` as the first real executor.
 8. [ ] Add schema migration resource model in a service/system subsystem.
 9. [ ] Add basic tests for manager subsystem CRUD and DataManager routing.
 10. [ ] Implement actual user filtering in executor DDL/DML.
 11. [ ] Implement CodeGen for enums and SQL catalogs.
-12. [ ] Add `DocumentsExecutor`.
-13. [ ] Add `MaterialsExecutor` and `InstancesExecutor`.
-14. [ ] Add `DesignExecutor`.
-15. [ ] Resolve PDM mirror `snapshot_id` transfer convention.
-16. [ ] Add `PdmExecutor`.
-17. [ ] Add `SupplyExecutor`.
-18. [ ] Add `ProductionExecutor`.
-19. [ ] Add `IntegrationExecutor`.
+12. [ ] Realize other Executors
 
 ## 13. Test Plan
 
