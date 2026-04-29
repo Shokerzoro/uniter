@@ -372,8 +372,8 @@ column in resource tables, optionally hidden behind views/triggers.
 
 ### MIGRATIONS
 
-Independen subsystem and resource distributed through common massage flow and 
-applied upon receipt in DataManager, perform Databases migrations 
+Independen subsystem and resource distributed through common massage flow and
+applied upon receipt in DataManager, perform Databases migrations
 (may be received form server after update), up to design and implement
 
 ### DOCUMENTS
@@ -389,7 +389,7 @@ Documents are represented by `DocLink` folders and `Doc` file records.
 `object_key`, `sha256`, document type, name, size, MIME type, description and
 optional local cache path. A `Doc` belongs to one `DocLink` through database FK.
 
-### MATERIALS and INSTANCES 
+### MATERIALS and INSTANCES
 
 Materials define templates; instances specialize templates and add quantities.
 
@@ -405,8 +405,8 @@ Materials define templates; instances specialize templates and add quantities.
 
 Simple templates own prefix/suffix segment definitions and allowed values.
 Composite templates reference two simple templates. Instances reference the
-template they specialize and carry quantity data. Simple instance may be: 
-standalone, assortment or material and contain information about which 
+template they specialize and carry quantity data. Simple instance may be:
+standalone, assortment or material and contain information about which
 can be combined to form composite templates
 
 ### MANAGER
@@ -540,7 +540,7 @@ In future integrations will have server maintainance at Uniter server. Maintaina
 will be based on "id gate" between companies, and creation an IntegrationTask resource
 will cause adding linked resource id to be traked in this gateway. If resource is tracked
 in gatway it has other company id pair (in other company id space) and all CUD operations
-which touches such resource (stored in gateway) will be translated in other company id 
+which touches such resource (stored in gateway) will be translated in other company id
 space and shared with other company UniterMessage.
 
 ## 11. DESIGN and PDM Interaction
