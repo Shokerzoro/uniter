@@ -8,6 +8,7 @@ include(../src/uniter/sources.cmake)
 add_executable(UniterTests
     test_main.cpp
     appmanagertest.cpp
+    datamanagertest.cpp
 
     # UI Layer
     ${STATIC_WIDGETS_SOURCES}

@@ -143,20 +143,20 @@ int main(int argc, char *argv[])
 
     // AppManager → DataManager
     QObject::connect(appManager, &control::AppManager::signalLoadResources,
-                     dataManager, &data::DataManager::onStartLoadResources);
+                     dataManager, &data::DataManager::onInitDatabase);
 
     // DataManager → AppManager
     QObject::connect(dataManager, &data::DataManager::signalResourcesLoaded,
                      appManager, &control::AppManager::onResourcesLoaded);
 
     QObject::connect(appManager, &control::AppManager::signalClearResources,
-                     dataManager, &data::DataManager::onClearResources);
+                     dataManager, &data::DataManager::onResetDatabase);
 
     // DBCLEAR: AppManager → DataManager and back
     QObject::connect(appManager, &control::AppManager::signalClearDatabase,
-                     dataManager, &data::DataManager::onClearDatabase);
+                     dataManager, &data::DataManager::onClearResources);
 
-    QObject::connect(dataManager, &data::DataManager::signalDatabaseCleared,
+    QObject::connect(dataManager, &data::DataManager::signalResourcesCleared,
                      appManager, &control::AppManager::onDatabaseCleared);
 
 
@@ -172,6 +172,9 @@ int main(int argc, char *argv[])
 
     QObject::connect(appManager, &control::AppManager::signalClearResources,
                      configManager, &control::ConfigManager::onClearResources);
+
+    QObject::connect(configManager, &control::ConfigManager::signalSubsystemAdded,
+                     dataManager, &data::DataManager::onSubsystemGenerate);
 
 
     // === 5. Authentication ===

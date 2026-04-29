@@ -199,16 +199,16 @@ public:
     int loadResourcesCount = 0;
 
     void emitResourcesLoaded() { emit signalResourcesLoaded(); }
-    void emitDatabaseCleared() { emit signalDatabaseCleared(); }
+    void emitResourcesCleared() { emit signalResourcesCleared(); }
 
 public slots:
-    void onStartLoadResources(QByteArray /*userhash*/) { ++loadResourcesCount; }
-    void onClearResources() {}
-    void onClearDatabase() { ++clearDatabaseCount; }
+    void onInitDatabase(QByteArray /*userhash*/) { ++loadResourcesCount; }
+    void onResetDatabase() {}
+    void onClearResourcesForSync() { ++clearDatabaseCount; }
 
 signals:
     void signalResourcesLoaded();
-    void signalDatabaseCleared();
+    void signalResourcesCleared();
 };
 
 // ============================================================================
@@ -299,14 +299,14 @@ protected:
 
         // === AppManager ↔ MockDataManager (DBLOADING / DBCLEAR) ===
         QObject::connect(appManager->get(), &control::AppManager::signalLoadResources,
-                         mockDataManager.get(), &MockDataManager::onStartLoadResources);
+                         mockDataManager.get(), &MockDataManager::onInitDatabase);
         QObject::connect(mockDataManager.get(), &MockDataManager::signalResourcesLoaded,
                          appManager->get(), &control::AppManager::onResourcesLoaded);
         QObject::connect(appManager->get(), &control::AppManager::signalClearResources,
-                         mockDataManager.get(), &MockDataManager::onClearResources);
+                         mockDataManager.get(), &MockDataManager::onResetDatabase);
         QObject::connect(appManager->get(), &control::AppManager::signalClearDatabase,
-                         mockDataManager.get(), &MockDataManager::onClearDatabase);
-        QObject::connect(mockDataManager.get(), &MockDataManager::signalDatabaseCleared,
+                         mockDataManager.get(), &MockDataManager::onClearResourcesForSync);
+        QObject::connect(mockDataManager.get(), &MockDataManager::signalResourcesCleared,
                          appManager->get(), &control::AppManager::onDatabaseCleared);
     }
 
@@ -478,7 +478,7 @@ TEST_F(AppManagerTest, KafkaFlow_OffsetStale_GoesToDbClearSyncReady) {
     EXPECT_EQ(mockDataManager->clearDatabaseCount, 1);
 
     // DataManager confirms database cleanup → SYNC: FULL_SYNC REQUEST is sent
-    mockDataManager->emitDatabaseCleared();
+    mockDataManager->emitResourcesCleared();
     EXPECT_EQ(mockNetwork->countSent(contract::ProtocolAction::FULL_SYNC,
                                      contract::MessageStatus::REQUEST), 1);
     EXPECT_EQ(spySubscribe.count(), 0);

@@ -104,7 +104,7 @@ namespace uniter::control {
     {
         qDebug() << "AppManager: enter DBCLEAR — clearing database";
         // Local operation: ask the DataManager to clear all database tables.
-        // DataManager will respond with signalDatabaseCleared → onDatabaseCleared.
+        // DataManager will respond with signalResourcesCleared -> onDatabaseCleared.
         emit signalClearDatabase();
     }
 

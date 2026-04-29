@@ -1,13 +1,11 @@
-
 #include "datamanager.h"
 #include "sqlitedatabase.h"
 #include "../../common/appfuncs.h"
-#include "../contract/unitermessage.h"
-#include <QByteArray>
+#include "../database/transaction.h"
 #include <QDebug>
 #include <QDir>
 #include <QRegularExpression>
-#include <optional>
+#include <utility>
 
 namespace uniter::data {
 
@@ -43,6 +41,56 @@ void DataManager::setState(DBState newState)
     state = newState;
 }
 
+bool DataManager::processEvent(DBEvent event)
+{
+    if (event == DBEvent::RESET_DATABASE) {
+        setState(DBState::IDLE);
+        return true;
+    }
+
+    if (event == DBEvent::FAIL) {
+        setState(DBState::ERROR);
+        return true;
+    }
+
+    switch (state) {
+    case DBState::IDLE:
+        if (event == DBEvent::INIT_DATABASE) {
+            setState(DBState::LOADING);
+            return true;
+        }
+        break;
+    case DBState::LOADING:
+        if (event == DBEvent::RESOURCES_LOADED) {
+            setState(DBState::LOADED);
+            return true;
+        }
+        break;
+    case DBState::LOADED:
+        if (event == DBEvent::CLEAR_RESOURCES) {
+            setState(DBState::CLEARING);
+            return true;
+        }
+        break;
+    case DBState::CLEARING:
+        if (event == DBEvent::RESOURCES_CLEARED) {
+            setState(DBState::LOADED);
+            return true;
+        }
+        break;
+    case DBState::ERROR:
+        if (event == DBEvent::INIT_DATABASE) {
+            setState(DBState::LOADING);
+            return true;
+        }
+        break;
+    }
+
+    qWarning() << "DataManager::processEvent(): ignored invalid transition"
+               << static_cast<int>(state) << static_cast<int>(event);
+    return false;
+}
+
 QString DataManager::resolveDatabasePath(const QByteArray& userhash) const
 {
     QString root = qEnvironmentVariable("TEMP_DIR");
@@ -62,87 +110,174 @@ QString DataManager::resolveDatabasePath(const QByteArray& userhash) const
     return dir.filePath(QStringLiteral("uniter_%1.sqlite").arg(safeUserHash(userhash)));
 }
 
-bool DataManager::initializeExecutor(database::IResExecutor& executor)
+void DataManager::subscribeResource(SingleResourceAdapter* adapter)
 {
-    auto result = executor.Initialize(*db_);
-    if (!result.success) {
-        qWarning() << "DataManager: executor initialization failed:"
-                   << QString::fromStdString(result.message);
-        return false;
+    if (!adapter) {
+        return;
     }
 
-    result = executor.ApplyMigrations(*db_);
-    if (!result.success) {
-        qWarning() << "DataManager: executor migration failed:"
-                   << QString::fromStdString(result.message);
-        return false;
-    }
+    unsubscribeResource(adapter);
 
-    result = executor.Verify(*db_);
-    if (!result.success) {
-        qWarning() << "DataManager: executor verification failed:"
-                   << QString::fromStdString(result.message);
-        return false;
-    }
+    // DataManager stores only guarded non-owning pointers. Adapters stay owned
+    // by UI/business objects and unsubscribe themselves on destruction.
+    const auto& key = adapter->key();
+    resourceSubscribers_.insert({key, QPointer<SingleResourceAdapter>(adapter)});
 
-    return true;
+    connect(adapter, &QObject::destroyed, this, [this, adapter]() {
+        unsubscribeResource(adapter);
+    });
+
+    const auto result = readResource(key);
+    if (result && result->success) {
+        adapter->initializeData(result->resource);
+    }
 }
 
-bool DataManager::initializeDatabase(const QByteArray& userhash)
+void DataManager::subscribeResourceList(VectorResourceAdapter* adapter)
 {
-    setState(DBState::LOADING);
-    userHash_ = userhash;
+    if (!adapter) {
+        return;
+    }
+
+    unsubscribeResourceList(adapter);
+
+    // List reads are not stable yet, so vector adapters may be constructed with
+    // initial data by their owner. DataManager only registers future updates.
+    resourceListSubscribers_.insert({adapter->key(), QPointer<VectorResourceAdapter>(adapter)});
+
+    connect(adapter, &QObject::destroyed, this, [this, adapter]() {
+        unsubscribeResourceList(adapter);
+    });
+}
+
+void DataManager::unsubscribeResource(SingleResourceAdapter* adapter)
+{
+    if (!adapter) {
+        return;
+    }
+
+    for (auto it = resourceSubscribers_.begin(); it != resourceSubscribers_.end();) {
+        if (it->second.isNull() || it->second.data() == adapter) {
+            it = resourceSubscribers_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void DataManager::unsubscribeResourceList(VectorResourceAdapter* adapter)
+{
+    if (!adapter) {
+        return;
+    }
+
+    for (auto it = resourceListSubscribers_.begin(); it != resourceListSubscribers_.end();) {
+        if (it->second.isNull() || it->second.data() == adapter) {
+            it = resourceListSubscribers_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void DataManager::onInitDatabase(QByteArray userhash)
+{
+    if (!processEvent(DBEvent::INIT_DATABASE)) {
+        return;
+    }
+
+    userHash_ = std::move(userhash);
     databasePath_ = resolveDatabasePath(userHash_);
 
     db_ = std::make_unique<SqliteDataBase>();
     db_->Open(databasePath_.toStdString());
     db_->SetUserContext(QString::fromUtf8(userHash_).toStdString());
 
-    if (!initializeExecutor(commonExecutor_)) {
-        setState(DBState::ERROR);
-        db_->Close();
-        db_.reset();
-        return false;
+    // Keep executor lifecycle uniform: each subsystem owns its schema,
+    // migrations and verification behind IResExecutor.
+    database::IResExecutor* executors[] = {
+        &commonExecutor_,
+        &managerExecutor_,
+        // TODO: register remaining subsystem executors here after they are implemented.
+    };
+
+    for (database::IResExecutor* executor : executors) {
+        auto result = executor->Initialize(*db_);
+        if (!result.success) {
+            qWarning() << "DataManager: executor initialization failed:"
+                       << QString::fromStdString(result.message);
+            processEvent(DBEvent::FAIL);
+            db_->Close();
+            db_.reset();
+            return;
+        }
+
+        result = executor->ApplyMigrations(*db_);
+        if (!result.success) {
+            qWarning() << "DataManager: executor migration failed:"
+                       << QString::fromStdString(result.message);
+            processEvent(DBEvent::FAIL);
+            db_->Close();
+            db_.reset();
+            return;
+        }
+
+        result = executor->Verify(*db_);
+        if (!result.success) {
+            qWarning() << "DataManager: executor verification failed:"
+                       << QString::fromStdString(result.message);
+            processEvent(DBEvent::FAIL);
+            db_->Close();
+            db_.reset();
+            return;
+        }
     }
 
-    if (!initializeExecutor(managerExecutor_)) {
-        setState(DBState::ERROR);
-        db_->Close();
-        db_.reset();
-        return false;
-    }
-
-    // TODO: initialize materials executor.
-    // initializeExecutor(materialsExecutor_);
-    // TODO: initialize design executor.
-    // initializeExecutor(designExecutor_);
-    // TODO: initialize purchases executor.
-    // initializeExecutor(purchasesExecutor_);
-    // TODO: initialize instances executor.
-    // initializeExecutor(instancesExecutor_);
-    // TODO: initialize pdm executor.
-    // initializeExecutor(pdmExecutor_);
-    // TODO: initialize documents executor.
-    // initializeExecutor(documentsExecutor_);
-    // TODO: initialize generative production/integration executors.
-    // initializeExecutor(productionExecutor_);
-    // initializeExecutor(integrationExecutor_);
-
-    setState(DBState::LOADED);
+    processEvent(DBEvent::RESOURCES_LOADED);
     qDebug() << "DataManager: database loaded:" << databasePath_;
-    return true;
+    emit signalResourcesLoaded();
 }
 
-bool DataManager::clearExecutorData(database::IResExecutor& executor)
+void DataManager::onClearResources()
 {
-    const auto result = executor.ClearData(*db_);
-    if (!result.success) {
-        qWarning() << "DataManager: executor clear failed:"
-                   << QString::fromStdString(result.message);
-        return false;
+    if (!db_ || state != DBState::LOADED) {
+        qWarning() << "DataManager::onClearResources(): database is not loaded";
+        emit signalResourcesCleared();
+        return;
     }
 
-    return true;
+    if (!processEvent(DBEvent::CLEAR_RESOURCES)) {
+        return;
+    }
+
+    database::Transaction transaction(*db_);
+    const auto managerResult = managerExecutor_.ClearData(*db_);
+    // TODO: clear remaining subsystem executors in this transaction after they are implemented.
+    if (!managerResult.success) {
+        qWarning() << "DataManager::onClearResources(): manager clear failed:"
+                   << QString::fromStdString(managerResult.message);
+        processEvent(DBEvent::FAIL);
+        return;
+    }
+
+    transaction.Commit();
+    processEvent(DBEvent::RESOURCES_CLEARED);
+    emit signalResourcesCleared();
+}
+
+void DataManager::onResetDatabase()
+{
+    if (db_) {
+        db_->Close();
+        db_.reset();
+    }
+
+    userHash_.clear();
+    databasePath_.clear();
+    resourceSubscribers_.clear();
+    resourceListSubscribers_.clear();
+    activeSubsystemContexts_.clear();
+    processEvent(DBEvent::RESET_DATABASE);
 }
 
 void DataManager::onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> message)
@@ -160,7 +295,7 @@ void DataManager::onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> m
         return;
     }
 
-    const auto result = routeManagerMessage(*message);
+    const auto result = routeMessage(*message);
     if (!result.has_value()) {
         qWarning() << "DataManager::onRecvUniterMessage(): unsupported subsystem"
                    << static_cast<int>(message->subsystem);
@@ -169,59 +304,15 @@ void DataManager::onRecvUniterMessage(std::shared_ptr<contract::UniterMessage> m
     if (!result->success) {
         qWarning() << "DataManager::onRecvUniterMessage(): executor failed:"
                    << QString::fromStdString(result->message);
-    }
-}
-
-void DataManager::onStartLoadResources(QByteArray userhash)
-{
-    if (initializeDatabase(userhash)) {
-        emit signalResourcesLoaded();
-    }
-}
-
-void DataManager::onClearResources() {
-    if (db_) {
-        db_->Close();
-        db_.reset();
-    }
-
-    userHash_.clear();
-    databasePath_.clear();
-    setState(DBState::IDLE);
-}
-
-void DataManager::onClearDatabase()
-{
-    if (!db_ || state != DBState::LOADED) {
-        qWarning() << "DataManager::onClearDatabase(): database is not loaded";
-        emit signalDatabaseCleared();
         return;
     }
 
-    bool ok = clearExecutorData(managerExecutor_);
-
-    // TODO: clear materials executor data.
-    // ok = ok && clearExecutorData(materialsExecutor_);
-    // TODO: clear design executor data.
-    // ok = ok && clearExecutorData(designExecutor_);
-    // TODO: clear purchases executor data.
-    // ok = ok && clearExecutorData(purchasesExecutor_);
-    // TODO: clear instances executor data.
-    // ok = ok && clearExecutorData(instancesExecutor_);
-    // TODO: clear pdm executor data.
-    // ok = ok && clearExecutorData(pdmExecutor_);
-    // TODO: clear documents executor data.
-    // ok = ok && clearExecutorData(documentsExecutor_);
-    // TODO: clear generative production/integration executor data.
-    // ok = ok && clearExecutorData(productionExecutor_);
-    // ok = ok && clearExecutorData(integrationExecutor_);
-
-    if (!ok) {
-        setState(DBState::ERROR);
-        return;
+    // Notify observers about changes in resources
+    if (message->crudact == contract::CrudAction::CREATE
+        || message->crudact == contract::CrudAction::UPDATE
+        || message->crudact == contract::CrudAction::DELETE) {
+        notifyObservers(*message);
     }
-
-    emit signalDatabaseCleared();
 }
 
 void DataManager::onSubsystemGenerate(contract::Subsystem subsystem,
@@ -229,53 +320,123 @@ void DataManager::onSubsystemGenerate(contract::Subsystem subsystem,
                                       std::optional<uint64_t> genId,
                                       bool created)
 {
-    (void)subsystem;
-    (void)genType;
-    (void)genId;
-    (void)created;
-    // TODO: route generated subsystem lifecycle when generative executors exist.
+    const auto key = AdapterKey::Context(subsystem, genType, genId);
+    if (created) {
+        activeSubsystemContexts_[key] = true;
+        return;
+    }
+
+    activeSubsystemContexts_.erase(key);
+
+    for (auto it = resourceListSubscribers_.begin(); it != resourceListSubscribers_.end();) {
+        if (it->first.subsystem == key.subsystem
+            && it->first.genSubsystem == key.genSubsystem
+            && it->first.genId == key.genId) {
+            it = resourceListSubscribers_.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
-std::optional<database::ExecutorResult> DataManager::routeManagerMessage(const contract::UniterMessage& message)
+std::optional<database::ExecutorResult> DataManager::routeMessage(const contract::UniterMessage& message)
 {
-    if (message.subsystem != contract::Subsystem::MANAGER) {
-        // TODO: route to materials executor.
-        // return materialsExecutor_.ApplyMessage(*db_, message);
-        // TODO: route to design executor.
-        // return designExecutor_.ApplyMessage(*db_, message);
-        // TODO: route to purchases executor.
-        // return purchasesExecutor_.ApplyMessage(*db_, message);
-        // TODO: route to instances executor.
-        // return instancesExecutor_.ApplyMessage(*db_, message);
-        // TODO: route to pdm executor.
-        // return pdmExecutor_.ApplyMessage(*db_, message);
-        // TODO: route to documents executor.
-        // return documentsExecutor_.ApplyMessage(*db_, message);
-        // TODO: route to generative production/integration executors.
-        // return productionExecutor_.ApplyMessage(*db_, message);
-        // return integrationExecutor_.ApplyMessage(*db_, message);
+    if (message.subsystem == contract::Subsystem::MANAGER) {
+        switch (message.crudact) {
+            case contract::CrudAction::CREATE:
+                // DataManager routes messages; concrete DB work stays inside the subsystem executor.
+                return managerExecutor_.Create(*db_, message);
+            case contract::CrudAction::READ:
+                // READ uses the executor API for explicit resource requests only.
+                return managerExecutor_.Read(*db_, database::ResourceKey{
+                    message.subsystem,
+                    message.GenSubsystem,
+                    AdapterKey::OptionalGenId(message.GenSubsystemId),
+                    message.resource ? message.resource->resource_type : contract::ResourceType::DEFAULT,
+                    message.resource ? std::optional<uint64_t>{message.resource->id} : std::optional<uint64_t>{}
+                });
+            case contract::CrudAction::UPDATE:
+                // DataManager does not inspect or mutate tables directly.
+                return managerExecutor_.Update(*db_, message);
+            case contract::CrudAction::DELETE:
+                // After successful executor delete, observer adapters are notified below.
+                return managerExecutor_.Delete(*db_, message);
+            case contract::CrudAction::NOTCRUD:
+            default:
+                return database::ExecutorResult::Fail(database::ExecutorStatusCode::InvalidMessage,
+                                                     "Message is not a CRUD request");
+        }
+    }
+
+    // TODO: route non-manager messages to subsystem executors after they are implemented.
+    return std::nullopt;
+}
+
+std::optional<database::ExecutorResult> DataManager::readResource(const ResourceAdapterKey& key)
+{
+    if (!db_ || state != DBState::LOADED) {
         return std::nullopt;
     }
 
-    switch (message.crudact) {
-    case contract::CrudAction::CREATE:
-        return managerExecutor_.Create(*db_, message);
-    case contract::CrudAction::READ:
-        return managerExecutor_.Read(*db_, database::ResourceKey{
-            message.subsystem,
-            message.GenSubsystem,
-            message.GenSubsystemId == 0 ? std::optional<uint64_t>{} : std::optional<uint64_t>{message.GenSubsystemId},
-            message.resource ? message.resource->resource_type : contract::ResourceType::DEFAULT,
-            message.resource ? std::optional<uint64_t>{message.resource->id} : std::optional<uint64_t>{}
-        });
-    case contract::CrudAction::UPDATE:
-        return managerExecutor_.Update(*db_, message);
-    case contract::CrudAction::DELETE:
-        return managerExecutor_.Delete(*db_, message);
-    case contract::CrudAction::NOTCRUD:
-    default:
-        return database::ExecutorResult::Fail(database::ExecutorStatusCode::InvalidMessage,
-                                             "Message is not a CRUD request");
+    if (key.adapterKey.subsystem == contract::Subsystem::MANAGER) {
+        return managerExecutor_.Read(*db_, key.toDatabaseKey());
+    }
+
+    // TODO: route non-manager reads to subsystem executors after they are implemented.
+    return std::nullopt;
+}
+
+void DataManager::notifyObservers(const contract::UniterMessage& message)
+{
+    if (!message.resource) {
+        qWarning() << "DataManager::notifyObservers(): message has no resource";
+        return;
+    }
+
+    // A CUD payload contains the changed resource, so notification does not
+    // need another database read. The same payload updates exact-resource and
+    // list subscribers.
+    const auto resourceKey = ResourceAdapterKey::FromMessage(message);
+    const auto listKey = AdapterKey::FromMessage(message);
+    const uint64_t resourceId = message.resource->id;
+
+    notifySingleResourceAdapters(resourceKey, message);
+    notifyVectorResourceAdapters(listKey, message, resourceId);
+}
+
+void DataManager::notifySingleResourceAdapters(const ResourceAdapterKey& key,
+                                               const contract::UniterMessage& message)
+{
+    const auto range = resourceSubscribers_.equal_range(key);
+    for (auto it = range.first; it != range.second;) {
+        auto adapter = it->second;
+        if (!adapter) {
+            it = resourceSubscribers_.erase(it);
+            continue;
+        }
+
+        adapter->updateData(message.crudact == contract::CrudAction::DELETE ? nullptr : message.resource,
+                            message.crudact);
+        ++it;
+    }
+}
+
+void DataManager::notifyVectorResourceAdapters(const AdapterKey& key,
+                                               const contract::UniterMessage& message,
+                                               uint64_t resourceId)
+{
+    const auto range = resourceListSubscribers_.equal_range(key);
+    for (auto it = range.first; it != range.second;) {
+        auto adapter = it->second;
+        if (!adapter) {
+            it = resourceListSubscribers_.erase(it);
+            continue;
+        }
+
+        adapter->updateData(message.crudact == contract::CrudAction::DELETE ? nullptr : message.resource,
+                            message.crudact,
+                            resourceId);
+        ++it;
     }
 }
 

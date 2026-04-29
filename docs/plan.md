@@ -143,13 +143,13 @@ share one namespace, so this is not a clean schema substitute.
 
 ## 6. Data Clearing Flow
 
-Used before `FULL_SYNC` or session reset.
+Used before `FULL_SYNC`. Session teardown is a separate DataManager reset flow.
 
 1. Open transaction.
 2. Call `ClearData` for each executor.
 3. Preserve service structures and migration tables if policy requires it.
 4. Commit transaction.
-5. Emit `signalDatabaseCleared`.
+5. Emit `signalResourcesCleared`.
 
 On failure, rollback and report an error to AppManager.
 
@@ -182,6 +182,36 @@ Supported subscriptions:
 
 - list by subsystem/resource type;
 - specific resource by id.
+
+Observer implementation decisions:
+
+- `IDataObserver` is removed. Subscribers/widgets do not inherit a DataManager
+  observer class.
+- Subscribers own `DataAdapter` members and connect each adapter's
+  `signalDataUpdated` to the subscriber slot that handles that resource class.
+- `SingleResourceAdapter` stores one resource and subscribes with
+  subsystem/generative context/resource type/resource id.
+- `VectorResourceAdapter` stores a vector of resources and subscribes with
+  subsystem/generative context/resource type.
+- Adapter construction/subscription may synchronously fill stored data, but
+  initial fill must not emit update signals.
+- DataManager keeps guarded non-owning adapter references indexed as
+  `std::multimap`s: exact resource keys for single adapters, and `AdapterKey`
+  for vector adapters.
+- ConfigManager `signalSubsystemAdded` tells DataManager which subsystem and
+  generative contexts exist for the current user; DataManager creates/removes
+  those subscription contexts.
+- After successful executor CUD, DataManager notifies matching single-resource
+  adapters first, then matching vector adapters.
+- For delete, adapters receive `updateData(nullptr, CrudAction::DELETE, ...)`;
+  single-resource adapters clear their resource, while vector adapters remove
+  only the matching element.
+- For create/update, vector adapters update one element by id rather than
+  replacing the whole vector.
+- This step does not change executor read/list APIs. After successful CUD,
+  DataManager updates adapters from the already processed `UniterMessage`
+  resource payload; vector list initialization remains adapter/user-flow
+  responsibility until executor list reads are stabilized.
 
 Hierarchical/tree subscription remains postponed until the design tree model is
 stable.
@@ -309,13 +339,14 @@ Completed or already established:
 
 Next:
 
-7. [ ] Realize DataManager API observers with notifications
-8. [ ] Stabilize `ManagerExecutor` as the first real executor.
-8. [ ] Add schema migration resource model in a service/system subsystem.
-9. [ ] Add basic tests for manager subsystem CRUD and DataManager routing.
-10. [ ] Implement actual user filtering in executor DDL/DML.
-11. [ ] Implement CodeGen for enums and SQL catalogs.
-12. [ ] Realize other Executors
+7. [x] Realize DataManager API observers with notifications, stable DataManager.
+8. [ ] Add DataManager observer mechanism tests before stabilizing `ManagerExecutor`.
+9. [ ] Stabilize `ManagerExecutor` as the first real executor.
+10. [ ] Add schema migration resource model in a service/system subsystem.
+11. [ ] Add basic tests for manager subsystem CRUD and DataManager routing.
+12. [ ] Implement actual user filtering in executor DDL/DML.
+13. [ ] Implement CodeGen for enums and SQL catalogs.
+14. [ ] Realize other Executors
 
 ## 13. Test Plan
 
