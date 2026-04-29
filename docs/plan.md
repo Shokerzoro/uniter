@@ -1,43 +1,49 @@
 # Data Layer Implementation Plan
 
-This plan is the consolidated data-layer implementation plan. It was formed
-from the former database planning notes and now complements
-`docs/documentation.md`. It describes the next implementation path for
-`DataManager`, `IDataBase`, SQLite support, subsystem executors, SQL
-organization, migrations and CodeGen.
+This plan complements `docs/documentation.md` and tracks the practical
+implementation path for `DataManager`, `IDataBase`, SQLite, subsystem
+executors, raw SQL authoring, CodeGen and migrations.
 
 ## 1. Goal
 
-Build the data layer in stages so that each subsystem executor can be tested
+Build the data layer in stages so each subsystem executor can be tested
 independently from UI and AppManager.
 
-The first milestone is a working database boundary with one real subsystem
-executor. After that, the remaining subsystems can be added by repeating the
-same executor pattern.
+The first milestone is complete: DataManager opens SQLite, initializes common
+and manager structures, routes manager CRUD, clears manager data, and has a
+real lifecycle test. The next milestone is preparing raw SQL instructions for
+every subsystem so CodeGen can generate `gen_sql_*` headers and the empty
+executors can be filled one by one.
 
 ## 2. Responsibility Boundaries
 
 ### DataManager
 
-`DataManager` is the application component that connects AppManager, database
-access, executors and UI observers.
+`DataManager` connects AppManager, database access, subsystem executors and UI
+observers.
 
-It must:
+It is responsible for:
 
-1. Initialize for the current user.
-2. Open the local database.
-3. Set user context.
-4. Register subsystem executors.
-5. Initialize/check executor structures.
-6. Route incoming `UniterMessage` CRUD messages.
-7. Route UI READ requests.
-8. Clear resource data before `FULL_SYNC`.
-9. Notify subscribers after data changes.
+1. Initializing for the current user.
+2. Opening the local database.
+3. Setting user context.
+4. Initializing and verifying executors.
+5. Routing incoming `UniterMessage` CRUD messages.
+6. Routing UI READ requests.
+7. Clearing resource data before `FULL_SYNC`.
+8. Notifying subscribers after data changes.
 
-Target fields:
+Current first-milestone fields:
 
 ```cpp
 std::unique_ptr<database::IDataBase> db_;
+database::CommonExecutor commonExecutor_;
+database::ManagerExecutor managerExecutor_;
+```
+
+Later target:
+
+```cpp
 std::unordered_map<contract::Subsystem,
                    std::unique_ptr<database::IResExecutor>> executors_;
 ```
@@ -48,69 +54,81 @@ std::unordered_map<contract::Subsystem,
 state, transactions and SQL execution, but it does not know business resources
 or subsystem schemas.
 
-It must provide:
+It provides:
 
 - `Open`;
 - `Close`;
 - `SetUserContext`;
 - SQL execution returning unified `SqlResult`;
-- transaction begin/commit/rollback;
-- minimal engine-specific helpers needed by executors.
+- transaction begin/commit/rollback.
 
 SQLite is the first implementation. PostgreSQL and test in-memory
 implementations should remain possible behind the same interface.
 
 ### IResExecutor
 
-`IResExecutor` is the common interface for one subsystem executor. It receives
-`IDataBase&` for every operation and owns all DDL, DML, migrations and mapping
-rules for its subsystem.
+`IResExecutor` is the common lifecycle interface for one subsystem executor.
+It receives `IDataBase&` for every operation and owns DDL, DML, migrations and
+mapping rules for its subsystem.
 
-Minimum interface:
+Minimum lifecycle:
 
 - `Subsystem()`;
 - `Initialize(IDataBase&)`;
 - `Verify(IDataBase&)`;
 - `ApplyMigrations(IDataBase&)`;
 - `ClearData(IDataBase&)`;
-- `DropStructures(IDataBase&)`;
-- `Create`;
-- `Read`;
-- `Update`;
-- `Delete`;
-- `HandleMessage(IDataBase&, const UniterMessage&)`.
+- `DropStructures(IDataBase&)`.
 
-Executor methods return `ExecutorResult`: status, error code, message and
-optional resource/list payload.
+Concrete executors expose CRUD methods while mappings are still subsystem
+specific. A later interface pass may add common `Create/Read/Update/Delete` or
+`HandleMessage` virtual methods once all resource contracts stabilize.
 
-## 3. DDL and DML Separation
+## 3. SQL and CodeGen Organization
 
-DDL and DML must be stored and maintained separately.
-
-| Category | Purpose | Owner |
-|---|---|---|
-| DDL | `CREATE TABLE`, `CREATE INDEX`, `ALTER TABLE`, migrations | subsystem executor |
-| DML | `INSERT`, `SELECT`, `UPDATE`, soft delete, joins | subsystem executor |
-
-This keeps subsystem schema, queries and C++ mapping close to each other.
-
-Recommended layout:
+Current layout:
 
 ```text
 src/uniter/database/
   common/
-  sqlite/
-  executors/
-    manager/
-      ddl/
-      dml/
-    materials/
-      ddl/
-      dml/
-    design/
-      ddl/
-      dml/
+    commondomains.h
+    commonexecutor.h
+    raw_sql_common/
+    gen_sql_common/
+  manager/
+    managerdomains.h
+    managerexecutor.h/.cpp
+    raw_sql_manager/
+    gen_sql_manager/
+  {subsystem}/
+    {subsystem}domains.h
+    {subsystem}executor.h/.cpp
+    raw_sql_{subsystem}/
+    gen_sql_{subsystem}/
 ```
+
+Rules:
+
+- `raw_sql_*` is the readable SQL source maintained in the DataGrip side
+  project.
+- `gen_sql_*` is CodeGen output only and contains generated
+  `static constexpr const char*` SQL literals.
+- Enum-backed table domains are not stored in raw/gen SQL folders.
+- Table domains are generated from contract/project
+  `std::array<std::pair<int, std::string>, N>` values in root-level
+  `{subsystem}domains.h` files.
+
+Every subsystem should provide these raw SQL files:
+
+- `tables.sql`;
+- `create.sql`;
+- `read.sql`;
+- `update.sql`;
+- `delete.sql`;
+- `clear.sql`;
+- `drop.sql`;
+- `verify.sql`;
+- `migrations.sql` only if that subsystem owns temporary local migration logic.
 
 ## 4. User Isolation
 
@@ -118,42 +136,47 @@ SQLite has no native schemas or users. The accepted client model is:
 
 - one physical local database file;
 - `IDataBase::SetUserContext(userHash)` sets active logical user;
-- executors make their tables user-scoped;
+- executors make resource data user-scoped;
 - all DML filters by active user context.
-
-Practical implementation options:
-
-1. Add `user_hash` or `local_user_id` to resource tables.
-2. Use connection-local views/triggers if needed.
-3. Keep filtering inside executor DML as the first implementation.
 
 Do not create per-user table names inside one SQLite file. SQLite table names
 share one namespace, so this is not a clean schema substitute.
 
 ## 5. DataManager Initialization Flow
 
+Implemented first-milestone flow:
+
 1. Create `SqliteDataBase`.
-2. Resolve the common local database path.
+2. Resolve the local database path from `TEMP_DIR` or application environment.
 3. Open the database.
 4. Call `SetUserContext(userHash)`.
-5. Create/register subsystem executors.
-6. Call `Initialize` for each executor.
-7. Call `Verify` for each executor.
-8. Enter `LOADED` state and notify AppManager.
+5. Initialize `CommonExecutor`.
+6. Initialize `ManagerExecutor`.
+7. Verify common and manager structures.
+8. Enter `LOADED` state and emit `signalResourcesLoaded`.
+
+Next extension:
+
+1. Replace concrete executor members with a registry.
+2. Register all subsystem executors in dependency order.
+3. Initialize and verify every registered executor.
 
 ## 6. Data Clearing Flow
 
-Used before `FULL_SYNC`. Session teardown is a separate DataManager reset flow.
+Implemented first-milestone flow:
 
-1. Open transaction.
-2. Call `ClearData` for each executor.
-3. Preserve service structures and migration tables if policy requires it.
-4. Commit transaction.
-5. Emit `signalResourcesCleared`.
+1. Enter `CLEARING` state.
+2. Call `ManagerExecutor::ClearData`.
+3. Return to `LOADED`.
+4. Emit `signalResourcesCleared`.
 
-On failure, rollback and report an error to AppManager.
+Next extension:
 
-## 7. CRUD Routing
+1. Call `ClearData` for every registered executor in reverse dependency order.
+2. Preserve domains, service structures and migration tables.
+3. Make the full clear operation transactional once all executors participate.
+
+## 7. CRUD Routing and Observers
 
 Incoming network messages:
 
@@ -161,13 +184,11 @@ Incoming network messages:
 UniterMessage
  -> DataManager
  -> choose executor by Subsystem / GenSubsystem / ResourceType
- -> executor.HandleMessage(...)
  -> executor performs DML
  -> DataManager notifies subscribers
 ```
 
-UI READ requests should not require a full `UniterMessage`. Use shared
-contract keys:
+UI READ requests use shared contract keys:
 
 ```cpp
 struct SubsystemKey {
@@ -183,84 +204,71 @@ struct ResourceKey {
 };
 ```
 
-Supported subscriptions:
+Implemented observer decisions:
 
-- list by subsystem/resource type;
-- specific resource by id.
-
-Observer implementation decisions:
-
-- `IDataObserver` is removed. Subscribers/widgets do not inherit a DataManager
-  observer class.
-- Subscribers own `DataAdapter` members and connect each adapter's
-  `signalDataUpdated` to the subscriber slot that handles that resource class.
-- `SingleResourceAdapter` stores one resource and subscribes with
-  subsystem/generative context/resource type/resource id.
-- `VectorResourceAdapter` stores a vector of resources and subscribes with
-  subsystem/generative context/resource type.
-- Adapter construction/subscription may synchronously fill stored data, but
-  initial fill must not emit update signals.
-- DataManager keeps guarded non-owning adapter references indexed as
-  `std::multimap`s: `ResourceKey` for single adapters and `SubsystemKey` for
-  vector adapters.
-- ConfigManager `signalSubsystemAdded` tells DataManager which subsystem and
-  generative contexts exist for the current user; DataManager creates/removes
-  those subscription contexts.
-- After successful executor CUD, DataManager notifies matching single-resource
-  adapters first, then matching vector adapters.
-- For delete, adapters receive `updateData(nullptr, CrudAction::DELETE, ...)`;
-  single-resource adapters clear their resource, while vector adapters remove
-  only the matching element.
-- For create/update, vector adapters update one element by id rather than
-  replacing the whole vector.
-- This step does not change executor read/list APIs. After successful CUD,
-  DataManager updates adapters from the already processed `UniterMessage`
-  resource payload; vector list initialization remains adapter/user-flow
-  responsibility until executor list reads are stabilized.
+- Subscribers own `DataAdapter` members.
+- `SingleResourceAdapter` stores one resource.
+- `VectorResourceAdapter` stores a vector of resources.
+- Initial adapter fill does not emit update signals.
+- DataManager keeps guarded non-owning adapter references indexed by
+  `ResourceKey` and `SubsystemKey`.
+- After successful CUD, DataManager notifies matching single adapters, then
+  matching vector adapters.
+- For delete, adapters receive `updateData(nullptr, CrudAction::DELETE, ...)`.
+- For create/update, vector adapters update one element by id.
 
 Hierarchical/tree subscription remains postponed until the design tree model is
 stable.
 
-## 8. First Executor: ManagerExecutor
+## 8. ManagerExecutor
 
-`ManagerExecutor` is the first worker executor because the manager subsystem is
+`ManagerExecutor` is the first real worker executor because manager data is
 required for authentication, permissions, plants and integrations.
 
-Initial scope:
+Current implemented scope:
 
 - `Employee`;
 - `Plant`;
-- `Integration`;
 - employee assignments;
 - permissions;
 - employee-assignment links.
 
+Pending manager scope:
+
+- `Integration` runtime class and CRUD routing;
+- user-context filtering in DML;
+- replacement of embedded SQL constants with generated SQL headers after
+  CodeGen is ready.
+
 Tables:
 
-- `manager_employee`;
-- `manager_employee_assignment`;
-- `manager_permissions`;
-- `manager_employee_assignment_link`;
-- `manager_plant`;
-- `manager_integration`.
+- `manager_employees`;
+- `manager_assignments`;
+- `manager_assigments_permissions`;
+- `manager_employee_assignments`;
+- `manager_plants`;
+- `manager_integrations`.
 
-Implementation order:
+Implementation status:
 
-1. Wire existing DDL initialization into `Initialize`.
-2. Implement `Verify`.
-3. Implement `ClearData`.
-4. Route `Employee` CRUD.
-5. Route `Plant` CRUD.
-6. Add assignments/permissions/link CRUD.
-7. Add focused tests.
+1. [x] Wire DDL/domain initialization into `Initialize`.
+2. [x] Implement `Verify`.
+3. [x] Implement `ClearData`.
+4. [x] Route `Employee` CRUD.
+5. [x] Route `Plant` CRUD.
+6. [x] Add assignments/permissions/link CRUD for employees.
+7. [x] Add DataManager lifecycle test for manager CRUD/init/clear.
+8. [ ] Add focused direct `ManagerExecutor` tests.
+9. [ ] Add `Integration` resource class and CRUD.
+10. [ ] Switch embedded SQL constants to generated SQL headers.
 
 ## 9. Subsystem Executor Order
 
 Recommended order after `ManagerExecutor`:
 
 1. `DocumentsExecutor`
-2. `MaterialsExecutor`
-3. `InstancesExecutor`
+2. `MaterialExecutor`
+3. `InstanceExecutor`
 4. `DesignExecutor`
 5. `PdmExecutor`
 6. `SupplyExecutor`
@@ -274,9 +282,76 @@ Reasoning:
 - DESIGN must exist before PDM.
 - PDM must exist before production tasks can reliably reference snapshots.
 
-## 10. Migrations
+## 10. Raw SQL Preparation
 
-Migrations are not a local subsystem-owned `migrations.sql` file.
+This is the current main work item.
+
+For each subsystem:
+
+1. Fill `tables.sql` with normalized table DDL.
+2. Fill `create.sql`, `read.sql`, `update.sql`, `delete.sql` with CRUD
+   instructions for each resource table or collapsed runtime resource.
+3. Fill `clear.sql` with data cleanup in FK-safe order.
+4. Fill `drop.sql` with structure drop in FK-safe order.
+5. Fill `verify.sql` with minimal schema checks.
+6. Add CodeGen comments only to SQL instructions that should be emitted.
+7. Keep table-domain DDL and inserts in `{subsystem}domains.h`, not raw SQL.
+8. Keep DataGrip-friendly formatting and avoid C++ string escaping in raw SQL.
+
+## 11. CodeGen
+
+CodeGen has two responsibilities: enum table-domain preparation and SQL literal
+generation.
+
+Enum/table-domain generation:
+
+- An enum class marked with `// CodeGen need` is transformed into
+  `std::array<std::pair<int, std::string>, N>`.
+- After first generation the marker becomes
+  `// CodeGen version: 1. Need update (yes/no): no`.
+- Regeneration is requested by changing `Need update` to `yes`; CodeGen then
+  regenerates the array and increments the version.
+- The generated array is preceded by
+  `// CodeGen from {EnumName} version {version}.`
+- Array naming follows `{EnumName}Pairs`.
+
+Generated array shape:
+
+```cpp
+inline std::array<std::pair<int, std::string>, N> EnumNamePairs = {{
+    {static_cast<int>(EnumName::FIRST), "FIRST"},
+    {static_cast<int>(EnumName::SECOND), "SECOND"},
+}};
+```
+
+SQL generation:
+
+- DataGrip-managed raw SQL lives under `raw_sql_{subsystem}`.
+- Each emitted instruction is preceded by
+  `-- CodeGen need for {name}.`
+- Lines that need concrete SQL fragments replaced for C++ templates use a
+  trailing comment: `-- replaceable: value1, value2`.
+- Replaceable fragments become `%VAL%` in generated literals.
+- CodeGen emits:
+
+```cpp
+static constexpr const char* name = R"SQL(
+...
+)SQL";
+```
+
+- After first generation the raw marker becomes
+  `-- CodeGen: {name} version 1. Need update (yes/no): no`.
+- CodeGen receives an input raw SQL directory and an output generated SQL
+  directory. It mirrors file names and directory structure.
+
+CodeGen implementation should start after subsystem raw SQL names and comments
+are stable.
+
+## 12. Migrations
+
+Migrations are not local ad-hoc subsystem `migrations.sql` files in the final
+model.
 
 Target model:
 
@@ -305,64 +380,52 @@ Migration requirements:
 - checksum-verified;
 - applied before regular CRUD for the required schema version.
 
-## 11. CodeGen
+## 13. Work Order
 
-CodeGen should start only after `IDataBase`, executor interfaces and SQL markup
-rules are stable.
-
-	Обработка enum-классов
-		- Под enum class, который предваряется комментарием "// CodeGen need" создавать std::array<std::pair<int, std::string>>, (начинается через строку после последней строки enum class)
-		- Если генерация производится в первый раз, то комментарий // CodeGen need"  заменяется на "*// CodeGen version: 1. Need update (yes/no): no"
-		- Для повторной генерации нужно "no" заменить на "yes"
-		- А сгенерированный std::array должен предварять комментарий "// CodeGen from %enum_name% version 1."
-		- Если CodeGen находит enum с "Need update (yes/no): yes", то перегенерирует enum, инкрементируя версию.
-		- Запускается с указанием директории, и обрабатывает все файлы с расширением .h .hpp с рекурсивным поиском
-		- Имя std::array формируется как название enum class только с добавлением Pair как суффикс, а формирование структуры
-			*constexpr std::array<std::pair<int, std::string>, {кол-во вариантов}> {EnumName}Pair = {{*
-				*{{static_cast\<int>(EnumName::first_name), "{first_name}"}},*
-				*{{static_cast\<int>(EnumName::second_name), "{second_name}"}},*
-				*// ...*
-			*}};*
-	
-      Обработка sql инструкций
-		- Каждая обрабатываемая инструкция внутри .sql файла должна быть предварена комментарием "--CodeGen need for {name}."
-		- В инструкции, если в какой то строке нужно убрать какое-то конкретное значение (например value или условие выборки), то в этой строке нужно написать в конце комментарий --replacable: ... и список того, что нужно заменять через запятую
-		- Если CodeGen видит такую инструкцию, отмеченную с помощью "--CodeGen need for {name}.", то он создает переменную static constexpr const char* {name}, при этом заменяя конкретные replacable на строку "%VAL%
-		- После первой генерации CodeGen заменяет м"--CodeGen need for {name}." на "--CodeGen: {name} version 1. Need update (yes/no): no
-		- CodeGen получает в аргументах командной строки две директории, первая из которой он берет файлы, а вторая где создает файлы .h с переменными. При этом он зеркалит название файлов и структуру каталогов при создании файлов.
-
-## 12. Work Order
-
-Completed or already established:
+Completed:
 
 1. [x] Validate and decompose directory structure.
 2. [x] Define minimal `IDataBase`.
 3. [x] Add `SqliteDataBase` with open/transaction/user-context boundary.
 4. [x] Clarify executor lifecycle interface.
-5. [x] Move SQL DDL/DML to separated `.sql` files within subsystems.
-6. [x] Implement DataManager initialization, cleanup and executor routing level.
+5. [x] Move raw SQL files into `raw_sql_*` directories.
+6. [x] Move table-domain builders into root-level `*domains.h` files.
+7. [x] Add root-level `*domains.h` placeholders for every subsystem.
+8. [x] Add empty executor classes for every subsystem.
+9. [x] Implement DataManager initialization, cleanup and manager routing.
+10. [x] Realize DataManager API observers with notifications.
+11. [x] Add DataManager observer tests.
+12. [x] Stabilize manager Employee/Plant CRUD enough for lifecycle testing.
+13. [x] Add DataManager lifecycle test for DB init, manager CRUD and clear.
 
 Next:
 
-7. [x] Realize DataManager API observers with notifications, stable DataManager.
-8. [x] Add DataManager observer mechanism tests before stabilizing `ManagerExecutor`.
-9. [ ] Stabilize `ManagerExecutor` as the first real executor.
-10. [ ] Add schema migration resource model in a service/system subsystem.
-11. [ ] Add basic tests for manager subsystem CRUD and DataManager routing.
-12. [ ] Implement actual user filtering in executor DDL/DML.
-13. [ ] Implement CodeGen for enums and SQL catalogs.
-14. [ ] Realize other Executors
+14. [ ] Prepare raw SQL instructions for every subsystem.
+15. [ ] Realize "light weighted" vector subsrcription without internal classes linkage due to it can used (current approach causes all DB data injects through vector subscription)
+15. [ ] Add CodeGen comments to all emitted SQL instructions.
+16. [ ] Implement CodeGen for SQL catalogs.
+17. [ ] Implement CodeGen for enum arrays where still missing.
+18. [ ] Replace embedded manager SQL constants with generated SQL headers.
+19. [ ] Fill subsystem executors from generated SQL and resource mapping.
+20. [ ] Add direct executor tests per subsystem.
+21. [ ] Add schema migration resource model in a service/system subsystem.
+22. [ ] Implement actual user filtering in executor DDL/DML.
 
-## 13. Test Plan
+## 14. Test Plan
 
-Minimum test coverage for the first data milestone:
+Covered by current tests:
 
-- SQLite database opens and closes;
-- transactions commit and rollback;
-- user context is set and visible to executor queries;
-- manager DDL initializes all expected tables;
-- `Employee` create/read/update/delete;
-- `Plant` create/read/update/delete;
-- `DataManager` routes manager CRUD to `ManagerExecutor`;
-- `ClearData` removes user resource data and preserves required service tables;
-- subscriber notification fires after successful mutation.
+- [x] DataManager opens SQLite in a moved/mocked temp location.
+- [x] Common domains initialize before manager tables.
+- [x] Manager DDL initializes required tables.
+- [x] DataManager routes manager `Employee` create/read/update/delete.
+- [x] `ClearData` removes manager resource data.
+- [x] Subscriber notification fires after successful mutation.
+
+Remaining tests:
+
+- [ ] Direct SQLite open/close tests.
+- [ ] Direct transaction commit/rollback tests.
+- [ ] Direct user-context visibility tests.
+- [ ] Direct `ManagerExecutor` tests for `Employee` and `Plant`.
+- [ ] Subsystem executor tests as each raw SQL set is completed.
