@@ -19,7 +19,7 @@ namespace uniter::net {
  *
  * In the stub version of KafkaConnector:
  * — onInitConnection(hash): gives an arbitrary offset via event-loop.
- * - onSubscribeKafka(): no-op + signalKafkaSubscribed(true) via event-loop.
+ * - onSubscribeKafka(offset): no-op + signalKafkaSubscribed(true) via event-loop.
  * - onShutdown(): resets the state.
  * - onServerNotification(msg): input from ServerConnector (TEMP connect) -
  * accepts CUD messages as an imitation of a Kafka broadcast queue,
@@ -45,6 +45,7 @@ private:
     bool m_initialized = false;
     bool m_subscribed  = false;
     QByteArray m_userhash;
+    QString m_startOffset;
 
 public:
     static KafkaConnector* instance();
@@ -56,7 +57,10 @@ public slots:
     void onInitConnection(QByteArray userhash);
 
     // From AppManager (login to READY): subscribe to the Kafka broadcast topic.
-    void onSubscribeKafka();
+    void onSubscribeKafka(QString offset);
+
+    // From AppManager (DBCLEAR): forget saved offset for this user before full sync.
+    void onForgetOffset(QByteArray userhash);
 
     // From AppManager: general shutdown/logout - reset state.
     void onShutdown();

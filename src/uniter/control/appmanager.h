@@ -42,7 +42,7 @@ namespace uniter::control {
      * (with offset in add_data) to the network
      * DBCLEAR - signalClearDatabase() in DataManager
      * SYNC - UniterMessage FULL_SYNC REQUEST to the network
-     *   READY             — signalSubscribeKafka (KafkaConnector)
+     *   READY             — signalSubscribeKafka(offset) (KafkaConnector)
      * SHUTDOWN - saving settings and message buffers
      *
      * Network states (have an offline mirror, entry is repeated when
@@ -114,6 +114,7 @@ namespace uniter::control {
         std::shared_ptr<contract::UniterMessage> m_authMessage;
         std::shared_ptr<contract::manager::Employee> m_user;
         QString m_lastKafkaOffset;     // last offset from KafkaConnector
+        bool m_databaseLoaded = false;
 
         // Main point of event processing
         void ProcessEvent(Events event);
@@ -170,6 +171,7 @@ namespace uniter::control {
             m_authMessage.reset();
             m_user.reset();
             m_lastKafkaOffset.clear();
+            m_databaseLoaded = false;
         }
 
     public:
@@ -181,7 +183,7 @@ namespace uniter::control {
         void onConnectionUpdated(bool state);
 
         // From managers / transitions between states
-        void onResourcesLoaded();                   // DBLOADING → CONFIGURATING
+        void onResourcesLoaded(bool loaded);        // DBLOADING → CONFIGURATING
         void onConfigured();                        // CONFIGURATING → KCONNECTOR
         void onDatabaseCleared();                   // DBCLEAR → SYNC
         void onLogout();                            // READY → IDLE_AUTHENIFICATION
@@ -205,7 +207,8 @@ namespace uniter::control {
 
         // === KafkaConnector ===
         void signalInitKafkaConnector(QByteArray userhash); // KCONNECTOR: init per user
-        void signalSubscribeKafka();                        // READY: broadcast subscription
+        void signalSubscribeKafka(QString offset);          // READY: broadcast subscription
+        void signalForgetKafkaOffset(QByteArray userhash);  // DBCLEAR: drop stored offset
 
         // === UI ===
         void signalConnectionUpdated(bool state);    // online/offline indication

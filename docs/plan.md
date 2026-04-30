@@ -153,7 +153,19 @@ Implemented first-milestone flow:
 5. Initialize `CommonExecutor`.
 6. Initialize `ManagerExecutor`.
 7. Verify common and manager structures.
-8. Enter `LOADED` state and emit `signalResourcesLoaded`.
+8. Enter `LOADED` state and emit `signalResourcesLoaded(true)`.
+
+Verification means schema validation only. `Verify(IDataBase&)` must check that
+all tables required by the executor exist and expose the expected structure.
+It must not select resource rows or require tables to contain data. Empty tables
+created from correct DDL are valid. `verify.sql` files should contain metadata
+queries (`pragma_table_info`, `sqlite_master`, or equivalent), and executor
+code should fail with `SchemaInvalid` only when schema is missing or malformed.
+
+If verification fails during `DBState::LOADING`, `DataManager` enters `ERROR`
+and emits `signalResourcesLoaded(false)`. `AppManager` records that local DB
+load failed, lets configuration finish, skips `KCONNECTOR`, and enters
+`DBCLEAR` to recreate the DB from zero before `FULL_SYNC`.
 
 Next extension:
 
@@ -166,9 +178,15 @@ Next extension:
 Implemented first-milestone flow:
 
 1. Enter `CLEARING` state.
-2. Call `ManagerExecutor::ClearData`.
-3. Return to `LOADED`.
-4. Emit `signalResourcesCleared`.
+2. Close and remove the current local DB file if present.
+3. Recreate the DB, initialize common and manager structures, and verify schema.
+4. Return to `LOADED`.
+5. Emit `signalResourcesCleared`.
+
+`DBCLEAR` also asks `KafkaConnector` to forget the saved offset for this user.
+After `SYNC`, `AppManager` enters `READY` and calls
+`signalSubscribeKafka(offset)` with the server-provided actual offset from
+`UniterMessage::add_data["offset"]`.
 
 Next extension:
 

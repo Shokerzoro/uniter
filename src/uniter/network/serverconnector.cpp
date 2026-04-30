@@ -167,6 +167,7 @@ makeFullSyncDoneResponse(const std::shared_ptr<uniter::contract::UniterMessage>&
     response->subsystem = Subsystem::PROTOCOL;
     response->error     = ErrorCode::SUCCESS;
     response->add_data.clear();
+    response->add_data.emplace("offset", "full-sync-offset");
 
     qDebug() << "ServerConnector: FULL_SYNC done (stub, no CRUD stream)";
     return response;

@@ -61,6 +61,7 @@ namespace uniter::control {
     void AppManager::enterDbLoading()
     {
         qDebug() << "AppManager: enter DBLOADING — initializing database";
+        m_databaseLoaded = false;
         emit signalAuthed(true);
         if (m_user) {
             emit signalLoadResources(makeUserHash());
@@ -103,7 +104,9 @@ namespace uniter::control {
     void AppManager::enterDbClear()
     {
         qDebug() << "AppManager: enter DBCLEAR — clearing database";
-        // Local operation: ask the DataManager to clear all database tables.
+        m_lastKafkaOffset.clear();
+        emit signalForgetKafkaOffset(makeUserHash());
+        // Local operation: ask the DataManager to recreate local database.
         // DataManager will respond with signalResourcesCleared -> onDatabaseCleared.
         emit signalClearDatabase();
     }
@@ -124,7 +127,7 @@ namespace uniter::control {
     void AppManager::enterReady()
     {
         qDebug() << "AppManager: enter READY — subscribing to Kafka broadcast";
-        emit signalSubscribeKafka();
+        emit signalSubscribeKafka(m_lastKafkaOffset);
     }
 
     void AppManager::enterShutdown()
@@ -219,6 +222,22 @@ namespace uniter::control {
             return;
         }
 
+        if (event == Events::LOGOUT && m_appState != AppState::IDLE &&
+            m_appState != AppState::STARTED &&
+            m_appState != AppState::AUTHENIFICATION &&
+            m_appState != AppState::SHUTDOWN)
+        {
+            m_user.reset();
+            m_authMessage.reset();
+            m_lastKafkaOffset.clear();
+            m_databaseLoaded = false;
+            emit signalClearResources();
+            emit signalLoggedOut();
+            m_appState = AppState::IDLE_AUTHENIFICATION;
+            enterIdleAuthenification();
+            return;
+        }
+
         // ---------- Network event processing (online/offline) ----------
         // Principle: NetState is orthogonal to AppState. Loss/return of network not
         // changes AppState (except STARTED → AUTHENIFICATION on the first connection).
@@ -295,8 +314,13 @@ namespace uniter::control {
 
             case AppState::CONFIGURATING:
                 if (event == Events::CONFIG_DONE) {
-                    m_appState = AppState::KCONNECTOR;
-                    enterKafkaConnector();
+                    if (m_databaseLoaded) {
+                        m_appState = AppState::KCONNECTOR;
+                        enterKafkaConnector();
+                    } else {
+                        m_appState = AppState::DBCLEAR;
+                        enterDbClear();
+                    }
                 }
                 break;
 
@@ -344,15 +368,6 @@ namespace uniter::control {
                 break;
 
             case AppState::READY:
-                if (event == Events::LOGOUT) {
-                    m_user.reset();
-                    m_authMessage.reset();
-                    m_lastKafkaOffset.clear();
-                    emit signalClearResources();
-                    emit signalLoggedOut();
-                    m_appState = AppState::IDLE_AUTHENIFICATION;
-                    enterIdleAuthenification();
-                }
                 break;
 
             case AppState::SHUTDOWN:
@@ -369,9 +384,10 @@ namespace uniter::control {
         ProcessEvent(state ? Events::NET_CONNECTED : Events::NET_DISCONNECTED);
     }
 
-    void AppManager::onResourcesLoaded()
+    void AppManager::onResourcesLoaded(bool loaded)
     {
-        qDebug() << "AppManager::onResourcesLoaded()";
+        qDebug() << "AppManager::onResourcesLoaded(" << loaded << ")";
+        m_databaseLoaded = loaded;
         ProcessEvent(Events::DB_LOADED);
     }
 
@@ -384,6 +400,7 @@ namespace uniter::control {
     void AppManager::onDatabaseCleared()
     {
         qDebug() << "AppManager::onDatabaseCleared()";
+        m_databaseLoaded = true;
         ProcessEvent(Events::DB_CLEARED);
     }
 
@@ -483,6 +500,10 @@ namespace uniter::control {
         {
             auto it = message->add_data.find("offset_actual");
             bool actual = (it != message->add_data.end() && it->second == "true");
+            auto offsetIt = message->add_data.find("offset");
+            if (offsetIt != message->add_data.end()) {
+                m_lastKafkaOffset = QString::fromStdString(offsetIt->second);
+            }
             ProcessEvent(actual ? Events::OFFSET_ACTUAL : Events::OFFSET_STALE);
             return;
         }
@@ -493,6 +514,10 @@ namespace uniter::control {
             message->status  == contract::MessageStatus::SUCCESS &&
             m_appState      == AppState::SYNC)
         {
+            auto offsetIt = message->add_data.find("offset");
+            if (offsetIt != message->add_data.end()) {
+                m_lastKafkaOffset = QString::fromStdString(offsetIt->second);
+            }
             ProcessEvent(Events::SYNC_DONE);
             return;
         }

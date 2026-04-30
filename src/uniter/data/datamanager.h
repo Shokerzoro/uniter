@@ -43,6 +43,9 @@ private:
     QByteArray userHash_;
     QString databasePath_;
     QString resolveDatabasePath(const QByteArray& userhash) const;
+    bool openAndInitializeDatabase();
+    bool dropAndReinitializeDatabase();
+    void failLoading();
 
     std::multimap<contract::ResourceKey, QPointer<DataAdapter>> resourceSubscribers_;
     std::multimap<contract::SubsystemKey, QPointer<DataAdapter>> resourceListSubscribers_;
@@ -87,7 +90,7 @@ public slots:
 
 signals:
     // Signals to AppManager
-    void signalResourcesLoaded();
+    void signalResourcesLoaded(bool loaded);
     void signalResourcesCleared();
 };
 

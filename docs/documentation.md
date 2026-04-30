@@ -172,6 +172,22 @@ If the Kafka offset is stale:
 KAFKA -> DBCLEAR -> SYNC -> READY
 ```
 
+If `DataManager` reports `signalResourcesLoaded(false)` from `DBLOADING`,
+`AppManager` remembers that the local database is not usable, still runs
+`CONFIGURATING`, then skips `KCONNECTOR` and enters `DBCLEAR` directly:
+
+```text
+DBLOADING(false) -> CONFIGURATING -> DBCLEAR -> SYNC -> READY
+```
+
+`DBCLEAR` is a full local reset point. Its entry action must ask
+`KafkaConnector` to forget the saved offset for the current user, then ask
+`DataManager` to recreate local database state before `FULL_SYNC`.
+
+`READY` subscription to Kafka is started with an explicit offset:
+`signalSubscribeKafka(offset)`. The offset comes from the server protocol
+response (`add_data["offset"]`) so the consumer knows where to start.
+
 Online/offline state is orthogonal to `AppState`. Network states repeat their
 entry action after reconnect (if they exist); local states do not.
 
@@ -270,6 +286,18 @@ Minimum lifecycle:
 
 `ManagerExecutor` is the first target worker executor.
 
+Verification contract:
+
+- `Verify(IDataBase&)` checks schema only, not business data availability.
+- Empty valid tables must pass verification.
+- A verification failure means required tables are missing or their required
+  columns/structure do not match the executor contract.
+- `raw_sql_{subsystem}/verify.sql` must contain schema-inspection queries
+  (`pragma_table_info`, `sqlite_master`, or equivalent engine metadata), not
+  `SELECT ... FROM business_table LIMIT 1` row-presence probes.
+- Executor `Verify` methods interpret those checks and return
+  `SchemaInvalid` when the schema cannot safely accept sync/CRUD data.
+
 ### SQL Authoring and CodeGen
 
 Database SQL is authored as raw `.sql` files under each subsystem directory:
@@ -355,11 +383,11 @@ Important keys:
 | Action | Keys |
 |---|---|
 | `AUTH` | `login`, `password_hash` |
-| `GET_KAFKA_CREDENTIALS` | `bootstrap_servers`, `topic`, `username`, `password`, `group_id`, `offset_actual` |
+| `GET_KAFKA_CREDENTIALS` | `bootstrap_servers`, `topic`, `username`, `password`, `group_id`, `offset`, `offset_actual` |
 | `GET_MINIO_PRESIGNED_URL` | `object_key`, `minio_operation`, `presigned_url`, `url_expires_at` |
 | `GET_MINIO_FILE` | `presigned_url`, `object_key`, `expected_sha256`, `local_path`, `reason` |
 | `PUT_MINIO_FILE` | `presigned_url`, `object_key`, `local_path`, `sha256`, `reason` |
-| `FULL_SYNC` | no required keys |
+| `FULL_SYNC` | response may include `offset`, the actual Kafka offset for post-sync subscription |
 | `UPDATE_CHECK` | `current_version`, `update_available`, `new_version`, `release_notes` |
 | `UPDATE_DOWNLOAD` | `version`, `file_path`, `presigned_url`, `file_size`, `sha256`, `file_index`, `files_total` |
 

@@ -4,6 +4,7 @@
 #include <QDebug>
 #include <QRandomGenerator>
 #include <QTimer>
+#include <utility>
 
 namespace uniter::net {
 
@@ -42,14 +43,24 @@ void KafkaConnector::onInitConnection(QByteArray userhash)
     });
 }
 
-void KafkaConnector::onSubscribeKafka()
+void KafkaConnector::onSubscribeKafka(QString offset)
 {
-    qDebug() << "KafkaConnector::onSubscribeKafka() — stub subscribe";
+    qDebug() << "KafkaConnector::onSubscribeKafka() — stub subscribe from offset=" << offset;
+    m_startOffset = std::move(offset);
     m_subscribed = true;
     // We confirm success immediately so that AppManager/UI can consider us signed up.
     QTimer::singleShot(0, this, [this]() {
         emit signalKafkaSubscribed(true);
     });
+}
+
+void KafkaConnector::onForgetOffset(QByteArray userhash)
+{
+    qDebug() << "KafkaConnector::onForgetOffset() — stub forget offset, userhash size="
+             << userhash.size();
+    m_userhash = std::move(userhash);
+    m_startOffset.clear();
+    m_subscribed = false;
 }
 
 void KafkaConnector::onShutdown()
@@ -58,6 +69,7 @@ void KafkaConnector::onShutdown()
     m_initialized = false;
     m_subscribed  = false;
     m_userhash.clear();
+    m_startOffset.clear();
 }
 
 void KafkaConnector::onServerNotification(std::shared_ptr<contract::UniterMessage> message)

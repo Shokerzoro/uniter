@@ -110,6 +110,9 @@ int main(int argc, char *argv[])
     QObject::connect(appManager, &control::AppManager::signalSubscribeKafka,
                      kafkaConnector, &net::KafkaConnector::onSubscribeKafka);
 
+    QObject::connect(appManager, &control::AppManager::signalForgetKafkaOffset,
+                     kafkaConnector, &net::KafkaConnector::onForgetOffset);
+
     // ==========================================================================
     // === 2.2 TEMPORARY CONNECTIONS OF NETWORK STUBS BETWEEN THEM ===
     // ==========================================================================

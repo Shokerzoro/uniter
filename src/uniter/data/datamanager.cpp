@@ -4,6 +4,7 @@
 #include "../database/transaction.h"
 #include <QDebug>
 #include <QDir>
+#include <QFile>
 #include <QRegularExpression>
 #include <utility>
 
@@ -48,11 +49,6 @@ bool DataManager::processEvent(DBEvent event)
         return true;
     }
 
-    if (event == DBEvent::FAIL) {
-        setState(DBState::ERROR);
-        return true;
-    }
-
     switch (state) {
     case DBState::IDLE:
         if (event == DBEvent::INIT_DATABASE) {
@@ -63,6 +59,10 @@ bool DataManager::processEvent(DBEvent event)
     case DBState::LOADING:
         if (event == DBEvent::RESOURCES_LOADED) {
             setState(DBState::LOADED);
+            return true;
+        }
+        if (event == DBEvent::FAIL) {
+            setState(DBState::ERROR);
             return true;
         }
         break;
@@ -79,8 +79,8 @@ bool DataManager::processEvent(DBEvent event)
         }
         break;
     case DBState::ERROR:
-        if (event == DBEvent::INIT_DATABASE) {
-            setState(DBState::LOADING);
+        if (event == DBEvent::CLEAR_RESOURCES) {
+            setState(DBState::CLEARING);
             return true;
         }
         break;
@@ -108,6 +108,92 @@ QString DataManager::resolveDatabasePath(const QByteArray& userhash) const
 
     dir.cd(QStringLiteral("database"));
     return dir.filePath(QStringLiteral("uniter_%1.sqlite").arg(safeUserHash(userhash)));
+}
+
+bool DataManager::openAndInitializeDatabase()
+{
+    db_ = std::make_unique<SqliteDataBase>();
+    db_->Open(databasePath_.toStdString());
+    db_->SetUserContext(userHash_.toStdString());
+
+    const auto commonInit = commonExecutor_.Initialize(*db_);
+    if (!commonInit.success) {
+        qWarning() << "DataManager::openAndInitializeDatabase(): common initialization failed:"
+                   << QString::fromStdString(commonInit.message);
+        return false;
+    }
+
+    const auto managerInit = managerExecutor_.Initialize(*db_);
+    if (!managerInit.success) {
+        qWarning() << "DataManager::openAndInitializeDatabase(): manager initialization failed:"
+                   << QString::fromStdString(managerInit.message);
+        return false;
+    }
+
+    const auto commonVerify = commonExecutor_.Verify(*db_);
+    const auto managerVerify = managerExecutor_.Verify(*db_);
+    if (!commonVerify.success || !managerVerify.success) {
+        qWarning() << "DataManager::openAndInitializeDatabase(): database verification failed:"
+                   << QString::fromStdString(commonVerify.message)
+                   << QString::fromStdString(managerVerify.message);
+        return false;
+    }
+
+    return true;
+}
+
+bool DataManager::dropAndReinitializeDatabase()
+{
+    if (!db_) {
+        db_ = std::make_unique<SqliteDataBase>();
+        db_->Open(databasePath_.toStdString());
+        db_->SetUserContext(userHash_.toStdString());
+    }
+
+    const auto managerDrop = managerExecutor_.DropStructures(*db_);
+    if (!managerDrop.success) {
+        qWarning() << "DataManager::dropAndReinitializeDatabase(): manager drop failed:"
+                   << QString::fromStdString(managerDrop.message);
+        return false;
+    }
+
+    const auto commonDrop = commonExecutor_.DropStructures(*db_);
+    if (!commonDrop.success) {
+        qWarning() << "DataManager::dropAndReinitializeDatabase(): common drop failed:"
+                   << QString::fromStdString(commonDrop.message);
+        return false;
+    }
+
+    const auto commonInit = commonExecutor_.Initialize(*db_);
+    if (!commonInit.success) {
+        qWarning() << "DataManager::dropAndReinitializeDatabase(): common init failed:"
+                   << QString::fromStdString(commonInit.message);
+        return false;
+    }
+
+    const auto managerInit = managerExecutor_.Initialize(*db_);
+    if (!managerInit.success) {
+        qWarning() << "DataManager::dropAndReinitializeDatabase(): manager init failed:"
+                   << QString::fromStdString(managerInit.message);
+        return false;
+    }
+
+    const auto commonVerify = commonExecutor_.Verify(*db_);
+    const auto managerVerify = managerExecutor_.Verify(*db_);
+    if (!commonVerify.success || !managerVerify.success) {
+        qWarning() << "DataManager::dropAndReinitializeDatabase(): verification failed:"
+                   << QString::fromStdString(commonVerify.message)
+                   << QString::fromStdString(managerVerify.message);
+        return false;
+    }
+
+    return true;
+}
+
+void DataManager::failLoading()
+{
+    processEvent(DBEvent::FAIL);
+    emit signalResourcesLoaded(false);
 }
 
 void DataManager::subscribeResource(DataAdapter* adapter)
@@ -191,51 +277,62 @@ void DataManager::onInitDatabase(QByteArray userhash)
 
     userHash_ = std::move(userhash);
     databasePath_ = resolveDatabasePath(userHash_);
-    db_ = std::make_unique<SqliteDataBase>();
-    db_->Open(databasePath_.toStdString());
-    db_->SetUserContext(userHash_.toStdString());
 
-    const auto commonInit = commonExecutor_.Initialize(*db_);
-    if (!commonInit.success) {
-        qWarning() << "DataManager::onInitDatabase(): common initialization failed:"
-                   << QString::fromStdString(commonInit.message);
-        processEvent(DBEvent::FAIL);
-        return;
-    }
-
-    const auto managerInit = managerExecutor_.Initialize(*db_);
-    if (!managerInit.success) {
-        qWarning() << "DataManager::onInitDatabase(): manager initialization failed:"
-                   << QString::fromStdString(managerInit.message);
-        processEvent(DBEvent::FAIL);
-        return;
-    }
-
-    const auto commonVerify = commonExecutor_.Verify(*db_);
-    const auto managerVerify = managerExecutor_.Verify(*db_);
-    if (!commonVerify.success || !managerVerify.success) {
-        qWarning() << "DataManager::onInitDatabase(): database verification failed:"
-                   << QString::fromStdString(commonVerify.message)
-                   << QString::fromStdString(managerVerify.message);
-        processEvent(DBEvent::FAIL);
+    if (!openAndInitializeDatabase()) {
+        failLoading();
         return;
     }
 
     processEvent(DBEvent::RESOURCES_LOADED);
-    emit signalResourcesLoaded();
+    emit signalResourcesLoaded(true);
 }
 
 void DataManager::onClearResources()
 {
-    if (!db_ || !processEvent(DBEvent::CLEAR_RESOURCES)) {
+    if (!processEvent(DBEvent::CLEAR_RESOURCES)) {
         return;
     }
 
-    const auto result = managerExecutor_.ClearData(*db_);
-    if (!result.success) {
-        qWarning() << "DataManager::onClearResources(): manager clear failed:"
-                   << QString::fromStdString(result.message);
-        processEvent(DBEvent::FAIL);
+    if (db_) {
+        db_->Close();
+        db_.reset();
+    }
+
+    if (!databasePath_.isEmpty()) {
+        bool removedAllFiles = true;
+        const QString files[] = {
+            databasePath_ + QStringLiteral("-wal"),
+            databasePath_ + QStringLiteral("-shm"),
+            databasePath_
+        };
+        for (const auto& file : files) {
+            if (QFile::exists(file) && !QFile::remove(file)) {
+                qWarning() << "DataManager::onClearResources(): failed to remove database file"
+                           << file;
+                removedAllFiles = false;
+                break;
+            }
+        }
+        if (!removedAllFiles) {
+            qWarning() << "DataManager::onClearResources(): falling back to dropping database structures";
+            if (!dropAndReinitializeDatabase()) {
+                setState(DBState::ERROR);
+                return;
+            }
+
+            processEvent(DBEvent::RESOURCES_CLEARED);
+            emit signalResourcesCleared();
+            return;
+        }
+    }
+
+    if (databasePath_.isEmpty()) {
+        databasePath_ = resolveDatabasePath(userHash_);
+    }
+
+    if (!openAndInitializeDatabase()) {
+        qWarning() << "DataManager::onClearResources(): failed to recreate database";
+        setState(DBState::ERROR);
         return;
     }
 
