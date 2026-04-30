@@ -3,16 +3,15 @@
 
 #include "dataadapter.h"
 #include "../contract/unitermessage.h"
-#include "../database/common/commonexecutor.h"
 #include "../database/idatabase.h"
 #include "../database/iresexecutor.h"
-#include "../database/manager/managerexecutor.h"
 #include <QObject>
 #include <QByteArray>
 #include <QPointer>
 #include <map>
 #include <memory>
 #include <optional>
+#include <vector>
 
 namespace uniter::data {
 
@@ -37,12 +36,16 @@ private:
     bool processEvent(DBEvent event);
 
     std::unique_ptr<database::IDataBase> db_;
-    database::CommonExecutor commonExecutor_;
-    database::ManagerExecutor managerExecutor_;
+    std::vector<std::unique_ptr<database::IResExecutor>> executors_;
 
     QByteArray userHash_;
     QString databasePath_;
     QString resolveDatabasePath(const QByteArray& userhash) const;
+    database::IResExecutor* findExecutor(contract::Subsystem subsystem);
+    const database::IResExecutor* findExecutor(contract::Subsystem subsystem) const;
+    bool initializeExecutors();
+    bool verifyExecutors();
+    bool dropExecutorStructures();
     bool openAndInitializeDatabase();
     bool dropAndReinitializeDatabase();
     void failLoading();

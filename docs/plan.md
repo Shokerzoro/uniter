@@ -9,11 +9,11 @@ executors, raw SQL authoring, CodeGen and migrations.
 Build the data layer in stages so each subsystem executor can be tested
 independently from UI and AppManager.
 
-The first milestone is complete: DataManager opens SQLite, initializes common
-and manager structures, routes manager CRUD, clears manager data, and has a
-real lifecycle test. The next milestone is preparing raw SQL instructions for
-every subsystem so CodeGen can generate `gen_sql_*` headers and the empty
-executors can be filled one by one.
+The first milestone is complete: DataManager opens SQLite, initializes the
+active executor registry, routes manager CRUD, can reset local database state,
+and has a real lifecycle test. The next milestone is preparing raw SQL
+instructions for every subsystem so CodeGen can generate `gen_sql_*` headers
+and the empty executors can be filled one by one.
 
 ## 2. Responsibility Boundaries
 
@@ -37,16 +37,18 @@ Current first-milestone fields:
 
 ```cpp
 std::unique_ptr<database::IDataBase> db_;
-database::CommonExecutor commonExecutor_;
-database::ManagerExecutor managerExecutor_;
+std::vector<std::unique_ptr<database::IResExecutor>> executors_;
 ```
 
-Later target:
+Current active registry:
 
 ```cpp
-std::unordered_map<contract::Subsystem,
-                   std::unique_ptr<database::IResExecutor>> executors_;
+CommonExecutor
+ManagerExecutor
 ```
+
+Other subsystem executor registrations remain commented in `DataManager`
+construction until their raw/generated SQL and lifecycle methods are complete.
 
 ### IDataBase
 
@@ -130,6 +132,24 @@ Every subsystem should provide these raw SQL files:
 - `verify.sql`;
 - `migrations.sql` only if that subsystem owns temporary local migration logic.
 
+Required content for each file:
+
+| File | Content |
+|---|---|
+| `tables.sql` | Subsystem table/view/trigger/index DDL. Initialization must be idempotent. Enum/domain tables generated from C++ arrays do not belong here. |
+| `create.sql` | Statements that create synced resources, including explicit-id inserts for full sync/server data and auto-id variants only when local drafts need them. |
+| `read.sql` | Exact-resource and list/context SELECTs that collapse normalized tables into runtime resources. |
+| `update.sql` | Statements for mutable fields and owned child-row replacement/update logic. |
+| `delete.sql` | Resource delete or soft-delete statements according to the table's sync semantics. |
+| `clear.sql` | Full-sync data cleanup in child-to-parent FK-safe order. Preserve domains, migrations and service structures. |
+| `drop.sql` | Full reset/test structure drops in dependency-safe order. Use `DROP ... IF EXISTS`. |
+| `verify.sql` | Schema metadata checks only: required tables, columns, indexes, triggers and views. Empty tables must pass. |
+| `migrations.sql` | Optional temporary local migration helpers until migrations are distributed as resources. |
+
+Raw SQL files are the DataGrip-readable source of truth. Only statements marked
+for CodeGen should be emitted to `gen_sql_*`; unmarked helper queries and notes
+may remain in raw files.
+
 ## 4. User Isolation
 
 SQLite has no native schemas or users. The accepted client model is:
@@ -150,9 +170,11 @@ Implemented first-milestone flow:
 2. Resolve the local database path from `TEMP_DIR` or application environment.
 3. Open the database.
 4. Call `SetUserContext(userHash)`.
-5. Initialize `CommonExecutor`.
-6. Initialize `ManagerExecutor`.
-7. Verify common and manager structures.
+5. Initialize registered executors in dependency order.
+6. Verify registered executors in dependency order.
+7. Keep only `CommonExecutor` and `ManagerExecutor` active until the remaining
+   executor SQL is filled; other executor registrations stay as commented
+   placeholders.
 8. Enter `LOADED` state and emit `signalResourcesLoaded(true)`.
 
 Verification means schema validation only. `Verify(IDataBase&)` must check that
@@ -169,9 +191,9 @@ load failed, lets configuration finish, skips `KCONNECTOR`, and enters
 
 Next extension:
 
-1. Replace concrete executor members with a registry.
-2. Register all subsystem executors in dependency order.
-3. Initialize and verify every registered executor.
+1. Uncomment subsystem executor registration as each executor receives complete
+   raw/generated SQL.
+2. Route all subsystem CRUD through registered executors.
 
 ## 6. Data Clearing Flow
 
@@ -306,12 +328,12 @@ This is the current main work item.
 
 For each subsystem:
 
-1. Fill `tables.sql` with normalized table DDL.
+1. Fill `tables.sql` with normalized table/view/trigger/index DDL.
 2. Fill `create.sql`, `read.sql`, `update.sql`, `delete.sql` with CRUD
    instructions for each resource table or collapsed runtime resource.
 3. Fill `clear.sql` with data cleanup in FK-safe order.
 4. Fill `drop.sql` with structure drop in FK-safe order.
-5. Fill `verify.sql` with minimal schema checks.
+5. Fill `verify.sql` with metadata-only schema checks.
 6. Add CodeGen comments only to SQL instructions that should be emitted.
 7. Keep table-domain DDL and inserts in `{subsystem}domains.h`, not raw SQL.
 8. Keep DataGrip-friendly formatting and avoid C++ string escaping in raw SQL.

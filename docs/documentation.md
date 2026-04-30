@@ -240,9 +240,16 @@ The target internal structure is:
 
 ```cpp
 std::unique_ptr<database::IDataBase> db_;
-std::unordered_map<contract::Subsystem,
-                   std::unique_ptr<database::IResExecutor>> executors_;
+std::vector<std::unique_ptr<database::IResExecutor>> executors_;
 ```
+
+`executors_` is ordered by schema dependency. `DataManager` must use it for
+template lifecycle actions:
+
+- initialize and verify in forward order;
+- clear/drop in reverse order where foreign keys require child tables first;
+- keep concrete CRUD entry points on concrete executors until
+  `IResExecutor::HandleMessage` is implemented for all subsystems.
 
 Subscriptions should be indexed by shared contract keys: `SubsystemKey` for
 subsystem/generative/resource-type lists and `ResourceKey` for an exact
@@ -318,6 +325,25 @@ src/uniter/database/{subsystem}/gen_sql_{subsystem}/
 The generated headers expose SQL as `static constexpr const char*` literals.
 CodeGen is controlled by comments in the raw SQL files, so a raw SQL file may
 contain helper queries or notes that are not emitted into C++.
+
+Each `raw_sql_{subsystem}` directory must contain these files with the following
+content:
+
+| File | Required content |
+|---|---|
+| `tables.sql` | DDL for subsystem-owned tables, indexes, triggers and views. Use `CREATE ... IF NOT EXISTS` where initialization is idempotent. Do not include enum/domain tables generated from C++ arrays. |
+| `create.sql` | Insert/upsert statements needed to create every synced resource. Include explicit-id variants for server/full-sync input and auto-id variants only where local drafts require them. |
+| `read.sql` | SELECT statements that reconstruct runtime resources from normalized tables. Include exact-resource reads and list/context reads used by observers/UI. |
+| `update.sql` | Update statements for mutable resource fields and replacement logic for owned child rows when a collapsed runtime resource changes. |
+| `delete.sql` | Delete or soft-delete statements for resources. Preserve the project decision for each table: hard delete for local reset helpers, soft delete for synced resources when required. |
+| `clear.sql` | Data cleanup for full-sync reload. Delete only resource/user data, in FK-safe child-to-parent order. Preserve domains, migrations and service schema unless the subsystem explicitly owns disposable service data. |
+| `drop.sql` | Structure drop for full local reset fallback and tests. Drop views/triggers/indexes/tables in dependency-safe order. `DROP ... IF EXISTS` is required. |
+| `verify.sql` | Schema metadata checks only: table existence, required columns, indexes/triggers/views where they are part of the contract. Empty valid tables must pass. Do not check business row presence. |
+| `migrations.sql` | Optional. Only for subsystem-local migration helpers that are not distributed as normal migration resources yet. |
+
+Raw SQL may include DataGrip comments and helper queries, but every query marked
+for CodeGen must be executable by the target `IDataBase` implementation without
+manual editing.
 
 Enum-backed table domains are not part of raw or generated SQL directories.
 They are generated directly from `std::array<std::pair<int, std::string>, N>`

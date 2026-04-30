@@ -2,10 +2,21 @@
 #include "sqlitedatabase.h"
 #include "../../common/appfuncs.h"
 #include "../database/transaction.h"
+#include "../database/common/commonexecutor.h"
+//#include "../database/design/designexecutor.h"
+//#include "../database/documents/documentsexecutor.h"
+//#include "../database/instance/instanceexecutor.h"
+//#include "../database/integration/integrationexecutor.h"
+#include "../database/manager/managerexecutor.h"
+//#include "../database/material/materialexecutor.h"
+//#include "../database/pdm/pdmexecutor.h"
+//#include "../database/production/productionexecutor.h"
+//#include "../database/supply/supplyexecutor.h"
 #include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QRegularExpression>
+#include <algorithm>
 #include <utility>
 
 namespace uniter::data {
@@ -35,6 +46,16 @@ DataManager::DataManager()
     : QObject(nullptr)
     , state(DBState::IDLE)
 {
+    executors_.emplace_back(std::make_unique<database::CommonExecutor>());
+    executors_.emplace_back(std::make_unique<database::ManagerExecutor>());
+    // executors_.emplace_back(std::make_unique<database::DocumentsExecutor>());
+    // executors_.emplace_back(std::make_unique<database::MaterialExecutor>());
+    // executors_.emplace_back(std::make_unique<database::InstanceExecutor>());
+    // executors_.emplace_back(std::make_unique<database::DesignExecutor>());
+    // executors_.emplace_back(std::make_unique<database::PdmExecutor>());
+    // executors_.emplace_back(std::make_unique<database::SupplyExecutor>());
+    // executors_.emplace_back(std::make_unique<database::ProductionExecutor>());
+    // executors_.emplace_back(std::make_unique<database::IntegrationExecutor>());
 }
 
 void DataManager::setState(DBState newState)
@@ -110,32 +131,78 @@ QString DataManager::resolveDatabasePath(const QByteArray& userhash) const
     return dir.filePath(QStringLiteral("uniter_%1.sqlite").arg(safeUserHash(userhash)));
 }
 
+database::IResExecutor* DataManager::findExecutor(contract::Subsystem subsystem)
+{
+    const auto it = std::find_if(executors_.begin(), executors_.end(),
+                                 [subsystem](const auto& executor) {
+                                     return executor && executor->Subsystem() == subsystem;
+                                 });
+    return it == executors_.end() ? nullptr : it->get();
+}
+
+const database::IResExecutor* DataManager::findExecutor(contract::Subsystem subsystem) const
+{
+    const auto it = std::find_if(executors_.begin(), executors_.end(),
+                                 [subsystem](const auto& executor) {
+                                     return executor && executor->Subsystem() == subsystem;
+                                 });
+    return it == executors_.end() ? nullptr : it->get();
+}
+
+bool DataManager::initializeExecutors()
+{
+    for (const auto& executor : executors_) {
+        const auto result = executor->Initialize(*db_);
+        if (!result.success) {
+            qWarning() << "DataManager::initializeExecutors(): executor failed:"
+                       << static_cast<int>(executor->Subsystem())
+                       << QString::fromStdString(result.message);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool DataManager::verifyExecutors()
+{
+    for (const auto& executor : executors_) {
+        const auto result = executor->Verify(*db_);
+        if (!result.success) {
+            qWarning() << "DataManager::verifyExecutors(): executor failed:"
+                       << static_cast<int>(executor->Subsystem())
+                       << QString::fromStdString(result.message);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool DataManager::dropExecutorStructures()
+{
+    for (auto it = executors_.rbegin(); it != executors_.rend(); ++it) {
+        const auto& executor = *it;
+        const auto result = executor->DropStructures(*db_);
+        if (!result.success) {
+            qWarning() << "DataManager::dropExecutorStructures(): executor failed:"
+                       << static_cast<int>(executor->Subsystem())
+                       << QString::fromStdString(result.message);
+            return false;
+        }
+    }
+    return true;
+}
+
 bool DataManager::openAndInitializeDatabase()
 {
     db_ = std::make_unique<SqliteDataBase>();
     db_->Open(databasePath_.toStdString());
     db_->SetUserContext(userHash_.toStdString());
 
-    const auto commonInit = commonExecutor_.Initialize(*db_);
-    if (!commonInit.success) {
-        qWarning() << "DataManager::openAndInitializeDatabase(): common initialization failed:"
-                   << QString::fromStdString(commonInit.message);
+    if (!initializeExecutors()) {
         return false;
     }
 
-    const auto managerInit = managerExecutor_.Initialize(*db_);
-    if (!managerInit.success) {
-        qWarning() << "DataManager::openAndInitializeDatabase(): manager initialization failed:"
-                   << QString::fromStdString(managerInit.message);
-        return false;
-    }
-
-    const auto commonVerify = commonExecutor_.Verify(*db_);
-    const auto managerVerify = managerExecutor_.Verify(*db_);
-    if (!commonVerify.success || !managerVerify.success) {
-        qWarning() << "DataManager::openAndInitializeDatabase(): database verification failed:"
-                   << QString::fromStdString(commonVerify.message)
-                   << QString::fromStdString(managerVerify.message);
+    if (!verifyExecutors()) {
         return false;
     }
 
@@ -150,40 +217,15 @@ bool DataManager::dropAndReinitializeDatabase()
         db_->SetUserContext(userHash_.toStdString());
     }
 
-    const auto managerDrop = managerExecutor_.DropStructures(*db_);
-    if (!managerDrop.success) {
-        qWarning() << "DataManager::dropAndReinitializeDatabase(): manager drop failed:"
-                   << QString::fromStdString(managerDrop.message);
+    if (!dropExecutorStructures()) {
         return false;
     }
 
-    const auto commonDrop = commonExecutor_.DropStructures(*db_);
-    if (!commonDrop.success) {
-        qWarning() << "DataManager::dropAndReinitializeDatabase(): common drop failed:"
-                   << QString::fromStdString(commonDrop.message);
+    if (!initializeExecutors()) {
         return false;
     }
 
-    const auto commonInit = commonExecutor_.Initialize(*db_);
-    if (!commonInit.success) {
-        qWarning() << "DataManager::dropAndReinitializeDatabase(): common init failed:"
-                   << QString::fromStdString(commonInit.message);
-        return false;
-    }
-
-    const auto managerInit = managerExecutor_.Initialize(*db_);
-    if (!managerInit.success) {
-        qWarning() << "DataManager::dropAndReinitializeDatabase(): manager init failed:"
-                   << QString::fromStdString(managerInit.message);
-        return false;
-    }
-
-    const auto commonVerify = commonExecutor_.Verify(*db_);
-    const auto managerVerify = managerExecutor_.Verify(*db_);
-    if (!commonVerify.success || !managerVerify.success) {
-        qWarning() << "DataManager::dropAndReinitializeDatabase(): verification failed:"
-                   << QString::fromStdString(commonVerify.message)
-                   << QString::fromStdString(managerVerify.message);
+    if (!verifyExecutors()) {
         return false;
     }
 
@@ -417,19 +459,25 @@ void DataManager::onSubsystemGenerate(contract::Subsystem subsystem,
 std::optional<database::ExecutorResult> DataManager::routeMessage(const contract::UniterMessage& message)
 {
     if (message.subsystem == contract::Subsystem::MANAGER) {
+        auto* executor = dynamic_cast<database::ManagerExecutor*>(findExecutor(contract::Subsystem::MANAGER));
+        if (!executor) {
+            return database::ExecutorResult::Fail(database::ExecutorStatusCode::InternalError,
+                                                 "ManagerExecutor is not registered");
+        }
+
         switch (message.crudact) {
             case contract::CrudAction::CREATE:
                 // DataManager routes messages; concrete DB work stays inside the subsystem executor.
-                return managerExecutor_.Create(*db_, message);
+                return executor->Create(*db_, message);
             case contract::CrudAction::READ:
                 // READ uses the executor API for explicit resource requests only.
-                return managerExecutor_.Read(*db_, contract::ResourceKey::FromMessage(message));
+                return executor->Read(*db_, contract::ResourceKey::FromMessage(message));
             case contract::CrudAction::UPDATE:
                 // DataManager does not inspect or mutate tables directly.
-                return managerExecutor_.Update(*db_, message);
+                return executor->Update(*db_, message);
             case contract::CrudAction::DELETE:
                 // After successful executor delete, observer adapters are notified below.
-                return managerExecutor_.Delete(*db_, message);
+                return executor->Delete(*db_, message);
             case contract::CrudAction::NOTCRUD:
             default:
                 return database::ExecutorResult::Fail(database::ExecutorStatusCode::InvalidMessage,
@@ -448,7 +496,12 @@ std::optional<database::ExecutorResult> DataManager::readResource(const contract
     }
 
     if (key.subsystemKey.subsystem == contract::Subsystem::MANAGER) {
-        return managerExecutor_.Read(*db_, key);
+        auto* executor = dynamic_cast<database::ManagerExecutor*>(findExecutor(contract::Subsystem::MANAGER));
+        if (!executor) {
+            return database::ExecutorResult::Fail(database::ExecutorStatusCode::InternalError,
+                                                 "ManagerExecutor is not registered");
+        }
+        return executor->Read(*db_, key);
     }
 
     // TODO: route non-manager reads to subsystem executors after they are implemented.
