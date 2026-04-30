@@ -207,7 +207,7 @@ public:
     int clearDatabaseCount = 0;
     int loadResourcesCount = 0;
 
-    void emitResourcesLoaded() { emit signalResourcesLoaded(); }
+    void emitResourcesLoaded(bool loaded = true) { emit signalResourcesLoaded(loaded); }
     void emitResourcesCleared() { emit signalResourcesCleared(); }
 
 public slots:
@@ -216,7 +216,7 @@ public slots:
     void onClearResourcesForSync() { ++clearDatabaseCount; }
 
 signals:
-    void signalResourcesLoaded();
+    void signalResourcesLoaded(bool loaded);
     void signalResourcesCleared();
 };
 

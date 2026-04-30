@@ -184,6 +184,7 @@ TEST_F(DataManagerObserverTest, InitializesDatabaseAndRoutesManagerCrudLifecycle
 
     manager_->onInitDatabase(QByteArrayLiteral("manager-lifecycle"));
     ASSERT_EQ(loadedSpy.count(), 1);
+    EXPECT_TRUE(loadedSpy.at(0).at(0).toBool());
 
     auto created = makeEmployee(100, "Created");
     manager_->onRecvUniterMessage(makeManagerMessage(contract::CrudAction::CREATE, created));
@@ -216,6 +217,27 @@ TEST_F(DataManagerObserverTest, InitializesDatabaseAndRoutesManagerCrudLifecycle
     data::SingleResourceAdapter clearedAdapter(employeeListKey(), 101);
     manager_->subscribeResource(&clearedAdapter);
     EXPECT_EQ(clearedAdapter.resource(), nullptr);
+
+    manager_->onResetDatabase();
+    manager_->onRecvUniterMessage(makeManagerMessage(contract::CrudAction::CREATE,
+                                                     makeEmployee(102, "IgnoredAfterReset")));
+
+    data::SingleResourceAdapter resetAdapter(employeeListKey(), 102);
+    manager_->subscribeResource(&resetAdapter);
+    EXPECT_EQ(resetAdapter.resource(), nullptr);
+
+    manager_->onInitDatabase(QByteArrayLiteral("manager-lifecycle"));
+    ASSERT_EQ(loadedSpy.count(), 2);
+    EXPECT_TRUE(loadedSpy.at(1).at(0).toBool());
+
+    manager_->onRecvUniterMessage(makeManagerMessage(contract::CrudAction::CREATE,
+                                                     makeEmployee(103, "Reinitialized")));
+    data::SingleResourceAdapter reinitializedAdapter(employeeListKey(), 103);
+    manager_->subscribeResource(&reinitializedAdapter);
+    auto reinitialized = std::dynamic_pointer_cast<contract::manager::Employee>(
+        reinitializedAdapter.resource());
+    ASSERT_NE(reinitialized, nullptr);
+    EXPECT_EQ(reinitialized->first_name, "Reinitialized");
 }
 
 } // namespace
