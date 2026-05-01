@@ -10,6 +10,28 @@ include(database/sources.cmake)
 
 include(sources.cmake)
 
+add_custom_target(UniterCodeGen)
+devkit_codegen_enums(UniterCodeGen
+    "${CMAKE_CURRENT_LIST_DIR}/contract"
+)
+foreach(_uniter_codegen_subsystem
+        common
+        manager
+        design
+        documents
+        instance
+        integration
+        material
+        pdm
+        production
+        supply)
+    devkit_codegen_sql(UniterCodeGen
+        "${CMAKE_CURRENT_LIST_DIR}/database/${_uniter_codegen_subsystem}/raw_sql_${_uniter_codegen_subsystem}"
+        "${CMAKE_CURRENT_LIST_DIR}/database/${_uniter_codegen_subsystem}/gen_sql_${_uniter_codegen_subsystem}"
+    )
+endforeach()
+unset(_uniter_codegen_subsystem)
+
 # WIN32 — скрываем консольное окно (эквивалент qt_add_executable WIN32)
 add_executable(Uniter WIN32
     main.cpp
@@ -33,6 +55,8 @@ add_executable(Uniter WIN32
     # Database layer (IDatabase + mappers)
     ${DATABASE_SOURCES}
 )
+
+add_dependencies(Uniter UniterCodeGen)
 
 target_include_directories(Uniter
     PRIVATE

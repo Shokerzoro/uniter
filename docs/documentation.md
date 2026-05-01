@@ -26,6 +26,21 @@ The project uses GoogleTest for tests. Third-party libraries include MuPDF for
 PDF extraction and tinyxml2 for XML processing. The build environment is
 MinGW/MSYS with Qt.
 
+SQL is authored in a DataGrip side project as readable raw `.sql` files under
+`src/uniter/database/{subsystem}/raw_sql_{subsystem}/`. When an instruction is
+ready for C++ use, it is marked with a SwiftCode comment in the raw SQL file.
+SwiftCode is provided by DevKit as a build-time CLI tool and is invoked from
+CMake through `devkit_codegen_sql(...)` to generate mirrored
+`gen_sql_{subsystem}/*.h` headers with `static constexpr const char*` SQL
+literals for executors.
+
+SwiftCode also handles enum table-domain boilerplate. Marked enum classes under
+`src/uniter/contract/` are processed through `devkit_codegen_enums(...)`, and
+the generated `std::array<std::pair<int, std::string>, N>` block is written back
+into the same source file. Generation is explicit and reviewable: after the
+first run, SwiftCode rewrites markers to `Need update (yes/no): no`; changing
+`no` to `yes` requests regeneration and increments the generated version.
+
 ## 2. Submodules
 
 The repository uses git submodules for shared (between client app (current project) and server services) contract and database code:

@@ -440,11 +440,12 @@ Completed:
 
 Next:
 
-14. [ ] Prepare raw SQL instructions for every subsystem.
+14. [x] Implement CodeGen for SQL catalogs.
+15. [x] Implement CodeGen for enum arrays where still missing.
+
+15. [ ] Prepare raw SQL instructions for every subsystem.
 15. [ ] Realize "light weighted" vector subsrcription without internal classes linkage due to it can used (current approach causes all DB data injects through vector subscription)
 15. [ ] Add CodeGen comments to all emitted SQL instructions.
-16. [ ] Implement CodeGen for SQL catalogs.
-17. [ ] Implement CodeGen for enum arrays where still missing.
 18. [ ] Replace embedded manager SQL constants with generated SQL headers.
 19. [ ] Fill subsystem executors from generated SQL and resource mapping.
 20. [ ] Add direct executor tests per subsystem.
