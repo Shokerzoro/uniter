@@ -63,6 +63,7 @@ private:
 
     std::optional<database::ExecutorResult> routeMessage(const contract::UniterMessage& message);
     std::optional<database::ExecutorResult> readResource(const contract::ResourceKey& key);
+    std::optional<database::ExecutorResult> readVector(const contract::SubsystemKey& key);
 
 public:
     static DataManager* instance();

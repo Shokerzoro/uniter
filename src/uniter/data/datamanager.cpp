@@ -272,13 +272,16 @@ void DataManager::subscribeResourceList(DataAdapter* adapter)
 
     unsubscribeResourceList(adapter);
 
-    // List reads are not stable yet, so vector adapters may be constructed with
-    // initial data by their owner. DataManager only registers future updates.
     resourceListSubscribers_.insert({adapter->subsystemKey(), QPointer<DataAdapter>(adapter)});
 
     connect(adapter, &QObject::destroyed, this, [this, adapter]() {
         unsubscribeResourceList(adapter);
     });
+
+    const auto result = readVector(adapter->subsystemKey());
+    if (result && result->success) {
+        adapter->initializeData(result->resources);
+    }
 }
 
 void DataManager::unsubscribeResource(DataAdapter* adapter)
@@ -506,6 +509,21 @@ std::optional<database::ExecutorResult> DataManager::readResource(const contract
 
     // TODO: route non-manager reads to subsystem executors after they are implemented.
     return std::nullopt;
+}
+
+std::optional<database::ExecutorResult> DataManager::readVector(const contract::SubsystemKey& key)
+{
+    if (!db_ || state != DBState::LOADED) {
+        return std::nullopt;
+    }
+
+    auto* executor = findExecutor(key.subsystem);
+    if (!executor) {
+        return database::ExecutorResult::Fail(database::ExecutorStatusCode::InternalError,
+                                             "Executor is not registered");
+    }
+
+    return executor->ReadVector(*db_, key);
 }
 
 void DataManager::notifyObservers(const contract::UniterMessage& message)

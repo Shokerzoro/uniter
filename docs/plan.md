@@ -260,6 +260,11 @@ Implemented observer decisions:
 Hierarchical/tree subscription remains postponed until the design tree model is
 stable.
 
+DataManager provides two types of subscription for single resource and for resource vector.
+Resource vector subscription should returns vector filled only with AbstractResources (basic info) 
+without internal classes linkage otherwise it can cause all DB data injects through vector subscription.
+So execitors must have method which returns vector with abstract resources.
+
 ## 8. ManagerExecutor
 
 `ManagerExecutor` is the first real worker executor because manager data is
@@ -442,15 +447,15 @@ Next:
 
 14. [x] Implement CodeGen for SQL catalogs.
 15. [x] Implement CodeGen for enum arrays where still missing.
+16. [ ] Realize "light weighted" vector subsrcription
 
-15. [ ] Prepare raw SQL instructions for every subsystem.
-15. [ ] Realize "light weighted" vector subsrcription without internal classes linkage due to it can used (current approach causes all DB data injects through vector subscription)
-15. [ ] Add CodeGen comments to all emitted SQL instructions.
-18. [ ] Replace embedded manager SQL constants with generated SQL headers.
-19. [ ] Fill subsystem executors from generated SQL and resource mapping.
-20. [ ] Add direct executor tests per subsystem.
-21. [ ] Add schema migration resource model in a service/system subsystem.
-22. [ ] Implement actual user filtering in executor DDL/DML.
+17. [ ] Prepare raw SQL instructions for every subsystem.
+18. [ ] Add CodeGen comments to all emitted SQL instructions.
+19. [ ] Replace embedded manager SQL constants with generated SQL headers.
+20. [ ] Fill subsystem executors from generated SQL and resource mapping.
+21. [ ] Add direct executor tests per subsystem.
+22. [ ] Add schema migration resource model in a service/system subsystem.
+23. [ ] Implement actual user filtering in executor DDL/DML.
 
 ## 14. Test Plan
 

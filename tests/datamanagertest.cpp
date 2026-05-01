@@ -177,6 +177,34 @@ TEST_F(DataManagerObserverTest, InitializeDataDoesNotEmitSignals)
     EXPECT_EQ(vectorAdapter.resources().size(), 1);
 }
 
+TEST_F(DataManagerObserverTest, VectorResourceAdapterInitializesFromDatabaseWithAbstractResources)
+{
+    QSignalSpy loadedSpy(manager_, &data::DataManager::signalResourcesLoaded);
+
+    manager_->onInitDatabase(QByteArrayLiteral("vector-initial-load"));
+    ASSERT_EQ(loadedSpy.count(), 1);
+    EXPECT_TRUE(loadedSpy.at(0).at(0).toBool());
+
+    manager_->onRecvUniterMessage(makeManagerMessage(contract::CrudAction::CREATE,
+                                                     makeEmployee(200, "First")));
+    manager_->onRecvUniterMessage(makeManagerMessage(contract::CrudAction::CREATE,
+                                                     makeEmployee(201, "Second")));
+
+    data::VectorResourceAdapter adapter(employeeListKey());
+    QSignalSpy spy(&adapter, &data::VectorResourceAdapter::signalDataUpdated);
+    manager_->subscribeResourceList(&adapter);
+
+    EXPECT_EQ(spy.count(), 0);
+    ASSERT_EQ(adapter.resources().size(), 2);
+
+    EXPECT_EQ(adapter.resources()[0]->subsystem, contract::Subsystem::MANAGER);
+    EXPECT_EQ(adapter.resources()[0]->gen_subsystem, contract::GenSubsystem::NOTGEN);
+    EXPECT_EQ(adapter.resources()[0]->resource_type, contract::ResourceType::EMPLOYEES);
+    EXPECT_EQ(adapter.resources()[0]->id, 200);
+    EXPECT_EQ(adapter.resources()[1]->id, 201);
+    EXPECT_EQ(std::dynamic_pointer_cast<contract::manager::Employee>(adapter.resources()[0]), nullptr);
+}
+
 TEST_F(DataManagerObserverTest, InitializesDatabaseAndRoutesManagerCrudLifecycle)
 {
     QSignalSpy loadedSpy(manager_, &data::DataManager::signalResourcesLoaded);

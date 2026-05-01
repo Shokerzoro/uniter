@@ -21,6 +21,10 @@ public:
     virtual const contract::SubsystemKey& subsystemKey() const = 0;
     virtual std::optional<contract::ResourceKey> resourceKey() const = 0;
     virtual void initializeData(std::shared_ptr<contract::ResourceAbstract> resource) = 0;
+    virtual void initializeData(std::vector<std::shared_ptr<contract::ResourceAbstract>> resources)
+    {
+        (void)resources;
+    }
     virtual void updateData(std::shared_ptr<contract::ResourceAbstract> resource,
                             contract::CrudAction action,
                             uint64_t resourceId) = 0;
@@ -92,7 +96,7 @@ public:
 
     // Same contract as SingleResourceAdapter::initializeData(): fill cache
     // without emitting signalDataUpdated.
-    void initializeData(std::vector<std::shared_ptr<contract::ResourceAbstract>> resources)
+    void initializeData(std::vector<std::shared_ptr<contract::ResourceAbstract>> resources) override
     {
         resources_ = std::move(resources);
     }
