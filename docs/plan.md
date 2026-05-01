@@ -447,7 +447,7 @@ Next:
 
 14. [x] Implement CodeGen for SQL catalogs.
 15. [x] Implement CodeGen for enum arrays where still missing.
-16. [ ] Realize "light weighted" vector subsrcription
+16. [x] Realize "light weighted" vector subsrcription
 
 17. [ ] Prepare raw SQL instructions for every subsystem.
 18. [ ] Add CodeGen comments to all emitted SQL instructions.

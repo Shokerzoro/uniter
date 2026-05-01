@@ -1,4 +1,5 @@
 #include "../src/uniter/contract/manager/employee.h"
+#include "../src/uniter/database/buildinstruction.h"
 #include "../src/uniter/data/dataadapter.h"
 #include "../src/uniter/data/datamanager.h"
 
@@ -83,6 +84,25 @@ protected:
     data::DataManager* manager_ = nullptr;
     QTemporaryDir tempDir_;
 };
+
+TEST(BuildInstructionTest, ReplacesNamedAndLegacyTokensInArgumentOrder)
+{
+    std::string sql;
+
+    ASSERT_TRUE(database::BuildInstruction(
+        sql,
+        "UPDATE table_name SET name = %NAME_VALUE% WHERE id = %ID_VALUE%;",
+        "Alpha",
+        42));
+    EXPECT_EQ(sql, "UPDATE table_name SET name = 'Alpha' WHERE id = 42;");
+
+    ASSERT_TRUE(database::BuildInstruction(
+        sql,
+        "VALUES (%VAL%, %VAL%);",
+        7,
+        "Beta"));
+    EXPECT_EQ(sql, "VALUES (7, 'Beta');");
+}
 
 TEST_F(DataManagerObserverTest, SingleResourceAdapterReceivesCreateUpdateAndDeleteByExactKey)
 {
