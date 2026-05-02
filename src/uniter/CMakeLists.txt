@@ -14,6 +14,12 @@ add_custom_target(UniterCodeGen)
 devkit_codegen_enums(UniterCodeGen
     "${CMAKE_CURRENT_LIST_DIR}/contract"
 )
+if(COMMAND devkit_codegen_enum_domains)
+    devkit_codegen_enum_domains(UniterCodeGen
+        "${CMAKE_CURRENT_LIST_DIR}/contract"
+        "${CMAKE_CURRENT_LIST_DIR}/database"
+    )
+endif()
 foreach(_uniter_codegen_subsystem
         common
         manager

@@ -360,18 +360,10 @@ Raw SQL may include DataGrip comments and helper queries, but every query marked
 for CodeGen must be executable by the target `IDataBase` implementation without
 manual editing.
 
-Enum-backed table domains are not part of raw or generated SQL directories.
-They are generated directly from `std::array<std::pair<int, std::string>, N>`
-definitions in the main contract/project code. Each subsystem owns these domain
-builders in a root-level header:
-
-```text
-src/uniter/database/{subsystem}/{subsystem}domains.h
-```
-
-Examples are `common/commondomains.h` for protocol/resource domains and
-`manager/managerdomains.h` for manager permissions. The `raw_sql_*` directories
-remain SQL authoring inputs, and `gen_sql_*` remains CodeGen output only.
+Enum-backed table domains are generated into
+`raw_sql_{subsystem}/domains.sql` from marked contract enum arrays, then emitted
+to `gen_sql_{subsystem}/domains.h` by SQL CodeGen. Executors consume the
+generated SQL constants directly.
 
 ### FileManager
 

@@ -93,17 +93,14 @@ Current layout:
 ```text
 src/uniter/database/
   common/
-    commondomains.h
     commonexecutor.h
     raw_sql_common/
     gen_sql_common/
   manager/
-    managerdomains.h
     managerexecutor.h/.cpp
     raw_sql_manager/
     gen_sql_manager/
   {subsystem}/
-    {subsystem}domains.h
     {subsystem}executor.h/.cpp
     raw_sql_{subsystem}/
     gen_sql_{subsystem}/
@@ -115,10 +112,9 @@ Rules:
   project.
 - `gen_sql_*` is CodeGen output only and contains generated
   `static constexpr const char*` SQL literals.
-- Enum-backed table domains are not stored in raw/gen SQL folders.
-- Table domains are generated from contract/project
-  `std::array<std::pair<int, std::string>, N>` values in root-level
-  `{subsystem}domains.h` files.
+- Enum-backed table domains are generated into `raw_sql_*/domains.sql`
+  from marked contract enum arrays, then emitted to `gen_sql_*/domains.h`
+  by SQL CodeGen.
 
 Every subsystem should provide these raw SQL files:
 
@@ -136,6 +132,7 @@ Required content for each file:
 
 | File | Content |
 |---|---|
+| `domains.sql` | Enum-backed domain table DDL and fill statements generated from contract enum arrays. |
 | `tables.sql` | Subsystem table/view/trigger/index DDL. Initialization must be idempotent. Enum/domain tables generated from C++ arrays do not belong here. |
 | `create.sql` | Statements that create synced resources, including explicit-id inserts for full sync/server data and auto-id variants only when local drafts need them. |
 | `read.sql` | Exact-resource and list/context SELECTs that collapse normalized tables into runtime resources. |
@@ -340,7 +337,7 @@ For each subsystem:
 4. Fill `drop.sql` with structure drop in FK-safe order.
 5. Fill `verify.sql` with metadata-only schema checks.
 6. Add CodeGen comments only to SQL instructions that should be emitted.
-7. Keep table-domain DDL and inserts in `{subsystem}domains.h`, not raw SQL.
+7. Keep enum table-domain DDL and inserts in generated `domains.sql`.
 8. Keep DataGrip-friendly formatting and avoid C++ string escaping in raw SQL.
 
 ## 11. CodeGen
@@ -352,6 +349,9 @@ Enum/table-domain generation:
 
 - An enum class marked with `// CodeGen need` is transformed into
   `std::array<std::pair<int, std::string>, N>`.
+- An enum marker with `domain {table_name}` also participates in the
+  enum-domain SQL generation pass, for example
+  `// CodeGen need for PermissionPairs domain manager_permissions_domain.`
 - After first generation the marker becomes
   `// CodeGen version: 1. Need update (yes/no): no`.
 - Regeneration is requested by changing `Need update` to `yes`; CodeGen then
@@ -389,6 +389,9 @@ static constexpr const char* name = R"SQL(
   `-- CodeGen: {name} version 1. Need update (yes/no): no`.
 - CodeGen receives an input raw SQL directory and an output generated SQL
   directory. It mirrors file names and directory structure.
+- Enum-domain SQL generation receives a contract directory and a database
+  directory. It writes generated domain SQL into matching
+  `raw_sql_{subsystem}/domains.sql` files before SQL CodeGen runs.
 
 CodeGen implementation should start after subsystem raw SQL names and comments
 are stable.
@@ -448,14 +451,12 @@ Next:
 14. [x] Implement CodeGen for SQL catalogs.
 15. [x] Implement CodeGen for enum arrays where still missing.
 16. [x] Realize "light weighted" vector subsrcription
+17. [x] Replace embedded manager SQL constants with generated SQL headers.
+18. [ ] Prepare raw SQL instructions for every subsystem and generate char*
+19. [ ] Fill subsystem executors from generated SQL and resource mapping.
+20. [ ] Add direct executor tests per subsystem.
+21. [ ] Add schema migration resource model in a service/system subsystem (new resourcetype and handling it in DataManager.
 
-17. [ ] Prepare raw SQL instructions for every subsystem.
-18. [ ] Add CodeGen comments to all emitted SQL instructions.
-19. [ ] Replace embedded manager SQL constants with generated SQL headers.
-20. [ ] Fill subsystem executors from generated SQL and resource mapping.
-21. [ ] Add direct executor tests per subsystem.
-22. [ ] Add schema migration resource model in a service/system subsystem.
-23. [ ] Implement actual user filtering in executor DDL/DML.
 
 ## 14. Test Plan
 
