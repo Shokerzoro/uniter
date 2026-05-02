@@ -9,6 +9,7 @@ add_executable(UniterTests
     test_main.cpp
     appmanagertest.cpp
     datamanagertest.cpp
+    documentsexecutortest.cpp
 
     # UI Layer
     ${STATIC_WIDGETS_SOURCES}

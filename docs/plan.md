@@ -453,6 +453,14 @@ Next:
 16. [x] Realize "light weighted" vector subsrcription
 17. [x] Replace embedded manager SQL constants with generated SQL headers.
 18. [ ] Prepare raw SQL instructions for every subsystem and generate char*
+    1. [x] Documents
+    2. [ ] Materials
+    3. [ ] Instances
+    4. [ ] Supply
+    5. [ ] Production (Gen)
+    6. [ ] Integration (Gen)
+    7. [ ] Design
+    8. [ ] PDM
 19. [ ] Fill subsystem executors from generated SQL and resource mapping.
 20. [ ] Add direct executor tests per subsystem.
 21. [ ] Add schema migration resource model in a service/system subsystem (new resourcetype and handling it in DataManager.
