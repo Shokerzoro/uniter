@@ -1,0 +1,70 @@
+!include "MUI2.nsh"
+LoadLanguageFile "${NSISDIR}\Contrib\Language files\Russian.nlf"
+
+!define MUI_HEADERIMAGE
+!define MUI_HEADERIMAGE_RIGHT
+!define MUI_HEADERIMAGE_BITMAP "header.bmp"
+
+!define MUI_ABORTWARNING                          ; Предупреждение при отмене установки
+
+; === Добавляем запуск после установки ===
+!define MUI_FINISHPAGE_RUN
+!define MUI_FINISHPAGE_RUN_TEXT "Запустить @PROJECT_NAME@"
+!define MUI_FINISHPAGE_RUN_FUNCTION .RunProgram
+
+; Добавляем страницы
+!insertmacro MUI_PAGE_WELCOME
+!insertmacro MUI_PAGE_LICENSE "license.txt"
+!insertmacro MUI_PAGE_DIRECTORY
+!insertmacro MUI_PAGE_INSTFILES
+!insertmacro MUI_PAGE_FINISH
+
+; Имя и другие основные настройки
+Name "@PROJECT_NAME@ Installer"
+Outfile "..\build\@PROJECT_NAME@_Installer.exe"
+InstallDir "$PROGRAMFILES\@PROJECT_NAME@"
+InstallDirRegKey HKCU "Software\@PROJECT_NAME@" "Install_Dir"
+
+Function .onInit
+  ClearErrors
+  ReadRegStr $0 HKCU "Software\@PROJECT_NAME@" "Install_Dir"
+  IfErrors done
+
+  IfFileExists "$0\@PROJECT_NAME@.exe" installed done
+
+  done:
+    Return
+
+  installed:
+    MessageBox MB_ICONEXCLAMATION|MB_OK "Программа уже установлена в $0"
+    Abort
+FunctionEnd
+
+Section "Install"
+  SetOutPath "$INSTDIR"
+  File /r "..\dist\*.*"
+
+  CreateShortCut "$DESKTOP\@PROJECT_NAME@.lnk" "$INSTDIR\@PROJECT_NAME@.exe" "" "$INSTDIR"
+  WriteUninstaller "$INSTDIR\uninstall.exe"
+
+  WriteRegStr HKCU "Software\@PROJECT_NAME@" "Version" "@PROJECT_VERSION@"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\@PROJECT_NAME@" "DisplayName" "@PROJECT_NAME@"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\@PROJECT_NAME@" "DisplayVersion" "@PROJECT_VERSION@"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\@PROJECT_NAME@" "UninstallString" "$INSTDIR\uninstall.exe"
+  WriteRegStr HKCU "Software\@PROJECT_NAME@" "Install_Dir" "$INSTDIR"
+
+SectionEnd
+
+Section "Uninstall"
+  Delete "$DESKTOP\@PROJECT_NAME@.lnk"
+  RMDir /r "$INSTDIR"
+
+  DeleteRegKey HKCU "Software\@PROJECT_NAME@"
+  DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\@PROJECT_NAME@"
+
+SectionEnd
+
+; Функция, вызываемая по нажатию чекбокса "Запустить" на финальной странице
+Function .RunProgram
+  Exec '"$INSTDIR\@PROJECT_NAME@.exe"'
+FunctionEnd

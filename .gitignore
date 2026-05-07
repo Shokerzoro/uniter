@@ -1,0 +1,34 @@
+# CMake build dirs
+cmake-build-*/
+build/
+deploy/
+CMakeFiles/
+.idea/
+CMakeCache.txt
+
+# Qt Creator
+*.user
+*.user.*
+*.autosave
+
+# Бинарники и артефакты
+*.exe
+*.obj
+*.pdb
+*.dll
+*.lib
+*.log
+*.ico
+*.png
+
+
+# Временные
+*.tmp
+*.bak
+*.swp
+
+# Autocad
+*.dwg
+*.bak
+*.dwl
+*.dwl2

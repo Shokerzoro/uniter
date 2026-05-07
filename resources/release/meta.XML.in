@@ -1,0 +1,5 @@
+<update build_time="@BUILD_TIME@">
+        <project_name>@PROJECT_NAME@</project_name>
+        <version>@PROJECT_VERSION@</version>
+        <author>@AUTHOR@</author>
+</update>
