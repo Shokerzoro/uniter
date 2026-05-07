@@ -102,8 +102,8 @@ void AuthWdg::sendSignUpData() {
     auto message = std::make_shared<uniter::contract::UniterMessage>();
     message->subsystem = contract::Subsystem::PROTOCOL;
     message->protact = contract::ProtocolAction::AUTH;
-    message->add_data.emplace("login", login);
-    message->add_data.emplace("password", password);
+    message->add_data.emplace("login", login.toStdString());
+    message->add_data.emplace("password", password.toStdString());
 
     emit signalSendUniterMessage(message);
 }

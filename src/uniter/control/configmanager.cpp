@@ -29,14 +29,6 @@ void ConfigManager::onConfigProc(std::shared_ptr<contract::employees::Employee> 
 
     user = std::move(user_);
 
-    // Собираем список подсистем для лога
-    QStringList subsystemList;
-    for (const auto& assign : user->assignments) {
-        subsystemList << contract::subsystemToString(assign.subsystem);
-    }
-
-    qDebug() << "ConfigManager::onConfigProc() - User:" << user->surname << user->name
-             << "Subsystems:" << subsystemList.join(", ");
 
     for (const contract::employees::EmployeeAssignment& assign : user->assignments) {
 
@@ -66,15 +58,6 @@ void ConfigManager::onClearResources()
         return;
     }
 
-    // Собираем список подсистем для лога
-    QStringList subsystemList;
-    for (const auto& assign : user->assignments) {
-        subsystemList << contract::subsystemToString(assign.subsystem);
-    }
-
-    qDebug() << "ConfigManager::onClearResources() - Clearing user:"
-             << user->surname << user->name
-             << "Subsystems:" << subsystemList.join(", ");
 
     // Для каждой назначенной подсистемы отправляем событие с created = false
     for (const contract::employees::EmployeeAssignment& assign : user->assignments) {

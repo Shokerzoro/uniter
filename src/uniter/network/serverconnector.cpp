@@ -137,11 +137,11 @@ makeKafkaOffsetCheckResponse(const std::shared_ptr<uniter::contract::UniterMessa
     QString offset_echo;
     auto it = request->add_data.find("offset");
     if (it != request->add_data.end()) {
-        offset_echo = it->second;
+        offset_echo = QString::fromStdString(it->second);
     }
 
     response->add_data.clear();
-    response->add_data.emplace("offset", offset_echo);
+    response->add_data.emplace("offset", offset_echo.toStdString());
     response->add_data.emplace("offset_actual", "true");
 
     qDebug() << "ServerConnector: offset check ACTUAL for offset=" << offset_echo;
@@ -252,9 +252,9 @@ void ServerConnector::onSendMessage(std::shared_ptr<contract::UniterMessage> mes
         QString object_key;
         QString minio_operation = QStringLiteral("GET");
         auto itk = message->add_data.find("object_key");
-        if (itk != message->add_data.end()) object_key = itk->second;
+        if (itk != message->add_data.end()) object_key = QString::fromStdString(itk->second);
         auto ito = message->add_data.find("minio_operation");
-        if (ito != message->add_data.end()) minio_operation = ito->second;
+        if (ito != message->add_data.end()) minio_operation = QString::fromStdString(ito->second);
 
         qDebug() << "ServerConnector: forwarding MinIO presigned URL request, key="
                  << object_key << " op=" << minio_operation;
@@ -300,8 +300,8 @@ void ServerConnector::onMinioPresignedUrlReady(std::shared_ptr<contract::UniterM
     response->status    = MessageStatus::RESPONSE;
     response->error     = ErrorCode::SUCCESS;
     response->add_data.clear();
-    response->add_data.emplace("object_key",   object_key);
-    response->add_data.emplace("presigned_url", presigned_url);
+    response->add_data.emplace("object_key",   object_key.toStdString());
+    response->add_data.emplace("presigned_url", presigned_url.toStdString());
     // url_expires_at опускаем — в stub URL «бессрочный».
 
     qDebug() << "ServerConnector: returning presigned URL for key=" << object_key;
