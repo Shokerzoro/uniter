@@ -8,8 +8,7 @@
 namespace uniter::controllers {
 
     // Here will be work widget controller
-    // It incapsulate all logic for subsystem widgets changes
-    // and communication between ConfigManager, workWidget and subsystIcons
+    // It incapsulate communication between workWidget and subsystemIcons
 
 } // namespace controllers
 

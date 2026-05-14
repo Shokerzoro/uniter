@@ -8,8 +8,7 @@
 namespace uniter::controllers {
 
     // Here will be auth controller
-    // It incapsulate all logic for authentication
-    // and communication between AppManager and AuthWidget
+    // It encapsulates communication between AppManager and AuthWidget
 
 } // namespace controllers
 
