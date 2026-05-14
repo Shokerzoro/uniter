@@ -11,7 +11,7 @@
 #include <QDebug>
 #include <map>
 
-namespace uniter::staticwdg {
+namespace staticwdg {
 
 AuthWdg::AuthWdg(QWidget* parent)
     : QWidget(parent)
@@ -99,7 +99,7 @@ void AuthWdg::sendSignUpData() {
     QString login = m_loginInput->text();
     QString password = m_passwordInput->text();
 
-    auto message = std::make_shared<uniter::contract::UniterMessage>();
+    auto message = std::make_shared<contract::UniterMessage>();
     message->subsystem = contract::Subsystem::PROTOCOL;
     message->protact = contract::ProtocolAction::AUTH;
     message->add_data.emplace("login", login.toStdString());
@@ -179,6 +179,6 @@ void AuthWdg::loadCredentials()
 
 
 
-} // namespace uniter::staticwdg
+} // namespace staticwdg
 
 

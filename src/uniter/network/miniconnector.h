@@ -8,7 +8,7 @@
 #include <memory>
 #include "../contract/unitermessage.h"
 
-namespace uniter::net {
+namespace net {
 
 /*
  * MinIOConnector — заглушка HTTP-клиента MinIO.
@@ -101,6 +101,6 @@ signals:
     void signalRecvMessage(std::shared_ptr<contract::UniterMessage> message);
 };
 
-} // namespace uniter::net
+} // namespace net
 
 #endif // MINIOCONNECTOR_H

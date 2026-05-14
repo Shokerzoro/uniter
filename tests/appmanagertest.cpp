@@ -12,7 +12,6 @@
 #include <QString>
 #include <memory>
 
-using namespace uniter;
 
 namespace appmanagertest {
 

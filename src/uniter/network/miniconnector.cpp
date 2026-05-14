@@ -8,9 +8,9 @@
 #include <QStandardPaths>
 #include <QUrl>
 
-namespace uniter::net {
+namespace net {
 
-using namespace uniter::contract;
+using namespace contract;
 
 MinIOConnector* MinIOConnector::instance()
 {
@@ -184,4 +184,4 @@ void MinIOConnector::onShutdown()
     m_presignedByKey.clear();
 }
 
-} // namespace uniter::net
+} // namespace net

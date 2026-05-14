@@ -7,7 +7,7 @@
 #include <QWidget>
 #include <optional>
 
-namespace uniter::genwdg {
+namespace genwdg {
 
 
 class SubsystemTab : public QWidget {

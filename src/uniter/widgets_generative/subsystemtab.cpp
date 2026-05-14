@@ -3,7 +3,7 @@
 #include <QLabel>
 #include <QVBoxLayout>
 
-namespace uniter::genwdg {
+namespace genwdg {
 
 SubsystemTab::SubsystemTab(contract::Subsystem subsystem,
                    std::optional<uint64_t> subsystemInstanceId,
@@ -57,4 +57,4 @@ void SubsystemTab::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> 
     emit signalSendUniterMessage(message);
 }
 
-} // namespace uniter::genwdg
+} // namespace genwdg

@@ -15,10 +15,10 @@ namespace {
 // Создание мок-пользователя со ВСЕМИ подсистемами и полными правами.
 // Stub: в реальной системе пользователя формирует сервер по БД компании.
 // --------------------------------------------------------------------------
-std::shared_ptr<uniter::contract::employees::Employee> makeFullAccessUser()
+std::shared_ptr<contract::employees::Employee> makeFullAccessUser()
 {
-    namespace C = uniter::contract;
-    namespace E = uniter::contract::employees;
+    namespace C = contract;
+    namespace E = contract::employees;
     using C::Subsystem;
     using E::EmployeeAssignment;
     using E::Employee;
@@ -38,7 +38,7 @@ std::shared_ptr<uniter::contract::employees::Employee> makeFullAccessUser()
     );
 
     // Набор прав по каждой статической подсистеме (enum uint8_t значения).
-    // Берём по максимальному значению из uniter::contract::employees::*Permission —
+    // Берём по максимальному значению из contract::employees::*Permission —
     // заполняем ВСЕ значения. Это гарантирует «полные права».
     auto makePerms = [](uint8_t count) {
         std::vector<uint8_t> v;
@@ -74,10 +74,10 @@ std::shared_ptr<uniter::contract::employees::Employee> makeFullAccessUser()
 // --------------------------------------------------------------------------
 // Формирование ответа на протокольный AUTH — всегда успех.
 // --------------------------------------------------------------------------
-std::shared_ptr<uniter::contract::UniterMessage>
-makeProtocolAuthResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request)
+std::shared_ptr<contract::UniterMessage>
+makeProtocolAuthResponse(const std::shared_ptr<contract::UniterMessage>& request)
 {
-    using namespace uniter::contract;
+    using namespace contract;
 
     auto response = std::make_shared<UniterMessage>(*request);
     response->status    = MessageStatus::RESPONSE;
@@ -92,10 +92,10 @@ makeProtocolAuthResponse(const std::shared_ptr<uniter::contract::UniterMessage>&
 // CRUD-ответ: всегда положительный. RESPONSE/SUCCESS, сохраняя тело
 // исходного запроса для клиента.
 // --------------------------------------------------------------------------
-std::shared_ptr<uniter::contract::UniterMessage>
-makeCrudResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request)
+std::shared_ptr<contract::UniterMessage>
+makeCrudResponse(const std::shared_ptr<contract::UniterMessage>& request)
 {
-    using namespace uniter::contract;
+    using namespace contract;
 
     auto response = std::make_shared<UniterMessage>(*request);
     response->status = MessageStatus::RESPONSE;
@@ -106,10 +106,10 @@ makeCrudResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request
 // --------------------------------------------------------------------------
 // Имитация broadcast через Kafka: тот же CUD, но статус NOTIFICATION.
 // --------------------------------------------------------------------------
-std::shared_ptr<uniter::contract::UniterMessage>
-makeCrudNotification(const std::shared_ptr<uniter::contract::UniterMessage>& request)
+std::shared_ptr<contract::UniterMessage>
+makeCrudNotification(const std::shared_ptr<contract::UniterMessage>& request)
 {
-    using namespace uniter::contract;
+    using namespace contract;
 
     auto notification = std::make_shared<UniterMessage>(*request);
     notification->status = MessageStatus::NOTIFICATION;
@@ -120,10 +120,10 @@ makeCrudNotification(const std::shared_ptr<uniter::contract::UniterMessage>& req
 // --------------------------------------------------------------------------
 // Ответ на GET_KAFKA_CREDENTIALS: всегда подтверждаем актуальность offset.
 // --------------------------------------------------------------------------
-std::shared_ptr<uniter::contract::UniterMessage>
-makeKafkaOffsetCheckResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request)
+std::shared_ptr<contract::UniterMessage>
+makeKafkaOffsetCheckResponse(const std::shared_ptr<contract::UniterMessage>& request)
 {
-    using namespace uniter::contract;
+    using namespace contract;
 
     auto response = std::make_shared<UniterMessage>(*request);
     response->status    = MessageStatus::RESPONSE;
@@ -149,10 +149,10 @@ makeKafkaOffsetCheckResponse(const std::shared_ptr<uniter::contract::UniterMessa
 // --------------------------------------------------------------------------
 // Ответ на FULL_SYNC: мгновенное SUCCESS без стрима данных.
 // --------------------------------------------------------------------------
-std::shared_ptr<uniter::contract::UniterMessage>
-makeFullSyncDoneResponse(const std::shared_ptr<uniter::contract::UniterMessage>& request)
+std::shared_ptr<contract::UniterMessage>
+makeFullSyncDoneResponse(const std::shared_ptr<contract::UniterMessage>& request)
 {
-    using namespace uniter::contract;
+    using namespace contract;
 
     auto response = std::make_shared<UniterMessage>(*request);
     response->status    = MessageStatus::SUCCESS;
@@ -167,9 +167,9 @@ makeFullSyncDoneResponse(const std::shared_ptr<uniter::contract::UniterMessage>&
 
 } // anonymous namespace
 
-namespace uniter::net {
+namespace net {
 
-using namespace uniter::contract;
+using namespace contract;
 
 ServerConnector* ServerConnector::instance()
 {
@@ -315,4 +315,4 @@ void ServerConnector::onShutdown()
     }
 }
 
-} // namespace uniter::net
+} // namespace net

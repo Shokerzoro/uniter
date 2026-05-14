@@ -7,7 +7,7 @@
 #include <memory>
 #include "../contract/unitermessage.h"
 
-namespace uniter::net {
+namespace net {
 
 /*
  * KafkaConnector — заглушка consumer-канала Kafka.
@@ -83,6 +83,6 @@ signals:
     void signalRecvMessage(std::shared_ptr<contract::UniterMessage> message);
 };
 
-} // namespace uniter::net
+} // namespace net
 
 #endif // KAFKACONNECTOR_H

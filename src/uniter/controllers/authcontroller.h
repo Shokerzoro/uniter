@@ -5,7 +5,7 @@
 #ifndef UNITER_AUTHCONTROLLER_H
 #define UNITER_AUTHCONTROLLER_H
 
-namespace uniter::controllers {
+namespace controllers {
 
     // Here will be auth controller
     // It encapsulates communication between AppManager and AuthWidget

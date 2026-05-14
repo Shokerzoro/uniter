@@ -8,7 +8,7 @@
 #include <optional>
 #include <cstdint>
 
-namespace uniter::control {
+namespace control {
 
 class ConfigManager : public QObject
 {
@@ -47,6 +47,6 @@ signals:
                               bool created);
 };
 
-} // namespace uniter::control
+} // namespace control
 
 #endif // CONFIGMANAGER_H

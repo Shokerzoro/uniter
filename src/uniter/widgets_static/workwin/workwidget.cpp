@@ -13,7 +13,7 @@
 #include <cstdint>
 #include <optional>
 
-namespace uniter::staticwdg {
+namespace staticwdg {
 
 
 WorkWdg::WorkWdg(QWidget* parent) : QWidget(parent) {
@@ -109,4 +109,4 @@ bool WorkWdg::findIndex(contract::Subsystem subsystem,
 }
 
 
-} //uniter::staticwdg
+} //staticwdg

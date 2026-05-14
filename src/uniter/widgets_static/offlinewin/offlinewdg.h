@@ -5,7 +5,7 @@
 #include <QLabel>
 #include <QPushButton>
 
-namespace uniter::staticwdg {
+namespace staticwdg {
 
 class OfflineWdg : public QWidget
 {
@@ -21,6 +21,6 @@ signals:
     void signalMakeConnect();
 };
 
-} // namespace uniter::staticwdg
+} // namespace staticwdg
 
 #endif // OFFLINEWDG_H

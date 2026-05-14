@@ -6,7 +6,7 @@
 #include <memory>
 #include "../contract/unitermessage.h"
 
-namespace uniter::net {
+namespace net {
 
 /*
  * ServerConnector — заглушка основного сервера (authorization + CRUD backend).
@@ -94,6 +94,6 @@ signals:
                                         QString minio_operation);
 };
 
-} // namespace uniter::net
+} // namespace net
 
 #endif // SERVERCONNECTOR_H

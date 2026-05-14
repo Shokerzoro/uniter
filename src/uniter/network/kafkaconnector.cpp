@@ -4,9 +4,9 @@
 #include <QRandomGenerator>
 #include <QTimer>
 
-namespace uniter::net {
+namespace net {
 
-using namespace uniter::contract;
+using namespace contract;
 
 KafkaConnector* KafkaConnector::instance()
 {
@@ -85,4 +85,4 @@ void KafkaConnector::onServerNotification(std::shared_ptr<contract::UniterMessag
     emit signalRecvMessage(message);
 }
 
-} // namespace uniter::net
+} // namespace net

@@ -9,7 +9,7 @@
 #include <optional>
 #include <cstdint>
 
-namespace uniter::genwdg {
+namespace genwdg {
 
 class SubsystemIcon : public QWidget {
     Q_OBJECT
@@ -37,7 +37,7 @@ private:
     bool isHovered = false;
 };
 
-} // namespace uniter::genwdg
+} // namespace genwdg
 
 
 

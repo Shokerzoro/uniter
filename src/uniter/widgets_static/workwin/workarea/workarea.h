@@ -10,7 +10,7 @@
 #include <cstdint>
 #include <optional>
 
-namespace uniter::staticwdg {
+namespace staticwdg {
 
 
 class WorkArea : public QWidget {
@@ -47,6 +47,6 @@ private:
 };
 
 
-} // uniter::staticwdg
+} // staticwdg
 
 #endif // WORKAREA_H

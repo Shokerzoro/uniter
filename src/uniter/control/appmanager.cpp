@@ -8,7 +8,7 @@
 #include <QDebug>
 #include <memory>
 
-namespace uniter::control {
+namespace control {
 
     AppManager::AppManager()
         : QObject(nullptr)
@@ -639,4 +639,4 @@ namespace uniter::control {
         }
     }
 
-} // namespace uniter::control
+} // namespace control

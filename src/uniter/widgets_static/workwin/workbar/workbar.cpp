@@ -10,7 +10,7 @@
 #include <QPushButton>
 #include <QString>
 
-namespace uniter::staticwdg {
+namespace staticwdg {
 
 WorkBar::WorkBar(QWidget* parent) : QWidget(parent) {
 
@@ -111,4 +111,4 @@ void WorkBar::paintEvent(QPaintEvent* event) {
     painter.drawLine(x, 0, x, height());
 }
 
-} //uniter::staticwdg
+} //staticwdg

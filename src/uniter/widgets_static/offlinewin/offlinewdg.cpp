@@ -4,7 +4,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-namespace uniter::staticwdg {
+namespace staticwdg {
 
 OfflineWdg::OfflineWdg(QWidget *parent)
     : QWidget(parent)
@@ -23,5 +23,5 @@ OfflineWdg::OfflineWdg(QWidget *parent)
     connect(btn, &QPushButton::clicked, AManager, &control::AppManager::signalMakeConnection);
 }
 
-} // namespace uniter::staticwdg
+} // namespace staticwdg
 

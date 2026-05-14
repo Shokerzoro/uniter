@@ -5,7 +5,7 @@
 #include <QObject>
 #include <memory>
 
-namespace uniter::control {
+namespace control {
 
 ConfigManager* ConfigManager::instance() {
     static ConfigManager s_instance;
@@ -71,4 +71,4 @@ void ConfigManager::onClearResources()
 
 
 
-} // uniter::control
+} // control

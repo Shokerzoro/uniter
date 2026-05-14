@@ -1,7 +1,7 @@
 #include "idataobserver.h"
 #include "datamanager.h"
 
-namespace uniter::data {
+namespace data {
 
 IDataObserver::IDataObserver(QObject* parent)
     : QObject(parent)
@@ -115,4 +115,4 @@ void IDataObserver::cancelTreeSubscription()
     emit unsubscribeFromResourceTree(this);
 }
 
-} // namespace uniter::data
+} // namespace data

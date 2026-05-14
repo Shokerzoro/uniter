@@ -10,7 +10,7 @@
 #include <cstdint>
 #include <optional>
 
-namespace uniter::staticwdg {
+namespace staticwdg {
 
 class WorkWdg : public QWidget {
     Q_OBJECT
@@ -57,6 +57,6 @@ private:
                          std::optional<uint64_t> subsystemInstanceId);
 };
 
-} // uniter::staticwdg
+} // staticwdg
 
 #endif // WORKWIDGET_H

@@ -5,7 +5,7 @@
 #ifndef UNITER_CONFIGCONTROLLER_H
 #define UNITER_CONFIGCONTROLLER_H
 
-namespace uniter::controllers {
+namespace controllers {
 
     // Here will be config controller
     // It incapsulate communication between ConfigManager and othr components

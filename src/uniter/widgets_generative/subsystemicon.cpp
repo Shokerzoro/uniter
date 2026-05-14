@@ -6,7 +6,7 @@
 #include <QLabel>
 #include <QVBoxLayout>
 
-namespace uniter::genwdg {
+namespace genwdg {
 
 SubsystemIcon::SubsystemIcon(contract::Subsystem subsystem,
                              std::optional<uint64_t> subsystemInstanceId,
@@ -95,4 +95,4 @@ void SubsystemIcon::leaveEvent(QEvent* event) {
     QWidget::leaveEvent(event);
 }
 
-} // namespace uniter::genwdg
+} // namespace genwdg

@@ -11,7 +11,7 @@
 #include <optional>
 #include <cstdint>
 
-namespace uniter::staticwdg {
+namespace staticwdg {
 
 class WorkBar : public QWidget {
     Q_OBJECT
@@ -45,6 +45,6 @@ protected:
     void paintEvent(QPaintEvent* event) override;
 };
 
-} // uniter::staticwdg
+} // staticwdg
 
 #endif // WORKBAR_H

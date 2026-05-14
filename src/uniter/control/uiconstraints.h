@@ -4,7 +4,7 @@
 #include <QSize>
 #include <QColor>
 
-namespace uniter::control {
+namespace control {
 
 // Constraints для главного окна
 struct MainWindowConstraints {
@@ -35,6 +35,6 @@ struct GenerativeTabConstraints {
     int fontSize = 13;
 };
 
-} // namespace uniter::control
+} // namespace control
 
 #endif // UICONSTRAINTS_H

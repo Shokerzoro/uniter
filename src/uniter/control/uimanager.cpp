@@ -6,7 +6,7 @@
 #include <QLabel>
 #include <QPainter>
 
-namespace uniter::control {
+namespace control {
 
 UIManager* UIManager::instance() {
     static UIManager s_instance;
@@ -130,4 +130,4 @@ void UIManager::applyGenerativeTabSettings(QWidget* tab) {
     }
 }
 
-} // namespace uniter::control
+} // namespace control

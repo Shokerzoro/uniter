@@ -13,7 +13,6 @@
 #include <QTranslator>
 #include <QThread>
 
-using namespace uniter;
 
 int main(int argc, char *argv[])
 {

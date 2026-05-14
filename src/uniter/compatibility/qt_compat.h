@@ -9,7 +9,7 @@
 #include <QString>
 #endif
 
-namespace uniter::compatibility {
+namespace compatibility {
 
 #ifdef QT_CORE_LIB
 inline std::chrono::system_clock::time_point qDateTimeToTimePoint(const QDateTime& value)
@@ -39,6 +39,6 @@ inline QDateTime timePointToQDateTime(const std::chrono::system_clock::time_poin
 }
 #endif
 
-} // namespace uniter::compatibility
+} // namespace compatibility
 
 #endif // UNITER_COMPATIBILITY_QT_COMPAT_H

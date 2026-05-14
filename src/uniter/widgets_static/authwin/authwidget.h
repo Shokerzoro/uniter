@@ -11,7 +11,7 @@
 #include <memory>
 
 
-namespace uniter::staticwdg {
+namespace staticwdg {
 
 class AuthWdg : public QWidget {
     Q_OBJECT
@@ -57,10 +57,10 @@ public slots:
     void onRememberCheckChanged(int state);
 
 signals:
-    void signalSendUniterMessage(std::shared_ptr<uniter::contract::UniterMessage> Message);
+    void signalSendUniterMessage(std::shared_ptr<contract::UniterMessage> Message);
 };
 
-} // namespace uniter::staticwdg
+} // namespace staticwdg
 
 
 #endif // AUTHWDG_H

@@ -24,7 +24,7 @@
 */
 
 
-namespace uniter::data {
+namespace data {
 
 class SubscribeAdaptor {
 
@@ -117,6 +117,6 @@ protected:
     void cancelTreeSubscription();
 };
 
-} // namespace uniter::data
+} // namespace data
 
 #endif // IDATAOBSERVER_H

@@ -9,7 +9,7 @@
 #include <QWidget>
 #include <QDebug>
 
-    namespace uniter::staticwdg {
+    namespace staticwdg {
 
     MainWidget::MainWidget(QWidget* parent) : QWidget(parent) {
 
@@ -156,5 +156,5 @@
     }
 
 
-} // namespace uniter::staticwdg
+} // namespace staticwdg
 

@@ -6,7 +6,7 @@
 #include <optional>
 #include <algorithm>
 
-namespace uniter::data {
+namespace data {
 
 DataManager* DataManager::instance()
 {
@@ -111,5 +111,5 @@ void DataManager::onGetResource(
 
 }
 
-} // namespace uniter::data
+} // namespace data
 

@@ -8,7 +8,7 @@
 #include <memory>
 #include <cstdint>
 
-namespace uniter::staticwdg {
+namespace staticwdg {
 
 
 WorkArea::WorkArea(QWidget* parent) : QWidget(parent) {
@@ -63,6 +63,6 @@ void WorkArea::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> mess
 
 
 
-} // uniter::staticwdg
+} // staticwdg
 
 

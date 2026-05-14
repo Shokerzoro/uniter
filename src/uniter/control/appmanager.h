@@ -9,7 +9,7 @@
 #include <optional>
 #include <memory>
 
-namespace uniter::control {
+namespace control {
 
     /*
      * AppManager — главный FSM приложения.
@@ -236,6 +236,6 @@ namespace uniter::control {
     };
 
 
-} // namespace uniter::control
+} // namespace control
 
 #endif // APPMANAGER_H

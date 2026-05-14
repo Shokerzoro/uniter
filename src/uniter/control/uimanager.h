@@ -7,7 +7,7 @@
 #include <QWidget>
 #include <memory>
 
-namespace uniter::control {
+namespace control {
 
 class UIManager {
 public:
@@ -45,6 +45,6 @@ private:
     GenerativeTabConstraints genTabConstr;
 };
 
-} // namespace uniter::control
+} // namespace control
 
 #endif // UIMANAGER_H

@@ -9,7 +9,7 @@
 #include <QStackedLayout>
 #include <QWidget>
 
-    namespace uniter::staticwdg {
+    namespace staticwdg {
 
     class MainWidget : public QWidget {
         Q_OBJECT
@@ -62,7 +62,7 @@
         void signalFindAuthData();
 };
 
-} // namespace uniter::staticwdg
+} // namespace staticwdg
 
 
 #endif // MAINWINDOW_H

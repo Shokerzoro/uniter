@@ -10,7 +10,7 @@
 #include <vector>
 
 
-namespace uniter::data {
+namespace data {
 
 class DataManager : public QObject
 {
@@ -85,6 +85,6 @@ signals:
     void signalDatabaseCleared();  // Менеджеру приложения: БД полностью очищена (DBCLEAR)
 };
 
-} // namespace uniter::data
+} // namespace data
 
 #endif // DATAMANAGER_H
