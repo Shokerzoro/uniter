@@ -6,6 +6,8 @@
 #include <QWidget>
 #include <QString>
 #include <QLabel>
+#include <optional>
+#include <cstdint>
 
 namespace uniter::genwdg {
 
@@ -14,8 +16,7 @@ class SubsystemIcon : public QWidget {
 
 public:
     explicit SubsystemIcon(contract::Subsystem subsystem,
-                           contract::GenSubsystemType genType,
-                           uint64_t genId,
+                           std::optional<uint64_t> subsystemInstanceId,
                            int index,
                            QWidget* parent = nullptr);
 signals:

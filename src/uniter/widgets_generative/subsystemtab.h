@@ -5,6 +5,7 @@
 #include "../contract/unitermessage.h"
 #include <cstdint>
 #include <QWidget>
+#include <optional>
 
 namespace uniter::genwdg {
 
@@ -14,8 +15,7 @@ class SubsystemTab : public QWidget {
 
 public:
     explicit SubsystemTab(contract::Subsystem subsystem,
-                     contract::GenSubsystemType genType,
-                     uint64_t genId,
+                     std::optional<uint64_t> subsystemInstanceId,
                      QWidget* parent = nullptr);
 
     // TODO: удалить конструкторы
@@ -30,8 +30,7 @@ public slots:
 
 private:
     contract::Subsystem subsystem;
-    contract::GenSubsystemType genType;
-    uint64_t genId;
+    std::optional<uint64_t> subsystemInstanceId = std::nullopt;
 };
 
 

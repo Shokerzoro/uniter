@@ -6,43 +6,34 @@
 namespace uniter::genwdg {
 
 SubsystemTab::SubsystemTab(contract::Subsystem subsystem,
-                   contract::GenSubsystemType genType,
-                   uint64_t genId,
+                   std::optional<uint64_t> subsystemInstanceId,
                    QWidget* parent)
-    : QWidget(parent), subsystem(subsystem), genType(genType), genId(genId) {
+    : QWidget(parent), subsystem(subsystem), subsystemInstanceId(subsystemInstanceId) {
 
     QString fullName;
 
-    if (subsystem == contract::Subsystem::GENERATIVE) {
-        switch (genType) {
-        case contract::GenSubsystemType::INTERGATION:
-            fullName = "Integration";
-            break;
-        case contract::GenSubsystemType::PRODUCTION:
-            fullName = "Production";
-            break;
-        default:
-            fullName = "Unknown";
-            break;
-        }
-    } else {
-        switch (subsystem) {
-        case contract::Subsystem::DESIGN:
-            fullName = "Design";
-            break;
-        case contract::Subsystem::MANAGER:
-            fullName = "Manager";
-            break;
-        case contract::Subsystem::MATERIALS:
-            fullName = "Materials";
-            break;
-        case contract::Subsystem::PURCHASES:
-            fullName = "Purchases";
-            break;
-        default:
-            fullName = "Unknown";
-            break;
-        }
+    switch (subsystem) {
+    case contract::Subsystem::DESIGN:
+        fullName = "Design";
+        break;
+    case contract::Subsystem::MANAGER:
+        fullName = "Manager";
+        break;
+    case contract::Subsystem::MATERIALS:
+        fullName = "Materials";
+        break;
+    case contract::Subsystem::PURCHASES:
+        fullName = "Purchases";
+        break;
+    case contract::Subsystem::PRODUCTION:
+        fullName = "Production";
+        break;
+    case contract::Subsystem::INTEGRATION:
+        fullName = "Integration";
+        break;
+    default:
+        fullName = "Unknown";
+        break;
     }
 
     // Создаем QLabel с полным текстом + "subsystem"
@@ -62,6 +53,7 @@ SubsystemTab::SubsystemTab(contract::Subsystem subsystem,
 
 void SubsystemTab::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> message) {
     message->subsystem = subsystem;
+    message->subsystemInstanceId = subsystemInstanceId;
     emit signalSendUniterMessage(message);
 }
 

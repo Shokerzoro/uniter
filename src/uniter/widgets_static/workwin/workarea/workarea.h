@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <cstdint>
+#include <optional>
 
 namespace uniter::staticwdg {
 
@@ -20,8 +21,7 @@ public:
 
     // Вызывается WorkWdg при добавлении подсистемы
     void addSubsystem(contract::Subsystem subsystem,
-                      contract::GenSubsystemType genType,
-                      uint64_t genId,
+                      std::optional<uint64_t> subsystemInstanceId,
                       int index);
 
     // Вызывается WorkWdg при удалении подсистемы

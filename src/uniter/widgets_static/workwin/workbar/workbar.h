@@ -8,6 +8,8 @@
 #include <QPushButton>
 #include <map>
 #include <memory>
+#include <optional>
+#include <cstdint>
 
 namespace uniter::staticwdg {
 
@@ -18,8 +20,7 @@ public:
     explicit WorkBar(QWidget* parent = nullptr);
 
     void addSubsystem(contract::Subsystem subsystem,
-                      contract::GenSubsystemType genType,
-                      uint64_t genId,
+                      std::optional<uint64_t> subsystemInstanceId,
                       int index);
     void removeSubsystem(int index);
 

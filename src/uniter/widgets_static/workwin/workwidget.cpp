@@ -54,47 +54,41 @@ void WorkWdg::onSendUniterMessage(std::shared_ptr<contract::UniterMessage> messa
 }
 
 void WorkWdg::onSubsystemAdded(contract::Subsystem subsystem,
-                               contract::GenSubsystemType genType,
-                               std::optional<uint64_t> genId,
+                               std::optional<uint64_t> subsystemInstanceId,
                                bool created) {
 
     qDebug() << "WorkWdg::onSubsystemAdded() -" << subsystem << (created ? "ADD" : "REMOVE");
 
     if (created) {
-        addSubsystem(subsystem, genType, genId);
+        addSubsystem(subsystem, subsystemInstanceId);
     } else {
-        removeSubsystem(subsystem, genType, genId);
+        removeSubsystem(subsystem, subsystemInstanceId);
     }
 }
 
 void WorkWdg::addSubsystem(contract::Subsystem subsystem,
-                           contract::GenSubsystemType genType,
-                           std::optional<uint64_t> genId) {
+                           std::optional<uint64_t> subsystemInstanceId) {
 
     qDebug() << "WorkWdg::addSubsystem():" << subsystem;
 
     // Выделяем индекс для новой подсистемы
     int index = nextIndex++;
-    uint64_t genId_ = (genId == std::nullopt) ? 0 : genId.value();
-
     // Добавляем в map активных подсистем
     indexToSubsystem.insert_or_assign(
         index,
-        ActiveSubsystem{subsystem, genType, genId_}
+        ActiveSubsystem{subsystem, subsystemInstanceId}
     );
 
     // Вызываем методы WorkBar и WorkArea для добавления подсистемы
-    workbar->addSubsystem(subsystem, genType, genId_, index);  // TODO: получить правильное имя
-    workArea->addSubsystem(subsystem, genType, genId_, index);
+    workbar->addSubsystem(subsystem, subsystemInstanceId, index);  // TODO: получить правильное имя
+    workArea->addSubsystem(subsystem, subsystemInstanceId, index);
 }
 
 void WorkWdg::removeSubsystem(contract::Subsystem subsystem,
-                              contract::GenSubsystemType genType,
-                              std::optional<uint64_t> genId) {
+                              std::optional<uint64_t> subsystemInstanceId) {
     int index = -1;
-    uint64_t genId_ = (genId == std::nullopt) ? 0 : genId.value();
 
-    if (findIndex(subsystem, genType, genId_, index)) {
+    if (findIndex(subsystem, subsystemInstanceId, index)) {
         indexToSubsystem.erase(index);
         workbar->removeSubsystem(index);
         workArea->removeSubsystem(index);
@@ -102,15 +96,11 @@ void WorkWdg::removeSubsystem(contract::Subsystem subsystem,
 }
 
 bool WorkWdg::findIndex(contract::Subsystem subsystem,
-                        contract::GenSubsystemType genType,
-                        std::optional<uint64_t> genId,
+                        std::optional<uint64_t> subsystemInstanceId,
                         int& outIndex) const {
-    uint64_t genId_ = (genId == std::nullopt) ? 0 : genId.value();
-
     for (const auto& [idx, active] : indexToSubsystem) {
         if (active.subsystem == subsystem &&
-            active.genType == genType &&
-            active.genId == genId_) {
+            active.subsystemInstanceId == subsystemInstanceId) {
             outIndex = idx;
             return true;
         }

@@ -43,8 +43,7 @@ signals:
 
     // Для каждой назначенной пользователю подсистемы
     void signalSubsystemAdded(contract::Subsystem subsystem,
-                              contract::GenSubsystemType genType,
-                              std::optional<uint64_t> genId,
+                              std::optional<uint64_t> subsystemInstanceId,
                               bool created);
 };
 

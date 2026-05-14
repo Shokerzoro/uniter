@@ -44,14 +44,13 @@ WorkBar::WorkBar(QWidget* parent) : QWidget(parent) {
 }
 
 void WorkBar::addSubsystem(contract::Subsystem subsystem,
-                           contract::GenSubsystemType genType,
-                           uint64_t genId,
+                           std::optional<uint64_t> subsystemInstanceId,
                            int index) {
 
     qDebug() << "WorkBar::addSubsystem():" << subsystem;
 
     // Создаём новую иконку
-    auto* icon = new genwdg::SubsystemIcon(subsystem, genType, genId, index);
+    auto* icon = new genwdg::SubsystemIcon(subsystem, subsystemInstanceId, index);
 
     // Сохраняем в map
     subsystemIcons[index] = icon;

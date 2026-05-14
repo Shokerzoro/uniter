@@ -20,7 +20,6 @@ std::shared_ptr<uniter::contract::employees::Employee> makeFullAccessUser()
     namespace C = uniter::contract;
     namespace E = uniter::contract::employees;
     using C::Subsystem;
-    using C::GenSubsystemType;
     using E::EmployeeAssignment;
     using E::Employee;
 
@@ -51,8 +50,7 @@ std::shared_ptr<uniter::contract::employees::Employee> makeFullAccessUser()
     auto makeAssign = [](Subsystem s, std::vector<uint8_t> perms) {
         EmployeeAssignment a;
         a.subsystem     = s;
-        a.genSubsystem  = GenSubsystemType::NOTGEN;
-        a.genId         = std::nullopt;
+        a.subsystemInstanceId = std::nullopt;
         a.permissions   = std::move(perms);
         return a;
     };

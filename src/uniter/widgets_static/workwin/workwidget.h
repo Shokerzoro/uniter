@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <cstdint>
+#include <optional>
 
 namespace uniter::staticwdg {
 
@@ -20,8 +21,7 @@ public:
 public slots:
     void onSendUniterMessage(std::shared_ptr<contract::UniterMessage> message);
     void onSubsystemAdded(contract::Subsystem subsystem,
-                          contract::GenSubsystemType genType,
-                          std::optional<uint64_t> genId,
+                          std::optional<uint64_t> subsystemInstanceId,
                           bool created);
 
 signals:
@@ -35,15 +35,12 @@ private:
     // Вектор активных подсистем
     struct ActiveSubsystem {
         ActiveSubsystem(contract::Subsystem subsystem_,
-                        contract::GenSubsystemType genType_,
-                        uint64_t genId_)
+                        std::optional<uint64_t> subsystemInstanceId_)
             : subsystem{subsystem_}
-            , genType{genType_}
-            , genId{genId_}
+            , subsystemInstanceId{subsystemInstanceId_}
         {}
         contract::Subsystem subsystem;
-        contract::GenSubsystemType genType;
-        uint64_t genId = 0;
+        std::optional<uint64_t> subsystemInstanceId = std::nullopt;
     };
 
     int nextIndex = 0;
@@ -52,15 +49,12 @@ private:
 
     // Приватные методы
     bool findIndex(contract::Subsystem subsystem,
-                   contract::GenSubsystemType genType,
-                   std::optional<uint64_t> genId,
+                   std::optional<uint64_t> subsystemInstanceId,
                    int& outIndex) const;
     void addSubsystem(contract::Subsystem subsystem,
-                      contract::GenSubsystemType genType,
-                      std::optional<uint64_t> genId);
+                      std::optional<uint64_t> subsystemInstanceId);
     void removeSubsystem(contract::Subsystem subsystem,
-                         contract::GenSubsystemType genType,
-                         std::optional<uint64_t> genId);
+                         std::optional<uint64_t> subsystemInstanceId);
 };
 
 } // uniter::staticwdg

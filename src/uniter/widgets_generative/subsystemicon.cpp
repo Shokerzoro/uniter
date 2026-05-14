@@ -9,41 +9,34 @@
 namespace uniter::genwdg {
 
 SubsystemIcon::SubsystemIcon(contract::Subsystem subsystem,
-                             contract::GenSubsystemType genType,
-                             uint64_t genId,
+                             std::optional<uint64_t> subsystemInstanceId,
                              int index,
                              QWidget* parent)
     : QWidget(parent), index(index) {
+    (void)subsystemInstanceId;
 
     QString name;
-    if (subsystem == contract::Subsystem::GENERATIVE) {
-        switch (genType) {
-        case contract::GenSubsystemType::INTERGATION:
-            name = "IGR";
-            break;
-        case contract::GenSubsystemType::PRODUCTION:
-            name = "PRD";
-            break;
-        default:
-            break;
-        }
-    } else {
-        switch (subsystem) {
-        case contract::Subsystem::DESIGN:
-            name = "DGN";
-            break;
-        case contract::Subsystem::MANAGER:
-            name = "MGR";
-            break;
-        case contract::Subsystem::MATERIALS:
-            name = "MTR";
-            break;
-        case contract::Subsystem::PURCHASES:
-            name = "PRCH";
-            break;
-        default:
-            break;
-        }
+    switch (subsystem) {
+    case contract::Subsystem::DESIGN:
+        name = "DGN";
+        break;
+    case contract::Subsystem::MANAGER:
+        name = "MGR";
+        break;
+    case contract::Subsystem::MATERIALS:
+        name = "MTR";
+        break;
+    case contract::Subsystem::PURCHASES:
+        name = "PRCH";
+        break;
+    case contract::Subsystem::PRODUCTION:
+        name = "PRD";
+        break;
+    case contract::Subsystem::INTEGRATION:
+        name = "IGR";
+        break;
+    default:
+        break;
     }
 
     // Создаем QLabel с текстом

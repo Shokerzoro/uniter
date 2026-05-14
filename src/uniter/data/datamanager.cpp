@@ -56,10 +56,12 @@ void DataManager::onClearDatabase()
 }
 
 void DataManager::onSubsystemGenerate(contract::Subsystem subsystem,
-                                      contract::GenSubsystemType genType,
-                                      std::optional<uint64_t> genId,
+                                      std::optional<uint64_t> subsystemInstanceId,
                                       bool created)
 {
+    (void)subsystem;
+    (void)subsystemInstanceId;
+    (void)created;
     // TODO: реализация
 }
 

@@ -34,15 +34,9 @@ void ConfigManager::onConfigProc(std::shared_ptr<contract::employees::Employee> 
 
         bool created = true;
         contract::Subsystem subsystem = assign.subsystem;
-        contract::GenSubsystemType genType = contract::GenSubsystemType::NOTGEN;
-        std::optional<uint64_t> genId = std::nullopt;
+        std::optional<uint64_t> subsystemInstanceId = assign.subsystemInstanceId;
 
-        if (subsystem == contract::Subsystem::GENERATIVE) {
-            genType = assign.genSubsystem;
-            genId = assign.genId;
-        }
-
-        emit signalSubsystemAdded(subsystem, genType, genId, created);
+        emit signalSubsystemAdded(subsystem, subsystemInstanceId, created);
     }
 
     qDebug() << "ConfigManager::onConfigProc() - Configuration completed, emit signalConfigured()";
@@ -64,15 +58,9 @@ void ConfigManager::onClearResources()
 
         bool created = false; // ← в отличие от onConfigProc()
         contract::Subsystem subsystem = assign.subsystem;
-        contract::GenSubsystemType genType = contract::GenSubsystemType::NOTGEN;
-        std::optional<uint64_t> genId = std::nullopt;
+        std::optional<uint64_t> subsystemInstanceId = assign.subsystemInstanceId;
 
-        if (subsystem == contract::Subsystem::GENERATIVE) {
-            genType = assign.genSubsystem;
-            genId = assign.genId;
-        }
-
-        emit signalSubsystemAdded(subsystem, genType, genId, created);
+        emit signalSubsystemAdded(subsystem, subsystemInstanceId, created);
     }
 
     // Освобождаем пользователя

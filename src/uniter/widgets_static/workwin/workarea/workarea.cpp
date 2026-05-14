@@ -18,13 +18,12 @@ WorkArea::WorkArea(QWidget* parent) : QWidget(parent) {
 }
 
 void WorkArea::addSubsystem(contract::Subsystem subsystem,
-                            contract::GenSubsystemType genType,
-                            uint64_t genId,
+                            std::optional<uint64_t> subsystemInstanceId,
                             int index) {
 
     qDebug() << "WorkArea::addSubsystem():" << subsystem;
 
-    auto* subsWdg = new genwdg::SubsystemTab(subsystem, genType, genId, this);
+    auto* subsWdg = new genwdg::SubsystemTab(subsystem, subsystemInstanceId, this);
 
     subsystemWidgets[index] = subsWdg;
     stackedLayout->addWidget(subsWdg);

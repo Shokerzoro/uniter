@@ -133,13 +133,13 @@ set(RESOUCES_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchase.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/supply/purchasecomplex.h
 
-    # --- Subsystem::GENERATIVE / GenSubsystem::PRODUCTION ----------------
+    # --- Subsystem::PRODUCTION ----------------
     ${CMAKE_CURRENT_LIST_DIR}/contract/production/productiontypes.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/production/productiontask.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/production/productionstock.h
     ${CMAKE_CURRENT_LIST_DIR}/contract/production/productionsupply.h
 
-    # --- Subsystem::GENERATIVE / GenSubsystem::INTERGATION ---------------
+    # --- Subsystem::INTEGRATION ---------------
     ${CMAKE_CURRENT_LIST_DIR}/contract/integration/integrationtask.h
 )
 
