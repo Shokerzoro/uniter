@@ -1,7 +1,8 @@
 #include "../src/uniter/control/appmanager.h"
 #include "../src/uniter/control/configmanager.h"
 #include "../src/uniter/contract/unitermessage.h"
-#include "../src/uniter/contract/resourceabstract.h"
+#include "../src/uniter/contract/qt_compat.h"
+#include "../src/uniter/contract/common/resourceabstract.h"
 #include "../src/uniter/contract/manager/employee.h"
 #include "../src/uniter/contract/supply/purchase.h"
 
@@ -75,10 +76,11 @@ public:
 
         auto newPurch = std::make_shared<contract::supply::Purchase>(
             1001, true,
-            QDateTime::currentDateTime(), QDateTime::currentDateTime(),
+            contract::qt_compat::qDateTimeToTimePoint(QDateTime::currentDateTime()),
+            contract::qt_compat::qDateTimeToTimePoint(QDateTime::currentDateTime()),
             12345, 12345,
-            QString("Закупка стали 10т"),
-            QString("Нужна сталь для проекта #47"),
+            "Закупка стали 10т",
+            "Нужна сталь для проекта #47",
             contract::supply::PurchStatus::DRAFT,
             std::nullopt);
         crudMessage->resource = std::move(newPurch);
@@ -97,10 +99,11 @@ public:
         std::vector<contract::employees::EmployeeAssignment> assignments;
         auto employee = std::make_shared<contract::employees::Employee>(
             12345, true,
-            QDateTime::currentDateTime(), QDateTime::currentDateTime(),
+            contract::qt_compat::qDateTimeToTimePoint(QDateTime::currentDateTime()),
+            contract::qt_compat::qDateTimeToTimePoint(QDateTime::currentDateTime()),
             0, 0,
-            QString("Иван"), QString("Иванов"), QString("Иванович"),
-            QString("ivan@company.ru"),
+            "Иван", "Иванов", "Иванович",
+            "ivan@company.ru",
             std::move(assignments));
         authMessageSuccess->resource = std::move(employee);
 

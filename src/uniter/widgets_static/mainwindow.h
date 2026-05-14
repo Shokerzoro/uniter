@@ -2,7 +2,7 @@
 #define MAINWINDOW_H
 
 #include "../contract/unitermessage.h"
-#include "../contract/resourceabstract.h"
+#include "../contract/common/resourceabstract.h"
 #include "./authwin/authwidget.h"
 #include "./offlinewin/offlinewdg.h"
 #include "./workwin/workwidget.h"

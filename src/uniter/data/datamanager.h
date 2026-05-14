@@ -2,8 +2,8 @@
 #define DATAMANAGER_H
 
 #include "../contract/unitermessage.h"
-#include "../contract/resourceabstract.h"
-#include "idataobserver.h"
+#include "../contract/common/resourceabstract.h"
+#include "dataadapter.h"
 #include <QObject>
 #include <QByteArray>
 #include <memory>

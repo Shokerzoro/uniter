@@ -2,6 +2,7 @@
 #include "serverconnector.h"
 
 #include "../contract/unitermessage.h"
+#include "../contract/qt_compat.h"
 #include "../contract/manager/employee.h"
 #include "../contract/manager/permissions.h"
 
@@ -26,14 +27,14 @@ std::shared_ptr<contract::employees::Employee> makeFullAccessUser()
     auto user = std::make_shared<Employee>(
         /*sid*/ 1,
         /*actual*/ true,
-        QDateTime::currentDateTime(),
-        QDateTime::currentDateTime(),
+        contract::qt_compat::qDateTimeToTimePoint(QDateTime::currentDateTime()),
+        contract::qt_compat::qDateTimeToTimePoint(QDateTime::currentDateTime()),
         /*created_by*/ 0,
         /*updated_by*/ 0,
-        QStringLiteral("Test"),
-        QStringLiteral("User"),
-        QStringLiteral("Stub"),
-        QStringLiteral("test.user@example.com"),
+        "Test",
+        "User",
+        "Stub",
+        "test.user@example.com",
         std::vector<EmployeeAssignment>{}
     );
 

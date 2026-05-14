@@ -1,5 +1,4 @@
 include(${CMAKE_CURRENT_LIST_DIR}/blogic/sources.cmake)
-include(${CMAKE_CURRENT_LIST_DIR}/compatibility/sources.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/contract/sources.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/control/sources.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/data/sources.cmake)
@@ -12,7 +11,6 @@ include(${CMAKE_CURRENT_LIST_DIR}/widgets_static/sources.cmake)
 
 set(UNITER_SOURCES
     ${UNITER_BLOGIC_SOURCES}
-    ${UNITER_COMPATIBILITY_SOURCES}
     ${UNITER_CONTRACT_SOURCES}
     ${UNITER_CONTROL_SOURCES}
     ${UNITER_DATA_SOURCES}

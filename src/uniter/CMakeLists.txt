@@ -60,6 +60,10 @@ target_compile_definitions(Uniter PRIVATE
     BUILD_TIME="${BUILD_TIME}"
 )
 
+if(CLIENT_BUILD)
+    target_compile_definitions(Uniter PRIVATE CLIENT_BUILD)
+endif()
+
 # ─── Статическая линковка runtime для Release ─────────────────────────────
 # -static-libgcc -static-libstdc++ добавляем только в Release,
 # чтобы exe не зависел от MinGW runtime DLL.

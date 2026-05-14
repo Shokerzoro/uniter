@@ -9,6 +9,10 @@ add_executable(UniterTests
     ${UNITER_SOURCES}
 )
 
+if(CLIENT_BUILD)
+    target_compile_definitions(UniterTests PRIVATE CLIENT_BUILD)
+endif()
+
 # ─── Зависимости через DevKit ────────────────────────────────────────────────
 # ВАЖНО: все Qt-модули объединены в ОДИН вызов devkit_use_qt_*.
 # Повторный вызов devkit_use_qt_* для того же таргета порождает повторный

@@ -40,6 +40,9 @@ message(STATUS "[Uniter] RELEASE       : ${RELEASE}")
 message(STATUS "[Uniter] DEBUG_INFO    : ${DEBUG_INFO}")
 message(STATUS "[Uniter] Qt dynamic    : ${DEVKIT_QT_DYNAMIC}")
 
+set(CLIENT_BUILD ON CACHE BOOL "Build Uniter client-side code")
+message(STATUS "[Uniter] CLIENT_BUILD  : ${CLIENT_BUILD}")
+
 #===============================================================================
 # 3. GOOGLE TESTS — остаётся через FetchContent
 #===============================================================================

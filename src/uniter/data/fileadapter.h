@@ -1,0 +1,10 @@
+//
+// Created by ACA on 14.05.2026.
+//
+
+#ifndef UNITER_FILEADAPTER_H
+#define UNITER_FILEADAPTER_H
+
+
+
+#endif //UNITER_FILEADAPTER_H

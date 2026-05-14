@@ -2,7 +2,7 @@
 #define IDATAOBSERVER_H
 
 #include "../contract/unitermessage.h"
-#include "../contract/resourceabstract.h"
+#include "../contract/common/resourceabstract.h"
 #include <QObject>
 #include <memory>
 #include <vector>

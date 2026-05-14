@@ -1,4 +1,5 @@
-#include "idataobserver.h"
+
+#include "dataadapter.h"
 #include "datamanager.h"
 
 namespace data {
