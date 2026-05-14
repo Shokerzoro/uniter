@@ -5,21 +5,7 @@ include(sources.cmake)
 # WIN32 — скрываем консольное окно (эквивалент qt_add_executable WIN32)
 add_executable(Uniter WIN32
     main.cpp
-
-    # UI Layer
-    ${STATIC_WIDGETS_SOURCES}
-    ${GENERATIVE_WIDGETS_SOURCES}
-    ${DYNAMIC_WIDGETS_SOURCES}
-    #BUSYNESS LOGIC LAYER
-    ${BLOGIC_SOURCES}
-    # Data layer
-    ${DATA_SOURCES}
-    # Control layer
-    ${CONTROL_SOURCES}
-    # Net layer
-    ${NETWORK_SOURCES}
-    # Contract (client/server)
-    ${CONTRACT_SOURCES}
+    ${UNITER_SOURCES}
 )
 
 target_include_directories(Uniter

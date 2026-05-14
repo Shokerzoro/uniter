@@ -1,0 +1,9 @@
+set(UNITER_CONTROL_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/appmanager.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/appmanager.h
+    ${CMAKE_CURRENT_LIST_DIR}/configmanager.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/configmanager.h
+    ${CMAKE_CURRENT_LIST_DIR}/uimanager.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/uimanager.h
+    ${CMAKE_CURRENT_LIST_DIR}/uiconstraints.h
+)

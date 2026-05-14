@@ -1,0 +1,14 @@
+set(UNITER_WIDGETS_STATIC_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/mainwindow.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/mainwindow.h
+    ${CMAKE_CURRENT_LIST_DIR}/authwin/authwidget.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/authwin/authwidget.h
+    ${CMAKE_CURRENT_LIST_DIR}/offlinewin/offlinewdg.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/offlinewin/offlinewdg.h
+    ${CMAKE_CURRENT_LIST_DIR}/workwin/workwidget.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/workwin/workwidget.h
+    ${CMAKE_CURRENT_LIST_DIR}/workwin/workbar/workbar.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/workwin/workbar/workbar.h
+    ${CMAKE_CURRENT_LIST_DIR}/workwin/workarea/workarea.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/workwin/workarea/workarea.h
+)
