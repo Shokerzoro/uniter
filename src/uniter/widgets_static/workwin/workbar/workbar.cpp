@@ -8,6 +8,7 @@
 #include <QBoxLayout>
 #include <QPainter>
 #include <QPushButton>
+#include <QDebug>
 #include <QString>
 
 namespace staticwdg {

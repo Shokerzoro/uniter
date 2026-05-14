@@ -4,6 +4,7 @@
 #include "workarea.h"
 #include <QWidget>
 #include <QStackedLayout>
+#include <QDebug>
 #include <map>
 #include <memory>
 #include <cstdint>

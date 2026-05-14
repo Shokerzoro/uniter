@@ -9,6 +9,7 @@
 #include "../common/appfuncs.h"
 
 #include <QApplication>
+#include <QDebug>
 #include <QLocale>
 #include <QTranslator>
 #include <QThread>

@@ -2,6 +2,7 @@
 #include "../contract/unitermessage.h"
 #include "../contract/manager/employee.h"
 #include "configmanager.h"
+#include <QDebug>
 #include <QObject>
 #include <memory>
 
